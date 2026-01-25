@@ -20,9 +20,11 @@ This library provides the foundational capabilities for working with Codex docum
 - **Document Builder** - Fluent API for creating documents programmatically
 - **Metadata** - Dublin Core metadata support
 - **Presentation Layers** - Paginated and continuous presentation types
-- **Digital Signatures** - ECDSA P-256 (ES256) signing and verification
+- **Digital Signatures** - ECDSA P-256 (ES256) and Ed25519 signing and verification
+- **Encryption** - AES-256-GCM content encryption
 - **Asset Management** - Embed and manage images, fonts, and files
 - **Document Verification** - Verify content hashes and document integrity
+- **Provenance** - Merkle trees, block proofs, and timestamp support for content lineage
 - **Multiple Hash Algorithms** - SHA-256 (default), SHA-3, and BLAKE3
 - **Zstandard Compression** - Optional high-ratio compression support
 - **WASM Compatible** - Compile to WebAssembly with the `wasm` feature
@@ -33,7 +35,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-cdx-core = "0.1"
+cdx-core = "0.3"
 ```
 
 ### Feature Flags
@@ -41,7 +43,9 @@ cdx-core = "0.1"
 | Feature | Default | Description |
 |---------|---------|-------------|
 | `zstd` | Yes | Zstandard compression support |
-| `signatures` | Yes | Digital signature support (ES256) |
+| `signatures` | Yes | ECDSA P-256 digital signatures (ES256) |
+| `encryption` | No | AES-256-GCM content encryption |
+| `eddsa` | No | Ed25519 digital signatures |
 | `wasm` | No | WASM compilation support |
 | `full` | No | All features enabled |
 
@@ -151,17 +155,18 @@ This library implements the [Codex Document Format Specification v0.1](https://g
 | Dublin Core Metadata | Complete |
 | Presentation Layers | Complete |
 | Asset Management | Complete |
-| Digital Signatures | Complete |
+| Digital Signatures | Complete (ECDSA + EdDSA) |
 | Document Hashing | Complete |
 | State Machine | Complete |
-| Encryption | Planned (v0.2) |
-| Merkle Proofs | Planned (v0.3) |
+| Encryption | Complete (AES-256-GCM) |
+| Merkle Proofs | Complete |
+| Provenance & Lineage | Complete |
 
 ## Development
 
 ### Prerequisites
 
-- Rust 1.75 or later
+- Rust 1.85 or later (MSRV)
 - Cargo
 
 ### Building
