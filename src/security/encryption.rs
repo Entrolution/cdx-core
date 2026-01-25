@@ -191,6 +191,7 @@ impl Aes256GcmEncryptor {
                 reason: format!("Failed to create cipher: {e}"),
             })?;
 
+        #[allow(deprecated)] // generic-array 1.x transition
         let nonce_obj = Nonce::from_slice(nonce);
         let ciphertext =
             cipher
@@ -235,6 +236,7 @@ impl Aes256GcmEncryptor {
                 reason: format!("Failed to create cipher: {e}"),
             })?;
 
+        #[allow(deprecated)] // generic-array 1.x transition
         let nonce_obj = Nonce::from_slice(&nonce);
         cipher
             .decrypt(nonce_obj, ciphertext)
