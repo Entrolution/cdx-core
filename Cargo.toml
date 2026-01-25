@@ -21,7 +21,7 @@ zstd = ["zip/zstd"]
 signatures = ["dep:p256", "dep:ecdsa", "dep:base64", "dep:rand_core"]
 encryption = ["dep:aes-gcm", "dep:rand_core"]
 eddsa = ["dep:ed25519-dalek", "dep:rand_core"]
-wasm = ["getrandom/js"]
+wasm = ["getrandom/wasm_js"]
 full = ["zstd", "signatures", "encryption", "eddsa"]
 
 [dependencies]
@@ -57,7 +57,7 @@ chrono = { version = "0.4", features = ["serde", "now"], default-features = fals
 thiserror = "2.0"
 
 # Random for WASM
-getrandom = "0.2"
+getrandom = "0.3"
 
 [dev-dependencies]
 tempfile = "3.14"
