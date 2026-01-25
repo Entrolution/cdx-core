@@ -143,10 +143,7 @@ impl Aes256GcmEncryptor {
     /// Returns an error if the key is not 32 bytes.
     pub fn new(key: &[u8]) -> Result<Self> {
         let key: [u8; 32] = key.try_into().map_err(|_| crate::Error::InvalidManifest {
-            reason: format!(
-                "Invalid key length: expected 32 bytes, got {}",
-                key.len()
-            ),
+            reason: format!("Invalid key length: expected 32 bytes, got {}", key.len()),
         })?;
         Ok(Self { key })
     }
@@ -189,18 +186,18 @@ impl Aes256GcmEncryptor {
             Aes256Gcm, Nonce,
         };
 
-        let cipher = Aes256Gcm::new_from_slice(&self.key).map_err(|e| {
-            crate::Error::InvalidManifest {
+        let cipher =
+            Aes256Gcm::new_from_slice(&self.key).map_err(|e| crate::Error::InvalidManifest {
                 reason: format!("Failed to create cipher: {e}"),
-            }
-        })?;
+            })?;
 
         let nonce_obj = Nonce::from_slice(nonce);
-        let ciphertext = cipher.encrypt(nonce_obj, plaintext).map_err(|e| {
-            crate::Error::InvalidManifest {
-                reason: format!("Encryption failed: {e}"),
-            }
-        })?;
+        let ciphertext =
+            cipher
+                .encrypt(nonce_obj, plaintext)
+                .map_err(|e| crate::Error::InvalidManifest {
+                    reason: format!("Encryption failed: {e}"),
+                })?;
 
         // GCM appends the tag to the ciphertext
         let tag_start = ciphertext.len().saturating_sub(16);
@@ -224,25 +221,26 @@ impl Aes256GcmEncryptor {
             Aes256Gcm, Nonce,
         };
 
-        let nonce: [u8; 12] = nonce.try_into().map_err(|_| crate::Error::InvalidManifest {
-            reason: format!(
-                "Invalid nonce length: expected 12 bytes, got {}",
-                nonce.len()
-            ),
-        })?;
+        let nonce: [u8; 12] = nonce
+            .try_into()
+            .map_err(|_| crate::Error::InvalidManifest {
+                reason: format!(
+                    "Invalid nonce length: expected 12 bytes, got {}",
+                    nonce.len()
+                ),
+            })?;
 
-        let cipher = Aes256Gcm::new_from_slice(&self.key).map_err(|e| {
-            crate::Error::InvalidManifest {
+        let cipher =
+            Aes256Gcm::new_from_slice(&self.key).map_err(|e| crate::Error::InvalidManifest {
                 reason: format!("Failed to create cipher: {e}"),
-            }
-        })?;
+            })?;
 
         let nonce_obj = Nonce::from_slice(&nonce);
-        cipher.decrypt(nonce_obj, ciphertext).map_err(|e| {
-            crate::Error::InvalidManifest {
+        cipher
+            .decrypt(nonce_obj, ciphertext)
+            .map_err(|e| crate::Error::InvalidManifest {
                 reason: format!("Decryption failed: {e}"),
-            }
-        })
+            })
     }
 }
 

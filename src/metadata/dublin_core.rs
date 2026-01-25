@@ -273,7 +273,10 @@ mod tests {
         }"#;
         let dc: DublinCore = serde_json::from_str(json).unwrap();
         assert_eq!(dc.title(), "Annual Report 2025");
-        assert_eq!(dc.description(), Some("Comprehensive annual financial report"));
+        assert_eq!(
+            dc.description(),
+            Some("Comprehensive annual financial report")
+        );
         assert_eq!(dc.language(), Some("en"));
     }
 }

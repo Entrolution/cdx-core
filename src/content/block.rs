@@ -595,9 +595,7 @@ mod tests {
     fn test_code_block() {
         let block = Block::code_block("fn main() {}", Some("rust".to_string()));
         if let Block::CodeBlock {
-            language,
-            children,
-            ..
+            language, children, ..
         } = &block
         {
             assert_eq!(language.as_deref(), Some("rust"));
@@ -657,7 +655,10 @@ mod tests {
             "children": [{"value": "Section"}]
         }"#;
         let block: Block = serde_json::from_str(json).unwrap();
-        if let Block::Heading { level, children, .. } = block {
+        if let Block::Heading {
+            level, children, ..
+        } = block
+        {
             assert_eq!(level, 2);
             assert_eq!(children[0].value, "Section");
         } else {

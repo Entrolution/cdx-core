@@ -10,7 +10,7 @@
 use cdx_core::{Document, Result};
 
 #[cfg(feature = "signatures")]
-use cdx_core::security::{EcdsaSigner, SignerInfo, Signer};
+use cdx_core::security::{EcdsaSigner, Signer, SignerInfo};
 
 fn main() -> Result<()> {
     // Create a sample document

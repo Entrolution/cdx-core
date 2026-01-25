@@ -175,11 +175,12 @@ impl Verifier for EddsaVerifier {
             })?;
 
         // Parse signature
-        let sig_array: [u8; 64] = sig_bytes.try_into().map_err(|_| {
-            crate::Error::InvalidManifest {
-                reason: "Invalid EdDSA signature length (expected 64 bytes)".to_string(),
-            }
-        })?;
+        let sig_array: [u8; 64] =
+            sig_bytes
+                .try_into()
+                .map_err(|_| crate::Error::InvalidManifest {
+                    reason: "Invalid EdDSA signature length (expected 64 bytes)".to_string(),
+                })?;
         let eddsa_sig = ed25519_dalek::Signature::from_bytes(&sig_array);
 
         // Verify

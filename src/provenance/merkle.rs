@@ -138,7 +138,8 @@ impl MerkleTree {
         let leaf_count = hashes.len();
 
         // Create leaf nodes
-        let mut nodes: Vec<MerkleNode> = hashes.iter().map(|h| MerkleNode::leaf(h.clone())).collect();
+        let mut nodes: Vec<MerkleNode> =
+            hashes.iter().map(|h| MerkleNode::leaf(h.clone())).collect();
 
         // Build tree bottom-up
         while nodes.len() > 1 {
@@ -230,8 +231,14 @@ fn collect_proof_path(
     }
 
     let mid = current_start + level_size / 2;
-    let left = node.left.as_ref().expect("branch node should have left child");
-    let right = node.right.as_ref().expect("branch node should have right child");
+    let left = node
+        .left
+        .as_ref()
+        .expect("branch node should have left child");
+    let right = node
+        .right
+        .as_ref()
+        .expect("branch node should have right child");
 
     if target_index < mid {
         // Target is in left subtree, recurse first then add sibling

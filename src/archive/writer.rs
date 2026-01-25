@@ -143,7 +143,12 @@ impl<W: Write + Seek> CdxWriter<W> {
     /// - The path contains traversal patterns (security check)
     /// - Writing fails
     /// - A file with the same path already exists
-    pub fn write_file(&mut self, path: &str, data: &[u8], compression: CompressionMethod) -> Result<()> {
+    pub fn write_file(
+        &mut self,
+        path: &str,
+        data: &[u8],
+        compression: CompressionMethod,
+    ) -> Result<()> {
         if !self.manifest_written {
             return Err(crate::Error::InvalidManifest {
                 reason: "manifest must be written before other files".to_string(),
@@ -215,8 +220,8 @@ impl<W: Write + Seek> CdxWriter<W> {
             format!("{path}/")
         };
 
-        let options = FileOptions::<()>::default()
-            .compression_method(zip::CompressionMethod::Stored);
+        let options =
+            FileOptions::<()>::default().compression_method(zip::CompressionMethod::Stored);
 
         self.zip.add_directory(&dir_path, options)?;
 

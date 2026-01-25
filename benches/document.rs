@@ -5,8 +5,8 @@
 #![feature(test)]
 extern crate test;
 
-use test::Bencher;
 use cdx_core::{Document, HashAlgorithm, Hasher};
+use test::Bencher;
 
 /// Benchmark creating a simple document.
 #[bench]
@@ -51,36 +51,28 @@ fn bench_compute_document_id(b: &mut Bencher) {
         .build()
         .unwrap();
 
-    b.iter(|| {
-        doc.compute_id().unwrap()
-    });
+    b.iter(|| doc.compute_id().unwrap());
 }
 
 /// Benchmark SHA-256 hashing of small data.
 #[bench]
 fn bench_hash_sha256_small(b: &mut Bencher) {
     let data = b"Small piece of data for hashing";
-    b.iter(|| {
-        Hasher::hash(HashAlgorithm::Sha256, data)
-    });
+    b.iter(|| Hasher::hash(HashAlgorithm::Sha256, data));
 }
 
 /// Benchmark SHA-256 hashing of 1MB data.
 #[bench]
 fn bench_hash_sha256_1mb(b: &mut Bencher) {
     let data = vec![0u8; 1024 * 1024];
-    b.iter(|| {
-        Hasher::hash(HashAlgorithm::Sha256, &data)
-    });
+    b.iter(|| Hasher::hash(HashAlgorithm::Sha256, &data));
 }
 
 /// Benchmark BLAKE3 hashing of 1MB data.
 #[bench]
 fn bench_hash_blake3_1mb(b: &mut Bencher) {
     let data = vec![0u8; 1024 * 1024];
-    b.iter(|| {
-        Hasher::hash(HashAlgorithm::Blake3, &data)
-    });
+    b.iter(|| Hasher::hash(HashAlgorithm::Blake3, &data));
 }
 
 /// Benchmark document verification.
@@ -94,9 +86,7 @@ fn bench_verify_document(b: &mut Bencher) {
         .build()
         .unwrap();
 
-    b.iter(|| {
-        doc.verify().unwrap()
-    });
+    b.iter(|| doc.verify().unwrap());
 }
 
 /// Benchmark save and reload cycle.
@@ -122,7 +112,7 @@ fn bench_save_reload_cycle(b: &mut Bencher) {
 #[cfg(feature = "signatures")]
 mod signature_benches {
     use super::*;
-    use cdx_core::security::{EcdsaSigner, EcdsaVerifier, SignerInfo, Signer, Verifier};
+    use cdx_core::security::{EcdsaSigner, EcdsaVerifier, Signer, SignerInfo, Verifier};
 
     /// Benchmark key generation.
     #[bench]
@@ -147,9 +137,7 @@ mod signature_benches {
         let signer_info = SignerInfo::new("Benchmark");
         let (signer, _) = EcdsaSigner::generate(signer_info).unwrap();
 
-        b.iter(|| {
-            signer.sign(&doc_id).unwrap()
-        });
+        b.iter(|| signer.sign(&doc_id).unwrap());
     }
 
     /// Benchmark verification.
@@ -168,8 +156,6 @@ mod signature_benches {
         let signature = signer.sign(&doc_id).unwrap();
         let verifier = EcdsaVerifier::from_pem(&public_key).unwrap();
 
-        b.iter(|| {
-            verifier.verify(&doc_id, &signature).unwrap()
-        });
+        b.iter(|| verifier.verify(&doc_id, &signature).unwrap());
     }
 }

@@ -45,7 +45,9 @@ mod encryption;
 mod signature;
 mod signer;
 
-pub use signature::{Signature, SignatureAlgorithm, SignatureFile, SignerInfo, SignatureVerification};
+pub use signature::{
+    Signature, SignatureAlgorithm, SignatureFile, SignatureVerification, SignerInfo,
+};
 pub use signer::{EcdsaSigner, EcdsaVerifier, Signer, Verifier};
 
 #[cfg(feature = "eddsa")]
@@ -53,6 +55,6 @@ pub use eddsa::{EddsaSigner, EddsaVerifier};
 
 #[cfg(feature = "encryption")]
 pub use encryption::{
-    Aes256GcmEncryptor, EncryptedData, EncryptionAlgorithm, EncryptionMetadata,
-    KdfAlgorithm, KeyDerivation, Recipient,
+    Aes256GcmEncryptor, EncryptedData, EncryptionAlgorithm, EncryptionMetadata, KdfAlgorithm,
+    KeyDerivation, Recipient,
 };

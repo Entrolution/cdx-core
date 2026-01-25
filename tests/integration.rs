@@ -29,8 +29,14 @@ fn test_create_save_reopen() -> Result<()> {
     let reopened = Document::open(&file_path)?;
 
     // Verify the content matches
-    assert_eq!(reopened.dublin_core().terms.title, doc.dublin_core().terms.title);
-    assert_eq!(reopened.dublin_core().terms.creator, doc.dublin_core().terms.creator);
+    assert_eq!(
+        reopened.dublin_core().terms.title,
+        doc.dublin_core().terms.title
+    );
+    assert_eq!(
+        reopened.dublin_core().terms.creator,
+        doc.dublin_core().terms.creator
+    );
     assert_eq!(reopened.content().blocks.len(), doc.content().blocks.len());
 
     Ok(())
@@ -53,7 +59,11 @@ fn test_verification_fresh_document() -> Result<()> {
     let reopened = Document::open(&file_path)?;
     let report = reopened.verify()?;
 
-    assert!(report.is_valid(), "Fresh document should verify: {:?}", report.errors);
+    assert!(
+        report.is_valid(),
+        "Fresh document should verify: {:?}",
+        report.errors
+    );
 
     Ok(())
 }
@@ -124,7 +134,10 @@ fn test_open_from_bytes() -> Result<()> {
     // Open from bytes
     let from_bytes = Document::from_bytes(bytes)?;
 
-    assert_eq!(from_bytes.dublin_core().terms.title, doc.dublin_core().terms.title);
+    assert_eq!(
+        from_bytes.dublin_core().terms.title,
+        doc.dublin_core().terms.title
+    );
 
     Ok(())
 }
@@ -172,7 +185,7 @@ fn test_empty_content() -> Result<()> {
 #[cfg(feature = "signatures")]
 mod signature_tests {
     use super::*;
-    use cdx_core::security::{EcdsaSigner, EcdsaVerifier, SignerInfo, Signer, Verifier};
+    use cdx_core::security::{EcdsaSigner, EcdsaVerifier, Signer, SignerInfo, Verifier};
 
     /// Test signing and verifying a document.
     #[test]
@@ -186,8 +199,7 @@ mod signature_tests {
         let doc_id = doc.compute_id()?;
 
         // Generate a key pair
-        let signer_info = SignerInfo::new("Test Signer")
-            .with_email("test@example.com");
+        let signer_info = SignerInfo::new("Test Signer").with_email("test@example.com");
         let (signer, public_key_pem) = EcdsaSigner::generate(signer_info)?;
 
         // Sign
@@ -230,7 +242,10 @@ mod signature_tests {
         let verifier = EcdsaVerifier::from_pem(&public_key_pem)?;
         let result = verifier.verify(&id2, &signature)?;
 
-        assert!(!result.is_valid(), "Signature should not verify for different document");
+        assert!(
+            !result.is_valid(),
+            "Signature should not verify for different document"
+        );
 
         Ok(())
     }

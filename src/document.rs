@@ -219,11 +219,13 @@ impl Document {
     pub fn compute_id(&self) -> Result<DocumentId> {
         // Serialize content to canonical JSON
         let content_json = serde_json::to_vec(&self.content)?;
-        let canonical = json_canon::to_string(&serde_json::from_slice::<serde_json::Value>(
-            &content_json,
-        )?)?;
+        let canonical =
+            json_canon::to_string(&serde_json::from_slice::<serde_json::Value>(&content_json)?)?;
 
-        Ok(Hasher::hash(self.manifest.hash_algorithm, canonical.as_bytes()))
+        Ok(Hasher::hash(
+            self.manifest.hash_algorithm,
+            canonical.as_bytes(),
+        ))
     }
 
     /// Verify the document integrity.

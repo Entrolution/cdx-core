@@ -5,8 +5,8 @@
 //!
 //! Usage: cargo run --example open_and_verify <path-to-cdx-file>
 
-use std::env;
 use cdx_core::{Document, Result};
+use std::env;
 
 fn main() -> Result<()> {
     // Get the file path from command line arguments

@@ -5,9 +5,9 @@
 //!
 //! Usage: cargo run --example extract_content <path-to-cdx-file>
 
-use std::env;
 use cdx_core::content::{Block, Text};
 use cdx_core::{Document, Result};
+use std::env;
 
 fn main() -> Result<()> {
     // Get the file path from command line arguments
@@ -56,10 +56,14 @@ fn print_block(block: &Block, index: usize, depth: usize) {
         Block::Paragraph { children, .. } => {
             println!("{indent}[{index}] Paragraph: {}", extract_text(children));
         }
-        Block::Heading { level, children, .. } => {
+        Block::Heading {
+            level, children, ..
+        } => {
             println!("{indent}[{index}] H{level}: {}", extract_text(children));
         }
-        Block::List { ordered, children, .. } => {
+        Block::List {
+            ordered, children, ..
+        } => {
             let list_type = if *ordered { "Ordered" } else { "Unordered" };
             println!("{indent}[{index}] {list_type} List:");
             for (j, child) in children.iter().enumerate() {
@@ -72,7 +76,9 @@ fn print_block(block: &Block, index: usize, depth: usize) {
                 print_block(child, j, depth + 1);
             }
         }
-        Block::CodeBlock { language, children, .. } => {
+        Block::CodeBlock {
+            language, children, ..
+        } => {
             let lang = language.as_deref().unwrap_or("plain");
             let code_text = extract_text(children);
             println!("{indent}[{index}] Code ({lang}):");
@@ -118,5 +124,9 @@ fn print_block(block: &Block, index: usize, depth: usize) {
 }
 
 fn extract_text(texts: &[Text]) -> String {
-    texts.iter().map(|t| t.value.as_str()).collect::<Vec<_>>().join("")
+    texts
+        .iter()
+        .map(|t| t.value.as_str())
+        .collect::<Vec<_>>()
+        .join("")
 }

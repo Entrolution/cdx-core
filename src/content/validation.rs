@@ -91,7 +91,9 @@ fn validate_block(
 
     match block {
         Block::Paragraph { children, .. } => validate_text_children(children, path, ctx.errors),
-        Block::Heading { level, children, .. } => {
+        Block::Heading {
+            level, children, ..
+        } => {
             validate_heading(*level, children, path, ctx.errors);
         }
         Block::List { children, .. } => validate_list(children, path, &mut ctx),
@@ -126,7 +128,13 @@ fn validate_list(children: &[Block], path: &str, ctx: &mut ValidationContext<'_>
                 format!("list children must be listItem, got {}", child.block_type()),
             );
         }
-        validate_block(child, &child_path, ctx.errors, ctx.seen_ids, Some(ParentContext::List));
+        validate_block(
+            child,
+            &child_path,
+            ctx.errors,
+            ctx.seen_ids,
+            Some(ParentContext::List),
+        );
     }
 }
 
@@ -156,7 +164,10 @@ fn validate_code_block(children: &[Text], path: &str, errors: &mut Vec<Validatio
     if children.len() != 1 {
         errors.push(ValidationError {
             path: path.to_string(),
-            message: format!("codeBlock should have exactly 1 text node, got {}", children.len()),
+            message: format!(
+                "codeBlock should have exactly 1 text node, got {}",
+                children.len()
+            ),
         });
     }
     for child in children {
@@ -169,11 +180,7 @@ fn validate_code_block(children: &[Text], path: &str, errors: &mut Vec<Validatio
     }
 }
 
-fn validate_image(
-    img: &super::block::ImageBlock,
-    path: &str,
-    errors: &mut Vec<ValidationError>,
-) {
+fn validate_image(img: &super::block::ImageBlock, path: &str, errors: &mut Vec<ValidationError>) {
     if img.src.is_empty() {
         errors.push(ValidationError {
             path: path.to_string(),
@@ -194,10 +201,19 @@ fn validate_table(children: &[Block], path: &str, ctx: &mut ValidationContext<'_
         if !matches!(child, Block::TableRow { .. }) {
             ctx.add_error(
                 &child_path,
-                format!("table children must be tableRow, got {}", child.block_type()),
+                format!(
+                    "table children must be tableRow, got {}",
+                    child.block_type()
+                ),
             );
         }
-        validate_block(child, &child_path, ctx.errors, ctx.seen_ids, Some(ParentContext::Table));
+        validate_block(
+            child,
+            &child_path,
+            ctx.errors,
+            ctx.seen_ids,
+            Some(ParentContext::Table),
+        );
     }
 }
 
@@ -215,7 +231,10 @@ fn validate_table_row(
         if !matches!(child, Block::TableCell(_)) {
             ctx.add_error(
                 &child_path,
-                format!("tableRow children must be tableCell, got {}", child.block_type()),
+                format!(
+                    "tableRow children must be tableCell, got {}",
+                    child.block_type()
+                ),
             );
         }
         validate_block(
@@ -255,11 +274,7 @@ fn validate_table_cell(
     validate_text_children(&cell.children, path, errors);
 }
 
-fn validate_math(
-    math: &super::block::MathBlock,
-    path: &str,
-    errors: &mut Vec<ValidationError>,
-) {
+fn validate_math(math: &super::block::MathBlock, path: &str, errors: &mut Vec<ValidationError>) {
     if math.value.is_empty() {
         errors.push(ValidationError {
             path: path.to_string(),
