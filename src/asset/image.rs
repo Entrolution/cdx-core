@@ -236,12 +236,12 @@ mod tests {
         let image = ImageAsset::new("photo", ImageFormat::Jpeg)
             .with_dimensions(1920, 1080)
             .with_alt("A beautiful sunset")
-            .with_size(524288);
+            .with_size(524_288);
 
         assert_eq!(image.width, Some(1920));
         assert_eq!(image.height, Some(1080));
         assert_eq!(image.alt, Some("A beautiful sunset".to_string()));
-        assert_eq!(image.size, 524288);
+        assert_eq!(image.size, 524_288);
     }
 
     #[test]

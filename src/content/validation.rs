@@ -297,7 +297,7 @@ fn validate_text_children(children: &[Text], path: &str, errors: &mut Vec<Valida
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::content::{Mark, Text};
+    use crate::content::{BlockAttributes, Mark, Text};
 
     #[test]
     fn test_valid_content() {
@@ -315,12 +315,12 @@ mod tests {
             Block::Paragraph {
                 id: Some("dup".to_string()),
                 children: vec![Text::plain("First")],
-                attributes: Default::default(),
+                attributes: BlockAttributes::default(),
             },
             Block::Paragraph {
                 id: Some("dup".to_string()),
                 children: vec![Text::plain("Second")],
-                attributes: Default::default(),
+                attributes: BlockAttributes::default(),
             },
         ]);
         let errors = validate_content(&content);
@@ -334,7 +334,7 @@ mod tests {
             id: None,
             level: 7,
             children: vec![Text::plain("Too deep")],
-            attributes: Default::default(),
+            attributes: BlockAttributes::default(),
         }]);
         let errors = validate_content(&content);
         assert_eq!(errors.len(), 1);
@@ -358,7 +358,7 @@ mod tests {
             ordered: false,
             start: None,
             children: vec![Block::paragraph(vec![Text::plain("Wrong")])],
-            attributes: Default::default(),
+            attributes: BlockAttributes::default(),
         }]);
         let errors = validate_content(&content);
         assert_eq!(errors.len(), 1);
@@ -371,7 +371,7 @@ mod tests {
             id: None,
             language: Some("rust".to_string()),
             children: vec![Text::with_marks("code", vec![Mark::Bold])],
-            attributes: Default::default(),
+            attributes: BlockAttributes::default(),
         }]);
         let errors = validate_content(&content);
         assert_eq!(errors.len(), 1);
@@ -382,8 +382,8 @@ mod tests {
     fn test_empty_image() {
         let content = Content::new(vec![Block::Image(super::super::block::ImageBlock {
             id: None,
-            src: "".to_string(),
-            alt: "".to_string(),
+            src: String::new(),
+            alt: String::new(),
             title: None,
             width: None,
             height: None,
