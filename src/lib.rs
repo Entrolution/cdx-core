@@ -27,16 +27,28 @@
 //! - `wasm`: WASM compilation support
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
-#![warn(missing_docs)]
+#![deny(missing_docs)]
+#![deny(unsafe_code)]
 #![warn(clippy::all)]
 #![warn(clippy::pedantic)]
 #![allow(clippy::module_name_repetitions)]
 
+pub mod archive;
+pub mod asset;
+pub mod content;
+mod document;
 mod error;
 mod hash;
 mod manifest;
+pub mod metadata;
+pub mod presentation;
+pub mod provenance;
+#[cfg(feature = "signatures")]
+#[cfg_attr(docsrs, doc(cfg(feature = "signatures")))]
+pub mod security;
 mod state;
 
+pub use document::{Document, DocumentBuilder, VerificationReport};
 pub use error::{Error, Result};
 pub use hash::{DocumentId, HashAlgorithm, Hasher};
 pub use manifest::{

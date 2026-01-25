@@ -15,12 +15,17 @@ This library provides the foundational capabilities for working with Codex docum
 
 ## Features
 
-- Parse and validate `.cdx` archives
-- Read and write manifests, content, and metadata
-- Compute and verify content-addressable document IDs
-- Support for multiple hash algorithms (SHA-256, SHA-3, BLAKE3)
-- Zstandard compression support (optional)
-- WASM-compatible (with `wasm` feature)
+- **Archive I/O** - Read and write `.cdx` ZIP archives with proper structure validation
+- **Content Model** - Full support for all 13 content block types (paragraphs, headings, lists, tables, code, math, images, etc.)
+- **Document Builder** - Fluent API for creating documents programmatically
+- **Metadata** - Dublin Core metadata support
+- **Presentation Layers** - Paginated and continuous presentation types
+- **Digital Signatures** - ECDSA P-256 (ES256) signing and verification
+- **Asset Management** - Embed and manage images, fonts, and files
+- **Document Verification** - Verify content hashes and document integrity
+- **Multiple Hash Algorithms** - SHA-256 (default), SHA-3, and BLAKE3
+- **Zstandard Compression** - Optional high-ratio compression support
+- **WASM Compatible** - Compile to WebAssembly with the `wasm` feature
 
 ## Installation
 
@@ -36,49 +41,121 @@ cdx-core = "0.1"
 | Feature | Default | Description |
 |---------|---------|-------------|
 | `zstd` | Yes | Zstandard compression support |
+| `signatures` | Yes | Digital signature support (ES256) |
 | `wasm` | No | WASM compilation support |
+| `full` | No | All features enabled |
 
-## Usage
+## Quick Start
+
+### Creating a Document
 
 ```rust
-use cdx_core::{Document, DocumentState};
+use cdx_core::{Document, Result};
 
-// Open an existing document
-let doc = Document::open("example.cdx")?;
-println!("Title: {}", doc.metadata().title());
-println!("State: {:?}", doc.state());
+fn main() -> Result<()> {
+    let document = Document::builder()
+        .title("My Document")
+        .creator("Jane Doe")
+        .add_heading(1, "Introduction")
+        .add_paragraph("This is my first Codex document.")
+        .add_heading(2, "Features")
+        .add_paragraph("Codex provides semantic structure and verifiable integrity.")
+        .build()?;
 
-// Verify document integrity
-doc.verify()?;
+    // Compute the document ID
+    let doc_id = document.compute_id()?;
+    println!("Document ID: {doc_id}");
 
-// Create a new document
-let mut builder = Document::builder()
-    .title("My Document")
-    .creator("Jane Doe");
+    // Save the document
+    document.save("output.cdx")?;
+    Ok(())
+}
+```
 
-builder.add_paragraph("Hello, world!");
-let doc = builder.build()?;
+### Opening and Verifying
 
-// Save as draft
-doc.save("output.cdx")?;
+```rust
+use cdx_core::{Document, Result};
+
+fn main() -> Result<()> {
+    let document = Document::open("example.cdx")?;
+
+    println!("Title: {:?}", document.dublin_core().terms.title);
+    println!("State: {:?}", document.state());
+
+    // Verify document integrity
+    let report = document.verify()?;
+    if report.is_valid() {
+        println!("Document integrity verified!");
+    }
+    Ok(())
+}
+```
+
+### Digital Signatures
+
+```rust
+use cdx_core::{Document, Result};
+use cdx_core::security::{EcdsaSigner, SignerInfo, Signer};
+
+fn main() -> Result<()> {
+    let document = Document::builder()
+        .title("Signed Document")
+        .creator("Signing Example")
+        .add_paragraph("This document will be signed.")
+        .build()?;
+
+    let doc_id = document.compute_id()?;
+
+    // Create a signer
+    let signer_info = SignerInfo::new("Alice")
+        .with_email("alice@example.com");
+    let (signer, public_key) = EcdsaSigner::generate(signer_info)?;
+
+    // Sign the document
+    let signature = signer.sign(&doc_id)?;
+    println!("Signed with algorithm: {}", signature.algorithm);
+    Ok(())
+}
+```
+
+## Examples
+
+Run the included examples:
+
+```bash
+# Create a document from scratch
+cargo run --example create_document
+
+# Extract content from a document
+cargo run --example extract_content
+
+# Sign a document (requires signatures feature)
+cargo run --example sign_document --features signatures
+
+# Open and verify a document
+cargo run --example open_and_verify path/to/document.cdx
 ```
 
 ## Specification Compliance
 
 This library implements the [Codex Document Format Specification v0.1](https://github.com/gvonness-apolitical/codex-file-format-spec).
 
-### Core Modules
+### Module Status
 
 | Spec Section | Status |
 |--------------|--------|
-| Container Format | In Progress |
-| Manifest | In Progress |
-| Content Blocks | Planned |
-| Presentation Layers | Planned |
-| Asset Embedding | Planned |
-| Document Hashing | In Progress |
-| State Machine | Planned |
-| Metadata | Planned |
+| Container Format | Complete |
+| Manifest | Complete |
+| Content Model | Complete |
+| Dublin Core Metadata | Complete |
+| Presentation Layers | Complete |
+| Asset Management | Complete |
+| Digital Signatures | Complete |
+| Document Hashing | Complete |
+| State Machine | Complete |
+| Encryption | Planned (v0.2) |
+| Merkle Proofs | Planned (v0.3) |
 
 ## Development
 
@@ -91,20 +168,32 @@ This library implements the [Codex Document Format Specification v0.1](https://g
 
 ```bash
 cargo build
+cargo build --all-features
 ```
 
 ### Testing
 
 ```bash
 cargo test
+cargo test --all-features
 ```
 
 ### Linting
 
 ```bash
-cargo clippy --all-features
+cargo clippy --all-features -- -D warnings
 cargo fmt --check
 ```
+
+### Documentation
+
+```bash
+cargo doc --no-deps --all-features --open
+```
+
+## API Documentation
+
+See the [API documentation on docs.rs](https://docs.rs/cdx-core) for detailed information about all types and functions.
 
 ## Contributing
 
