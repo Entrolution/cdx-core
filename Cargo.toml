@@ -1,8 +1,8 @@
 [package]
 name = "cdx-core"
-version = "0.1.0"
+version = "0.3.0"
 edition = "2021"
-rust-version = "1.75"
+rust-version = "1.85"
 description = "Core library for reading, writing, and validating Codex Document Format (.cdx) files"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/gvonness-apolitical/cdx-core"
@@ -16,9 +16,13 @@ name = "cdx_core"
 path = "src/lib.rs"
 
 [features]
-default = ["zstd"]
-zstd = ["dep:zstd"]
+default = ["zstd", "signatures"]
+zstd = ["zip/zstd"]
+signatures = ["dep:p256", "dep:ecdsa", "dep:base64", "dep:rand_core"]
+encryption = ["dep:aes-gcm", "dep:rand_core"]
+eddsa = ["dep:ed25519-dalek", "dep:rand_core"]
 wasm = ["getrandom/js"]
+full = ["zstd", "signatures", "encryption", "eddsa"]
 
 [dependencies]
 # Serialization
@@ -29,13 +33,22 @@ json-canon = "0.1"  # RFC 8785 JSON Canonicalization
 # ZIP handling
 zip = { version = "2.2", default-features = false, features = ["deflate"] }
 
-# Compression (optional)
-zstd = { version = "0.13", optional = true }
-
 # Cryptography
 sha2 = "0.10"
 sha3 = "0.10"
 blake3 = "1.5"
+
+# Signatures (optional)
+p256 = { version = "0.13", features = ["ecdsa", "pem"], optional = true }
+ecdsa = { version = "0.16", optional = true }
+base64 = { version = "0.22", optional = true }
+rand_core = { version = "0.6", features = ["getrandom"], optional = true }
+
+# EdDSA signatures (optional)
+ed25519-dalek = { version = "2.1", features = ["rand_core", "pem"], optional = true }
+
+# Encryption (optional)
+aes-gcm = { version = "0.10", optional = true }
 
 # Time
 chrono = { version = "0.4", features = ["serde", "now"], default-features = false }
