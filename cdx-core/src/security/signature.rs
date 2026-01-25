@@ -105,6 +105,9 @@ pub enum SignatureAlgorithm {
     EdDSA,
     /// RSA-PSS with SHA-256 (optional).
     PS256,
+    /// ML-DSA-65 post-quantum signature (FIPS-204).
+    #[serde(rename = "ML-DSA-65")]
+    MlDsa65,
 }
 
 impl SignatureAlgorithm {
@@ -116,7 +119,14 @@ impl SignatureAlgorithm {
             Self::ES384 => "ES384",
             Self::EdDSA => "EdDSA",
             Self::PS256 => "PS256",
+            Self::MlDsa65 => "ML-DSA-65",
         }
+    }
+
+    /// Check if this is a post-quantum algorithm.
+    #[must_use]
+    pub const fn is_post_quantum(&self) -> bool {
+        matches!(self, Self::MlDsa65)
     }
 }
 

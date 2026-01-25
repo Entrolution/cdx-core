@@ -1,74 +1,19 @@
-[package]
-name = "cdx-core"
-version = "0.3.0"
+[workspace]
+members = ["cdx-core", "cdx-cli"]
+resolver = "2"
+
+[workspace.package]
 edition = "2021"
 rust-version = "1.85"
-description = "Core library for reading, writing, and validating Codex Document Format (.cdx) files"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/gvonness-apolitical/cdx-core"
-documentation = "https://docs.rs/cdx-core"
-readme = "README.md"
-keywords = ["codex", "document", "format", "semantic", "signatures"]
-categories = ["encoding", "parser-implementations", "data-structures"]
 
-[lib]
-name = "cdx_core"
-path = "src/lib.rs"
-
-[features]
-default = ["zstd", "signatures"]
-zstd = ["zip/zstd"]
-signatures = ["dep:p256", "dep:ecdsa", "dep:base64", "dep:rand_core"]
-encryption = ["dep:aes-gcm", "dep:rand_core"]
-eddsa = ["dep:ed25519-dalek", "dep:rand_core"]
-wasm = ["getrandom/wasm_js"]
-full = ["zstd", "signatures", "encryption", "eddsa"]
-
-[dependencies]
-# Serialization
+[workspace.dependencies]
+# Shared dependencies across workspace
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-json-canon = "0.1"  # RFC 8785 JSON Canonicalization
-
-# ZIP handling
-zip = { version = "7.2", default-features = false, features = ["deflate"] }
-
-# Cryptography
-sha2 = "0.10"
-sha3 = "0.10"
-blake3 = "1.5"
-
-# Signatures (optional)
-p256 = { version = "0.13", features = ["ecdsa", "pem"], optional = true }
-ecdsa = { version = "0.16", optional = true }
-base64 = { version = "0.22", optional = true }
-rand_core = { version = "0.6", features = ["getrandom"], optional = true }
-
-# EdDSA signatures (optional)
-ed25519-dalek = { version = "2.1", features = ["rand_core", "pem"], optional = true }
-
-# Encryption (optional)
-aes-gcm = { version = "0.10", optional = true }
-
-# Time
+thiserror = "2.0"
 chrono = { version = "0.4", features = ["serde", "now"], default-features = false }
 
-# Error handling
-thiserror = "2.0"
-
-# Random for WASM
-getrandom = "0.3"
-
-[dev-dependencies]
-tempfile = "3.14"
-pretty_assertions = "1.4"
-proptest = "1.5"
-criterion = { version = "0.5", features = ["html_reports"] }
-
-[[bench]]
-name = "document"
-harness = false
-
-[package.metadata.docs.rs]
-all-features = true
-rustdoc-args = ["--cfg", "docsrs"]
+# Internal crates
+cdx-core = { path = "cdx-core" }

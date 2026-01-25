@@ -5,7 +5,7 @@
 //!
 //! - [`Paginated`] - Fixed pages for print/PDF
 //! - [`Continuous`] - Vertical scroll for screens
-//! - `Responsive` - Adapts to viewport size (planned)
+//! - [`Responsive`] - Adapts to viewport size
 //!
 //! # Philosophy
 //!
@@ -14,10 +14,12 @@
 
 mod continuous;
 mod paginated;
+mod responsive;
 mod style;
 
 pub use continuous::{Continuous, Section};
 pub use paginated::{FlowElement, Margins, PageElement, PageSize, Paginated, Position};
+pub use responsive::{Breakpoint, Responsive, ResponsiveDefaults, ResponsiveStyle};
 pub use style::{Color, CssValue, FontWeight, Style, StyleMap, TextAlign};
 
 /// Presentation type identifier.
