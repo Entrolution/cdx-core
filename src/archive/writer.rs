@@ -316,7 +316,7 @@ mod tests {
             .unwrap();
 
         let result = writer.finish().unwrap();
-        assert!(result.into_inner().len() > 0);
+        assert!(!result.into_inner().is_empty());
     }
 
     #[test]

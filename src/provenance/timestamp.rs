@@ -229,7 +229,7 @@ mod tests {
             policy: "1.2.3.4".to_string(),
             message_imprint: MessageImprint {
                 hash_algorithm: "SHA-256".to_string(),
-                hashed_message: doc_id.hex_digest().to_string(),
+                hashed_message: doc_id.hex_digest(),
             },
             serial_number: "12345".to_string(),
             gen_time: Utc::now(),

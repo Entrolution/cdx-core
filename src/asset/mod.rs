@@ -67,8 +67,8 @@ pub fn verify_asset_hash(
     if actual.hex_digest() != expected.hex_digest() {
         return Err(crate::Error::HashMismatch {
             path: path.to_string(),
-            expected: expected.hex_digest().clone(),
-            actual: actual.hex_digest().clone(),
+            expected: expected.hex_digest(),
+            actual: actual.hex_digest(),
         });
     }
     Ok(())

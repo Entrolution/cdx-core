@@ -353,7 +353,7 @@ mod tests {
         let data = create_test_archive();
         let mut reader = CdxReader::from_bytes(data).unwrap();
         let content = reader.read_file(CONTENT_PATH).unwrap();
-        assert!(content.len() > 0);
+        assert!(!content.is_empty());
     }
 
     #[test]

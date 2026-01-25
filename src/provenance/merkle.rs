@@ -96,17 +96,12 @@ impl MerkleTree {
 
         // Build tree bottom-up
         while nodes.len() > 1 {
-            let mut next_level = Vec::new();
+            let mut next_level = Vec::with_capacity(nodes.len().div_ceil(2));
+            let mut iter = nodes.into_iter();
 
-            for chunk in nodes.chunks(2) {
-                if chunk.len() == 2 {
-                    let branch = MerkleNode::branch(chunk[0].clone(), chunk[1].clone(), algorithm);
-                    next_level.push(branch);
-                } else {
-                    // Odd node: duplicate it to pair with itself
-                    let branch = MerkleNode::branch(chunk[0].clone(), chunk[0].clone(), algorithm);
-                    next_level.push(branch);
-                }
+            while let Some(left) = iter.next() {
+                let right = iter.next().unwrap_or_else(|| left.clone());
+                next_level.push(MerkleNode::branch(left, right, algorithm));
             }
 
             nodes = next_level;
@@ -137,23 +132,18 @@ impl MerkleTree {
 
         let leaf_count = hashes.len();
 
-        // Create leaf nodes
+        // Create leaf nodes (clone needed since hashes is borrowed)
         let mut nodes: Vec<MerkleNode> =
             hashes.iter().map(|h| MerkleNode::leaf(h.clone())).collect();
 
         // Build tree bottom-up
         while nodes.len() > 1 {
-            let mut next_level = Vec::new();
+            let mut next_level = Vec::with_capacity(nodes.len().div_ceil(2));
+            let mut iter = nodes.into_iter();
 
-            for chunk in nodes.chunks(2) {
-                if chunk.len() == 2 {
-                    let branch = MerkleNode::branch(chunk[0].clone(), chunk[1].clone(), algorithm);
-                    next_level.push(branch);
-                } else {
-                    // Odd node: duplicate it
-                    let branch = MerkleNode::branch(chunk[0].clone(), chunk[0].clone(), algorithm);
-                    next_level.push(branch);
-                }
+            while let Some(left) = iter.next() {
+                let right = iter.next().unwrap_or_else(|| left.clone());
+                next_level.push(MerkleNode::branch(left, right, algorithm));
             }
 
             nodes = next_level;

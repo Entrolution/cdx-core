@@ -385,3 +385,74 @@ mod tests {
         assert_eq!(id, parsed);
     }
 }
+
+#[cfg(test)]
+mod proptests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        /// Hashing is deterministic - same input always produces same output.
+        #[test]
+        fn hash_is_deterministic(data: Vec<u8>) {
+            let h1 = Hasher::hash(HashAlgorithm::Sha256, &data);
+            let h2 = Hasher::hash(HashAlgorithm::Sha256, &data);
+            prop_assert_eq!(h1, h2);
+        }
+
+        /// DocumentId roundtrip through to_string and parse.
+        #[test]
+        fn document_id_roundtrip(data: Vec<u8>) {
+            let original = Hasher::hash(HashAlgorithm::Sha256, &data);
+            let serialized = original.to_string();
+            let parsed: DocumentId = serialized.parse().unwrap();
+            prop_assert_eq!(original, parsed);
+        }
+
+        /// Different inputs produce different hashes (with overwhelming probability).
+        #[test]
+        fn different_inputs_different_hashes(a: Vec<u8>, b: Vec<u8>) {
+            prop_assume!(a != b);
+            let h1 = Hasher::hash(HashAlgorithm::Sha256, &a);
+            let h2 = Hasher::hash(HashAlgorithm::Sha256, &b);
+            prop_assert_ne!(h1, h2);
+        }
+
+        /// Streaming hash equals one-shot hash.
+        #[test]
+        fn streaming_equals_oneshot(data: Vec<u8>) {
+            let oneshot = Hasher::hash(HashAlgorithm::Sha256, &data);
+
+            let mut streaming = Hasher::new(HashAlgorithm::Sha256);
+            streaming.update(&data);
+            let result = streaming.finalize();
+
+            prop_assert_eq!(oneshot, result);
+        }
+
+        /// Hex encode/decode roundtrip.
+        #[test]
+        fn hex_roundtrip(data: Vec<u8>) {
+            let encoded = hex_encode(&data);
+            let decoded = hex_decode(&encoded).unwrap();
+            prop_assert_eq!(data, decoded);
+        }
+
+        /// JSON serialization roundtrip.
+        #[test]
+        fn json_roundtrip(data: Vec<u8>) {
+            let id = Hasher::hash(HashAlgorithm::Sha256, &data);
+            let json = serde_json::to_string(&id).unwrap();
+            let parsed: DocumentId = serde_json::from_str(&json).unwrap();
+            prop_assert_eq!(id, parsed);
+        }
+
+        /// BLAKE3 hashing is also deterministic.
+        #[test]
+        fn blake3_deterministic(data: Vec<u8>) {
+            let h1 = Hasher::hash(HashAlgorithm::Blake3, &data);
+            let h2 = Hasher::hash(HashAlgorithm::Blake3, &data);
+            prop_assert_eq!(h1, h2);
+        }
+    }
+}
