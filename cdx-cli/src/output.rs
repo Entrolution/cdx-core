@@ -65,6 +65,7 @@ impl OutputConfig {
     }
 
     /// Print structured JSON output.
+    #[allow(dead_code)] // Reserved for future --json output support
     pub fn json_output<T: Serialize>(&self, data: &T) -> anyhow::Result<()> {
         if self.json {
             println!("{}", serde_json::to_string_pretty(data)?);
