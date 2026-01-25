@@ -448,10 +448,7 @@ mod tests {
         let style = ResponsiveStyle::new(base).with_mobile(mobile_override);
 
         let merged = style.style_for_breakpoint("mobile");
-        assert_eq!(
-            merged.font_size,
-            Some(CssValue::String("14px".to_string()))
-        );
+        assert_eq!(merged.font_size, Some(CssValue::String("14px".to_string())));
         assert_eq!(merged.font_weight, Some(FontWeight::Number(400)));
 
         // Base style for unknown breakpoint
@@ -525,7 +522,8 @@ mod tests {
 
         let heading_style = ResponsiveStyle::new(base).with_mobile(mobile);
 
-        let responsive = Responsive::with_standard_breakpoints().with_style("heading1", heading_style);
+        let responsive =
+            Responsive::with_standard_breakpoints().with_style("heading1", heading_style);
 
         let json = serde_json::to_string(&responsive).unwrap();
         let parsed: Responsive = serde_json::from_str(&json).unwrap();

@@ -55,10 +55,7 @@ pub fn run(
             signer.sign(&doc_id).context("Failed to sign document")?
         }
         other => {
-            anyhow::bail!(
-                "Unsupported algorithm '{}'. Supported: ES256, EdDSA",
-                other
-            );
+            anyhow::bail!("Unsupported algorithm '{}'. Supported: ES256, EdDSA", other);
         }
     };
 

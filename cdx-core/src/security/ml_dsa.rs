@@ -76,11 +76,10 @@ impl MlDsaSigner {
         use fips204::ml_dsa_65;
         use fips204::traits::SerDes;
 
-        let (public_key, secret_key) = ml_dsa_65::try_keygen().map_err(|e| {
-            crate::Error::InvalidManifest {
+        let (public_key, secret_key) =
+            ml_dsa_65::try_keygen().map_err(|e| crate::Error::InvalidManifest {
                 reason: format!("ML-DSA-65 key generation failed: {e:?}"),
-            }
-        })?;
+            })?;
 
         let public_key_bytes = public_key.clone().into_bytes().to_vec();
 
@@ -225,8 +224,10 @@ impl Verifier for MlDsaVerifier {
             })?;
 
         // Convert to fixed-size array reference
-        let sig_array: &[u8; fips204::ml_dsa_65::SIG_LEN] =
-            sig_bytes.as_slice().try_into().map_err(|_| crate::Error::InvalidManifest {
+        let sig_array: &[u8; fips204::ml_dsa_65::SIG_LEN] = sig_bytes
+            .as_slice()
+            .try_into()
+            .map_err(|_| crate::Error::InvalidManifest {
                 reason: format!(
                     "Invalid ML-DSA-65 signature length: expected {}, got {}",
                     fips204::ml_dsa_65::SIG_LEN,

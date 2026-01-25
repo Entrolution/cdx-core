@@ -202,7 +202,15 @@ fn main() -> Result<()> {
             email,
             algorithm,
             output: output_path,
-        } => commands::sign::run(file, key, name, email, algorithm, output_path, &output_config),
+        } => commands::sign::run(
+            file,
+            key,
+            name,
+            email,
+            algorithm,
+            output_path,
+            &output_config,
+        ),
 
         Commands::Verify { file, key } => commands::verify::run(file, key, &output_config),
 
