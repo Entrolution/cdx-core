@@ -175,7 +175,11 @@ mod signature_benches {
         let verifier = EcdsaVerifier::from_pem(&public_key).unwrap();
 
         c.bench_function("verify_signature", |b| {
-            b.iter(|| verifier.verify(black_box(&doc_id), black_box(&signature)).unwrap())
+            b.iter(|| {
+                verifier
+                    .verify(black_box(&doc_id), black_box(&signature))
+                    .unwrap()
+            })
         });
     }
 
