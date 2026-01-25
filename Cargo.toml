@@ -1,0 +1,56 @@
+[package]
+name = "cdx-core"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+description = "Core library for reading, writing, and validating Codex Document Format (.cdx) files"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/gvonness-apolitical/cdx-core"
+documentation = "https://docs.rs/cdx-core"
+readme = "README.md"
+keywords = ["codex", "document", "format", "semantic", "signatures"]
+categories = ["encoding", "parser-implementations", "data-structures"]
+
+[lib]
+name = "cdx_core"
+path = "src/lib.rs"
+
+[features]
+default = ["zstd"]
+zstd = ["dep:zstd"]
+wasm = ["getrandom/js"]
+
+[dependencies]
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+json-canon = "0.1"  # RFC 8785 JSON Canonicalization
+
+# ZIP handling
+zip = { version = "2.2", default-features = false, features = ["deflate"] }
+
+# Compression (optional)
+zstd = { version = "0.13", optional = true }
+
+# Cryptography
+sha2 = "0.10"
+sha3 = "0.10"
+blake3 = "1.5"
+
+# Time
+chrono = { version = "0.4", features = ["serde", "now"], default-features = false }
+
+# Error handling
+thiserror = "2.0"
+
+# Random for WASM
+getrandom = "0.2"
+
+[dev-dependencies]
+tempfile = "3.14"
+pretty_assertions = "1.4"
+proptest = "1.5"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
