@@ -33,14 +33,18 @@ use std::path::Path;
 
 use chrono::Utc;
 
+#[cfg(feature = "encryption")]
+use crate::archive::ENCRYPTION_PATH;
 #[cfg(feature = "signatures")]
 use crate::archive::SIGNATURES_PATH;
 use crate::archive::{CdxReader, CdxWriter, CompressionMethod, CONTENT_PATH, DUBLIN_CORE_PATH};
 use crate::content::{Block, Content, Text};
 use crate::manifest::Lineage;
-#[cfg(feature = "signatures")]
+#[cfg(any(feature = "signatures", feature = "encryption"))]
 use crate::manifest::SecurityRef;
 use crate::metadata::DublinCore;
+#[cfg(feature = "encryption")]
+use crate::security::EncryptionMetadata;
 #[cfg(feature = "signatures")]
 use crate::security::{Signature, SignatureFile};
 use crate::{DocumentId, DocumentState, HashAlgorithm, Hasher, Manifest, Result};
@@ -56,6 +60,8 @@ pub struct Document {
     dublin_core: DublinCore,
     #[cfg(feature = "signatures")]
     signature_file: Option<SignatureFile>,
+    #[cfg(feature = "encryption")]
+    encryption_metadata: Option<EncryptionMetadata>,
 }
 
 impl Document {
@@ -124,12 +130,32 @@ impl Document {
             None
         };
 
+        // Read encryption metadata if present (only when encryption feature is enabled)
+        #[cfg(feature = "encryption")]
+        let encryption_metadata = if let Some(ref security) = manifest.security {
+            if let Some(ref enc_path) = security.encryption {
+                if reader.file_exists(enc_path)? {
+                    let enc_data = reader.read_file(enc_path)?;
+                    let enc_meta: EncryptionMetadata = serde_json::from_slice(&enc_data)?;
+                    Some(enc_meta)
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
         Ok(Self {
             manifest,
             content,
             dublin_core,
             #[cfg(feature = "signatures")]
             signature_file,
+            #[cfg(feature = "encryption")]
+            encryption_metadata,
         })
     }
 
@@ -171,18 +197,33 @@ impl Document {
         let mut manifest = self.manifest.clone();
         manifest.content.hash = content_hash;
 
-        // Update security reference if we have signatures
+        // Update security reference if we have signatures or encryption
         #[cfg(feature = "signatures")]
-        if let Some(ref sig_file) = self.signature_file {
-            if !sig_file.is_empty() {
-                manifest.security = Some(SecurityRef {
-                    signatures: Some(SIGNATURES_PATH.to_string()),
-                    encryption: manifest
-                        .security
-                        .as_ref()
-                        .and_then(|s| s.encryption.clone()),
-                });
-            }
+        let has_signatures = self
+            .signature_file
+            .as_ref()
+            .is_some_and(|sf| !sf.is_empty());
+        #[cfg(not(feature = "signatures"))]
+        let has_signatures = false;
+
+        #[cfg(feature = "encryption")]
+        let has_encryption = self.encryption_metadata.is_some();
+        #[cfg(not(feature = "encryption"))]
+        let has_encryption = false;
+
+        if has_signatures || has_encryption {
+            manifest.security = Some(SecurityRef {
+                signatures: if has_signatures {
+                    Some(SIGNATURES_PATH.to_string())
+                } else {
+                    None
+                },
+                encryption: if has_encryption {
+                    Some(ENCRYPTION_PATH.to_string())
+                } else {
+                    None
+                },
+            });
         }
 
         // Write files
@@ -201,6 +242,13 @@ impl Document {
                     CompressionMethod::Deflate,
                 )?;
             }
+        }
+
+        // Write encryption metadata if present
+        #[cfg(feature = "encryption")]
+        if let Some(ref enc_meta) = self.encryption_metadata {
+            let enc_json = serde_json::to_vec_pretty(enc_meta)?;
+            cdx_writer.write_file(ENCRYPTION_PATH, &enc_json, CompressionMethod::Deflate)?;
         }
 
         cdx_writer.finish()?;
@@ -335,6 +383,63 @@ impl Document {
     #[must_use]
     pub fn has_signatures(&self) -> bool {
         false
+    }
+
+    /// Get a reference to the encryption metadata, if present.
+    #[cfg(feature = "encryption")]
+    #[must_use]
+    pub fn encryption_metadata(&self) -> Option<&EncryptionMetadata> {
+        self.encryption_metadata.as_ref()
+    }
+
+    /// Check if the document has encryption metadata.
+    #[cfg(feature = "encryption")]
+    #[must_use]
+    pub fn is_encrypted(&self) -> bool {
+        self.encryption_metadata.is_some()
+    }
+
+    /// Check if the document has encryption metadata.
+    ///
+    /// Always returns false when the encryption feature is disabled.
+    #[cfg(not(feature = "encryption"))]
+    #[must_use]
+    pub fn is_encrypted(&self) -> bool {
+        false
+    }
+
+    /// Set encryption metadata for this document.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the document is in an immutable state.
+    #[cfg(feature = "encryption")]
+    pub fn set_encryption(&mut self, metadata: EncryptionMetadata) -> Result<()> {
+        if self.manifest.state.is_immutable() {
+            return Err(crate::Error::InvalidManifest {
+                reason: format!("Cannot set encryption in {} state", self.manifest.state),
+            });
+        }
+
+        self.encryption_metadata = Some(metadata);
+        Ok(())
+    }
+
+    /// Remove encryption metadata from this document.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the document is in an immutable state.
+    #[cfg(feature = "encryption")]
+    pub fn clear_encryption(&mut self) -> Result<()> {
+        if self.manifest.state.is_immutable() {
+            return Err(crate::Error::InvalidManifest {
+                reason: format!("Cannot remove encryption in {} state", self.manifest.state),
+            });
+        }
+
+        self.encryption_metadata = None;
+        Ok(())
     }
 
     /// Compute the document ID from content.
@@ -702,6 +807,10 @@ impl Document {
         {
             forked.signature_file = None;
         }
+        #[cfg(feature = "encryption")]
+        {
+            forked.encryption_metadata = None;
+        }
 
         Ok(forked)
     }
@@ -911,6 +1020,8 @@ impl DocumentBuilder {
             dublin_core,
             #[cfg(feature = "signatures")]
             signature_file: None,
+            #[cfg(feature = "encryption")]
+            encryption_metadata: None,
         })
     }
 }

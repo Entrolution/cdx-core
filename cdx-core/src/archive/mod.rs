@@ -42,6 +42,9 @@ pub const DUBLIN_CORE_PATH: &str = "metadata/dublin-core.json";
 /// Path to the signatures file within the archive.
 pub const SIGNATURES_PATH: &str = "security/signatures.json";
 
+/// Path to the encryption metadata file within the archive.
+pub const ENCRYPTION_PATH: &str = "security/encryption.json";
+
 /// ZIP comment for Codex documents.
 pub const ZIP_COMMENT: &str = "Codex Document Format v0.1";
 
