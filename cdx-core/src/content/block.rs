@@ -3,6 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::Text;
+use crate::extensions::ExtensionBlock;
 
 /// Root content structure for a Codex document.
 ///
@@ -235,6 +236,13 @@ pub enum Block {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         id: Option<String>,
     },
+
+    /// Extension block for custom/unknown block types.
+    ///
+    /// Extension blocks use namespaced types like "forms:textInput" or
+    /// "semantic:citation". When parsing, unknown types are preserved
+    /// as extension blocks with their raw attributes intact.
+    Extension(ExtensionBlock),
 }
 
 /// Image block content.
@@ -499,6 +507,9 @@ impl Block {
     }
 
     /// Get the block type as a string.
+    ///
+    /// For extension blocks, this returns "extension". Use [`ExtensionBlock::full_type()`]
+    /// to get the namespaced type like "forms:textInput".
     #[must_use]
     pub fn block_type(&self) -> &'static str {
         match self {
@@ -515,6 +526,7 @@ impl Block {
             Self::TableCell(_) => "tableCell",
             Self::Math(_) => "math",
             Self::Break { .. } => "break",
+            Self::Extension(_) => "extension",
         }
     }
 
@@ -535,6 +547,28 @@ impl Block {
             Self::Image(img) => img.id.as_deref(),
             Self::TableCell(cell) => cell.id.as_deref(),
             Self::Math(math) => math.id.as_deref(),
+            Self::Extension(ext) => ext.id.as_deref(),
+        }
+    }
+
+    /// Create an extension block.
+    #[must_use]
+    pub fn extension(namespace: impl Into<String>, block_type: impl Into<String>) -> Self {
+        Self::Extension(ExtensionBlock::new(namespace, block_type))
+    }
+
+    /// Check if this is an extension block.
+    #[must_use]
+    pub fn is_extension(&self) -> bool {
+        matches!(self, Self::Extension(_))
+    }
+
+    /// Get the extension block if this is one.
+    #[must_use]
+    pub fn as_extension(&self) -> Option<&ExtensionBlock> {
+        match self {
+            Self::Extension(ext) => Some(ext),
+            _ => None,
         }
     }
 }
@@ -676,5 +710,41 @@ mod tests {
         assert!(json.contains("\"type\":\"table\""));
         assert!(json.contains("\"type\":\"tableRow\""));
         assert!(json.contains("\"header\":true"));
+    }
+
+    #[test]
+    fn test_extension_block() {
+        let ext = Block::extension("forms", "textInput");
+        assert!(ext.is_extension());
+        assert_eq!(ext.block_type(), "extension");
+
+        if let Block::Extension(inner) = &ext {
+            assert_eq!(inner.namespace, "forms");
+            assert_eq!(inner.block_type, "textInput");
+            assert_eq!(inner.full_type(), "forms:textInput");
+        } else {
+            panic!("Expected Extension");
+        }
+    }
+
+    #[test]
+    fn test_extension_as_extension() {
+        let ext = Block::extension("semantic", "citation");
+        let inner = ext.as_extension().expect("should be extension");
+        assert_eq!(inner.namespace, "semantic");
+
+        let para = Block::paragraph(vec![Text::plain("Not extension")]);
+        assert!(para.as_extension().is_none());
+    }
+
+    #[test]
+    fn test_extension_with_fallback() {
+        let fallback = Block::paragraph(vec![Text::plain("[Form field]")]);
+        let ext = ExtensionBlock::new("forms", "textInput")
+            .with_id("name-field")
+            .with_fallback(fallback);
+
+        assert_eq!(ext.id, Some("name-field".to_string()));
+        assert!(ext.fallback_content().is_some());
     }
 }
