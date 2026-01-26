@@ -3,9 +3,22 @@
 //! This module provides:
 //!
 //! - **Merkle Trees**: Content-addressable tree structures for efficient verification
+//! - **Block Index**: Persistent block hash index for Merkle proof generation
 //! - **Block Proofs**: Selective disclosure proofs for individual content blocks
 //! - **Lineage Verification**: Chain verification for document version history
 //! - **Timestamp Anchoring**: RFC 3161 timestamp token support
+//! - **Provenance Records**: Complete provenance tracking for documents
+//!
+//! # Block Index Example
+//!
+//! ```rust,ignore
+//! use cdx_core::provenance::BlockIndex;
+//! use cdx_core::HashAlgorithm;
+//!
+//! // Create block index from document content
+//! let index = BlockIndex::from_content(&content, HashAlgorithm::Sha256)?;
+//! let merkle_root = index.merkle_root();
+//! ```
 //!
 //! # Merkle Tree Example
 //!
@@ -23,10 +36,14 @@
 //! assert!(proof.verify(&block_hash, &root));
 //! ```
 
+mod block_index;
 mod merkle;
 mod proof;
+mod record;
 mod timestamp;
 
+pub use block_index::{BlockHashEntry, BlockIndex};
 pub use merkle::{MerkleNode, MerkleTree};
 pub use proof::{BlockProof, ProofVerification};
+pub use record::{CreatorInfo, DerivationRecord, MerkleInfo, ProvenanceRecord, TimestampRecord};
 pub use timestamp::{TimestampRequest, TimestampResponse, TimestampToken};

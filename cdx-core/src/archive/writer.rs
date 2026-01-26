@@ -286,6 +286,8 @@ mod tests {
             path: CONTENT_PATH.to_string(),
             hash: DocumentId::pending(),
             compression: None,
+            merkle_root: None,
+            block_count: None,
         };
         let metadata = Metadata {
             dublin_core: DUBLIN_CORE_PATH.to_string(),
