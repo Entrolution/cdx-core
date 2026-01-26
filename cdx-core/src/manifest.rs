@@ -179,6 +179,22 @@ pub struct ContentRef {
     /// Compression method used.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub compression: Option<String>,
+
+    /// Merkle root hash of the content blocks.
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "merkleRoot"
+    )]
+    pub merkle_root: Option<DocumentId>,
+
+    /// Number of content blocks.
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "blockCount"
+    )]
+    pub block_count: Option<usize>,
 }
 
 /// Reference to a presentation layer.
@@ -267,23 +283,113 @@ pub struct Extension {
 }
 
 /// Version history and document relationships.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Lineage {
     /// Document ID of parent version.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub parent: Option<DocumentId>,
 
+    /// Up to 10 levels of ancestors for efficient chain verification.
+    /// Ordered from nearest (parent's parent) to furthest ancestor.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub ancestors: Vec<DocumentId>,
+
     /// Sequential version number.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub version: Option<u32>,
+
+    /// Distance from the root document (0 for root, 1 for first child, etc.).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub depth: Option<u32>,
 
     /// Branch identifier.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub branch: Option<String>,
 
+    /// Document IDs of documents merged into this version.
+    #[serde(default, skip_serializing_if = "Vec::is_empty", rename = "mergedFrom")]
+    pub merged_from: Vec<DocumentId>,
+
     /// Description of changes.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
+}
+
+impl Lineage {
+    /// Create a new root lineage (first version of a document).
+    #[must_use]
+    pub fn root() -> Self {
+        Self {
+            parent: None,
+            ancestors: Vec::new(),
+            version: Some(1),
+            depth: Some(0),
+            branch: None,
+            merged_from: Vec::new(),
+            note: None,
+        }
+    }
+
+    /// Create lineage that derives from a parent document.
+    ///
+    /// This automatically computes the ancestor chain (up to 10 levels)
+    /// and increments the depth.
+    #[must_use]
+    pub fn from_parent(parent_id: DocumentId, parent_lineage: Option<&Lineage>) -> Self {
+        let (ancestors, depth, version) = if let Some(pl) = parent_lineage {
+            // Build ancestor chain: parent's ancestors, prepended with parent's parent
+            let mut new_ancestors = Vec::with_capacity(10);
+
+            // Add parent's parent (if any) as first ancestor
+            if let Some(ref grandparent) = pl.parent {
+                new_ancestors.push(grandparent.clone());
+            }
+
+            // Add parent's ancestors (up to 9 more to keep total at 10)
+            for ancestor in pl.ancestors.iter().take(9) {
+                new_ancestors.push(ancestor.clone());
+            }
+
+            let new_depth = pl.depth.map_or(1, |d| d + 1);
+            let new_version = pl.version.map_or(2, |v| v + 1);
+
+            (new_ancestors, Some(new_depth), Some(new_version))
+        } else {
+            // Parent has no lineage, this becomes depth 1
+            (Vec::new(), Some(1), Some(2))
+        };
+
+        Self {
+            parent: Some(parent_id),
+            ancestors,
+            version,
+            depth,
+            branch: parent_lineage.and_then(|pl| pl.branch.clone()),
+            merged_from: Vec::new(),
+            note: None,
+        }
+    }
+
+    /// Add a note describing the changes in this version.
+    #[must_use]
+    pub fn with_note(mut self, note: impl Into<String>) -> Self {
+        self.note = Some(note.into());
+        self
+    }
+
+    /// Set the branch name.
+    #[must_use]
+    pub fn with_branch(mut self, branch: impl Into<String>) -> Self {
+        self.branch = Some(branch.into());
+        self
+    }
+
+    /// Record that this version was created by merging another document.
+    #[must_use]
+    pub fn with_merge(mut self, merged_id: DocumentId) -> Self {
+        self.merged_from.push(merged_id);
+        self
+    }
 }
 
 #[cfg(test)]
@@ -296,6 +402,8 @@ mod tests {
             path: "content/document.json".to_string(),
             hash: DocumentId::pending(),
             compression: None,
+            merkle_root: None,
+            block_count: None,
         };
         let metadata = Metadata {
             dublin_core: "metadata/dublin-core.json".to_string(),
@@ -314,6 +422,8 @@ mod tests {
             path: "content/document.json".to_string(),
             hash: DocumentId::pending(),
             compression: None,
+            merkle_root: None,
+            block_count: None,
         };
         let metadata = Metadata {
             dublin_core: "metadata/dublin-core.json".to_string(),
@@ -330,6 +440,8 @@ mod tests {
             path: "content/document.json".to_string(),
             hash: DocumentId::pending(),
             compression: None,
+            merkle_root: None,
+            block_count: None,
         };
         let metadata = Metadata {
             dublin_core: "metadata/dublin-core.json".to_string(),
@@ -355,6 +467,8 @@ mod tests {
             path: "content/document.json".to_string(),
             hash: test_hash(),
             compression: None,
+            merkle_root: None,
+            block_count: None,
         };
         let metadata = Metadata {
             dublin_core: "metadata/dublin-core.json".to_string(),
@@ -368,12 +482,7 @@ mod tests {
             signatures: Some("security/signatures.json".to_string()),
             encryption: None,
         });
-        manifest.lineage = Some(Lineage {
-            parent: None,
-            version: Some(1),
-            branch: None,
-            note: None,
-        });
+        manifest.lineage = Some(Lineage::root());
 
         // Without precise layout, validation should fail
         let result = manifest.validate();
@@ -401,6 +510,8 @@ mod tests {
             path: "content/document.json".to_string(),
             hash: DocumentId::pending(),
             compression: None,
+            merkle_root: None,
+            block_count: None,
         };
         let metadata = Metadata {
             dublin_core: "metadata/dublin-core.json".to_string(),
@@ -435,6 +546,8 @@ mod tests {
             path: "content/document.json".to_string(),
             hash: DocumentId::pending(),
             compression: None,
+            merkle_root: None,
+            block_count: None,
         };
         let metadata = Metadata {
             dublin_core: "metadata/dublin-core.json".to_string(),
@@ -444,5 +557,53 @@ mod tests {
         let manifest = Manifest::new(content, metadata);
         // Draft state should validate without precise layout
         assert!(manifest.validate().is_ok());
+    }
+
+    #[test]
+    fn test_lineage_root() {
+        let lineage = Lineage::root();
+        assert!(lineage.parent.is_none());
+        assert!(lineage.ancestors.is_empty());
+        assert_eq!(lineage.version, Some(1));
+        assert_eq!(lineage.depth, Some(0));
+    }
+
+    #[test]
+    fn test_lineage_from_parent() {
+        let parent_id = test_hash();
+        let parent_lineage = Lineage::root();
+
+        let child = Lineage::from_parent(parent_id.clone(), Some(&parent_lineage));
+
+        assert_eq!(child.parent, Some(parent_id));
+        assert!(child.ancestors.is_empty()); // Root has no parent, so child has no ancestors
+        assert_eq!(child.version, Some(2));
+        assert_eq!(child.depth, Some(1));
+    }
+
+    #[test]
+    fn test_lineage_ancestor_chain() {
+        // Create a chain: root -> v2 -> v3
+        let root_id = test_hash();
+        let root_lineage = Lineage::root();
+
+        let v2_id: DocumentId =
+            "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+                .parse()
+                .unwrap();
+        let v2_lineage = Lineage::from_parent(root_id.clone(), Some(&root_lineage));
+
+        let v3_id: DocumentId =
+            "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+                .parse()
+                .unwrap();
+        let v3_lineage = Lineage::from_parent(v2_id.clone(), Some(&v2_lineage));
+
+        // v3 should have v2 as parent and root_id in ancestors
+        assert_eq!(v3_lineage.parent, Some(v2_id));
+        assert_eq!(v3_lineage.ancestors.len(), 1);
+        assert_eq!(v3_lineage.ancestors[0], root_id);
+        assert_eq!(v3_lineage.depth, Some(2));
+        assert_eq!(v3_lineage.version, Some(3));
     }
 }
