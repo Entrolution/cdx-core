@@ -28,11 +28,11 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
 
-      - name: Build
-        run: cargo build --all-features
+      - name: Build workspace
+        run: cargo build --workspace --all-features
 
       - name: Run tests
-        run: cargo test --all-features
+        run: cargo test --workspace --all-features
 
   lint:
     name: Lint
@@ -49,10 +49,10 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Check formatting
-        run: cargo fmt --check
+        run: cargo fmt --all -- --check
 
       - name: Clippy
-        run: cargo clippy --all-features -- -D warnings
+        run: cargo clippy --workspace --all-features -- -D warnings
 
   docs:
     name: Documentation
@@ -67,7 +67,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Build docs
-        run: cargo doc --no-deps --all-features
+        run: cargo doc --workspace --no-deps --all-features
         env:
           RUSTDOCFLAGS: -D warnings
 
@@ -84,7 +84,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Build
-        run: cargo build --all-features
+        run: cargo build --workspace --all-features
 
   wasm:
     name: WASM Build
@@ -100,8 +100,26 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
 
-      - name: Build for WASM
-        run: cargo build --target wasm32-unknown-unknown --features wasm --no-default-features
+      - name: Build cdx-core for WASM
+        run: cargo build -p cdx-core --target wasm32-unknown-unknown --features wasm --no-default-features
+
+  cli-tests:
+    name: CLI Integration Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build CLI
+        run: cargo build -p cdx-cli --release
+
+      - name: Run CLI tests
+        run: cargo test -p cdx-cli
 
   coverage:
     name: Coverage
@@ -116,7 +134,7 @@ jobs:
         run: cargo install cargo-tarpaulin
 
       - name: Generate coverage
-        run: cargo tarpaulin --all-features --out xml
+        run: cargo tarpaulin --workspace --all-features --out xml
 
       - name: Upload coverage
         uses: codecov/codecov-action@v5

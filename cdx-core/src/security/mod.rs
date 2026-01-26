@@ -4,7 +4,7 @@
 //!
 //! This module provides cryptographic capabilities for Codex documents:
 //!
-//! - **Signatures**: ECDSA (ES256) and EdDSA (Ed25519) digital signatures
+//! - **Signatures**: ECDSA (ES256), EdDSA (Ed25519), and ML-DSA-65 (post-quantum) digital signatures
 //! - **Encryption**: AES-256-GCM authenticated encryption
 //!
 //! # Signing Documents (ECDSA)
@@ -42,6 +42,8 @@
 mod eddsa;
 #[cfg(feature = "encryption")]
 mod encryption;
+#[cfg(feature = "ml-dsa")]
+mod ml_dsa;
 mod signature;
 mod signer;
 
@@ -52,6 +54,10 @@ pub use signer::{EcdsaSigner, EcdsaVerifier, Signer, Verifier};
 
 #[cfg(feature = "eddsa")]
 pub use eddsa::{EddsaSigner, EddsaVerifier};
+
+#[cfg(feature = "ml-dsa")]
+#[cfg_attr(docsrs, doc(cfg(feature = "ml-dsa")))]
+pub use ml_dsa::{MlDsaSigner, MlDsaVerifier};
 
 #[cfg(feature = "encryption")]
 pub use encryption::{
