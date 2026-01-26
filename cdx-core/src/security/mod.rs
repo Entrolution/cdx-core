@@ -38,6 +38,8 @@
 //! let decrypted = encryptor.decrypt(&encrypted.ciphertext, &encrypted.nonce)?;
 //! ```
 
+mod access_control;
+mod certificate;
 #[cfg(feature = "eddsa")]
 mod eddsa;
 #[cfg(feature = "encryption")]
@@ -47,6 +49,8 @@ mod ml_dsa;
 mod signature;
 mod signer;
 
+pub use access_control::{AccessControl, Operation, PermissionGrant, Permissions, Principal};
+pub use certificate::{eku, CertificateChain, CertificateInfo, CertificateValidation, KeyUsage};
 pub use signature::{
     Signature, SignatureAlgorithm, SignatureFile, SignatureVerification, SignerInfo,
 };
