@@ -33,13 +33,13 @@ use std::path::Path;
 
 use chrono::Utc;
 
-use crate::archive::{CdxReader, CdxWriter, CompressionMethod, CONTENT_PATH, DUBLIN_CORE_PATH};
 #[cfg(feature = "signatures")]
 use crate::archive::SIGNATURES_PATH;
+use crate::archive::{CdxReader, CdxWriter, CompressionMethod, CONTENT_PATH, DUBLIN_CORE_PATH};
 use crate::content::{Block, Content, Text};
+use crate::manifest::Lineage;
 #[cfg(feature = "signatures")]
 use crate::manifest::SecurityRef;
-use crate::manifest::Lineage;
 use crate::metadata::DublinCore;
 #[cfg(feature = "signatures")]
 use crate::security::{Signature, SignatureFile};
