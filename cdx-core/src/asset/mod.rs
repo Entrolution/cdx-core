@@ -29,8 +29,10 @@ mod image;
 mod index;
 
 pub use font::{FontAsset, FontFormat, FontStyle, FontWeight};
-pub use image::{ImageAsset, ImageFormat};
-pub use index::{AssetEntry, AssetIndex, EmbedAsset, EmbedIndex, FontIndex, ImageIndex};
+pub use image::{ImageAsset, ImageFormat, ImageVariant};
+pub use index::{
+    AssetAlias, AssetEntry, AssetIndex, EmbedAsset, EmbedIndex, FontIndex, ImageIndex,
+};
 
 use crate::{DocumentId, Result};
 
