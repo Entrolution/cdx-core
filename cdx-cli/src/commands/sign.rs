@@ -20,7 +20,7 @@ pub fn run(
     config.verbose(&format!("Signing: {}", file.display()));
 
     // Open the document
-    let doc = Document::open(&file)
+    let mut doc = Document::open(&file)
         .with_context(|| format!("Failed to open document: {}", file.display()))?;
 
     // Compute the document ID for signing
@@ -59,30 +59,38 @@ pub fn run(
         }
     };
 
-    config.verbose(&format!("Signature ID: {}", signature.id));
+    let signature_id = signature.id.clone();
+    config.verbose(&format!("Signature ID: {}", signature_id));
 
-    // Note: In a real implementation, we would add the signature to the document
-    // and rewrite it. For now, we just output the signature information.
-    let output_path = output.unwrap_or(file.clone());
+    // Add signature to document
+    doc.add_signature(signature)
+        .context("Failed to add signature to document")?;
 
-    // TODO: Actually add signature to document and save
-    // For now, just show what would be signed
-    config.warning("Signature created but document update not yet implemented");
+    // Determine output path
+    let output_path = output.unwrap_or_else(|| file.clone());
+
+    // Save the signed document
+    doc.save(&output_path).with_context(|| {
+        format!(
+            "Failed to save signed document to: {}",
+            output_path.display()
+        )
+    })?;
 
     if config.json {
         let result = serde_json::json!({
             "status": "success",
             "file": output_path.display().to_string(),
-            "signature_id": signature.id,
+            "signature_id": signature_id,
             "algorithm": algorithm,
             "signer": name,
-            "signed_at": signature.signed_at.to_rfc3339(),
             "document_id": doc_id.to_string()
         });
         println!("{}", serde_json::to_string_pretty(&result)?);
     } else {
-        config.success("Signature created");
-        config.field("Signature ID", &signature.id);
+        config.success("Document signed successfully");
+        config.field("Output", &output_path.display().to_string());
+        config.field("Signature ID", &signature_id);
         config.field("Algorithm", &algorithm);
         config.field("Signer", &name);
         config.field("Document ID", &doc_id.to_string());

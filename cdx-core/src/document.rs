@@ -31,9 +31,15 @@ use std::fs::File;
 use std::io::{Cursor, Read, Seek, Write};
 use std::path::Path;
 
-use crate::archive::{CdxReader, CdxWriter, CompressionMethod, CONTENT_PATH, DUBLIN_CORE_PATH};
+use chrono::Utc;
+
+use crate::archive::{
+    CdxReader, CdxWriter, CompressionMethod, CONTENT_PATH, DUBLIN_CORE_PATH, SIGNATURES_PATH,
+};
 use crate::content::{Block, Content, Text};
+use crate::manifest::{Lineage, SecurityRef};
 use crate::metadata::DublinCore;
+use crate::security::{Signature, SignatureFile};
 use crate::{DocumentId, DocumentState, HashAlgorithm, Hasher, Manifest, Result};
 
 /// A Codex document.
@@ -45,6 +51,7 @@ pub struct Document {
     manifest: Manifest,
     content: Content,
     dublin_core: DublinCore,
+    signature_file: Option<SignatureFile>,
 }
 
 impl Document {
@@ -95,10 +102,28 @@ impl Document {
         let dc_data = reader.read_dublin_core()?;
         let dublin_core: DublinCore = serde_json::from_slice(&dc_data)?;
 
+        // Read signatures if present
+        let signature_file = if let Some(ref security) = manifest.security {
+            if let Some(ref sig_path) = security.signatures {
+                if reader.file_exists(sig_path)? {
+                    let sig_data = reader.read_file(sig_path)?;
+                    let sig_file: SignatureFile = serde_json::from_slice(&sig_data)?;
+                    Some(sig_file)
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
         Ok(Self {
             manifest,
             content,
             dublin_core,
+            signature_file,
         })
     }
 
@@ -140,10 +165,35 @@ impl Document {
         let mut manifest = self.manifest.clone();
         manifest.content.hash = content_hash;
 
+        // Update security reference if we have signatures
+        if let Some(ref sig_file) = self.signature_file {
+            if !sig_file.is_empty() {
+                manifest.security = Some(SecurityRef {
+                    signatures: Some(SIGNATURES_PATH.to_string()),
+                    encryption: manifest
+                        .security
+                        .as_ref()
+                        .and_then(|s| s.encryption.clone()),
+                });
+            }
+        }
+
         // Write files
         cdx_writer.write_manifest(&manifest)?;
         cdx_writer.write_file(CONTENT_PATH, &content_json, CompressionMethod::Deflate)?;
         cdx_writer.write_file(DUBLIN_CORE_PATH, &dc_json, CompressionMethod::Deflate)?;
+
+        // Write signatures if present
+        if let Some(ref sig_file) = self.signature_file {
+            if !sig_file.is_empty() {
+                let sig_json = sig_file.to_json()?;
+                cdx_writer.write_file(
+                    SIGNATURES_PATH,
+                    sig_json.as_bytes(),
+                    CompressionMethod::Deflate,
+                )?;
+            }
+        }
 
         cdx_writer.finish()?;
         Ok(())
@@ -209,6 +259,63 @@ impl Document {
         self.manifest.hash_algorithm
     }
 
+    /// Get a reference to the signature file, if present.
+    #[must_use]
+    pub fn signature_file(&self) -> Option<&SignatureFile> {
+        self.signature_file.as_ref()
+    }
+
+    /// Get the signatures from the document.
+    #[must_use]
+    pub fn signatures(&self) -> &[Signature] {
+        self.signature_file
+            .as_ref()
+            .map_or(&[], |sf| sf.signatures.as_slice())
+    }
+
+    /// Add a signature to the document.
+    ///
+    /// This adds the signature to the document's signature file. If no signature file
+    /// exists, one will be created. The document ID in the signature file will be
+    /// updated to match the current computed document ID.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the document ID cannot be computed.
+    pub fn add_signature(&mut self, signature: Signature) -> Result<()> {
+        let doc_id = self.compute_id()?;
+
+        if let Some(sig_file) = self.signature_file.as_mut() {
+            // Update document ID if it changed
+            sig_file.document_id = doc_id;
+            sig_file.add_signature(signature);
+        } else {
+            let mut sig_file = SignatureFile::new(doc_id);
+            sig_file.add_signature(signature);
+            self.signature_file = Some(sig_file);
+        }
+
+        // Update manifest to reference the security section
+        self.manifest.security = Some(SecurityRef {
+            signatures: Some(SIGNATURES_PATH.to_string()),
+            encryption: self
+                .manifest
+                .security
+                .as_ref()
+                .and_then(|s| s.encryption.clone()),
+        });
+
+        Ok(())
+    }
+
+    /// Check if the document has any signatures.
+    #[must_use]
+    pub fn has_signatures(&self) -> bool {
+        self.signature_file
+            .as_ref()
+            .is_some_and(|sf| !sf.is_empty())
+    }
+
     /// Compute the document ID from content.
     ///
     /// The document ID is computed by hashing the canonicalized content.
@@ -272,6 +379,240 @@ impl Document {
         }
 
         Ok(report)
+    }
+
+    // ===== State Transition Methods =====
+
+    /// Submit the document for review.
+    ///
+    /// Transitions from `draft` to `review` state. This computes the document ID
+    /// and stores it in the manifest.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The document is not in draft state
+    /// - Computing the document ID fails
+    pub fn submit_for_review(&mut self) -> Result<()> {
+        if self.manifest.state != DocumentState::Draft {
+            return Err(crate::Error::InvalidStateTransition {
+                from: self.manifest.state,
+                to: DocumentState::Review,
+            });
+        }
+
+        // Compute and store the document ID
+        let doc_id = self.compute_id()?;
+        self.manifest.id = doc_id;
+        self.manifest.state = DocumentState::Review;
+        self.manifest.modified = Utc::now();
+
+        Ok(())
+    }
+
+    /// Freeze the document.
+    ///
+    /// Transitions from `review` to `frozen` state. This requires:
+    /// - At least one signature
+    /// - Lineage information (parent reference or explicit root)
+    /// - At least one precise layout (for visual reproduction)
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The document is not in review state
+    /// - No signatures are present
+    /// - No lineage is set
+    /// - No precise layout is present
+    pub fn freeze(&mut self) -> Result<()> {
+        if self.manifest.state != DocumentState::Review {
+            return Err(crate::Error::InvalidStateTransition {
+                from: self.manifest.state,
+                to: DocumentState::Frozen,
+            });
+        }
+
+        // Verify requirements
+        if !self.has_signatures() {
+            return Err(crate::Error::StateRequirementNotMet {
+                state: DocumentState::Frozen,
+                requirement: "at least one signature".to_string(),
+            });
+        }
+
+        if self.manifest.lineage.is_none() {
+            return Err(crate::Error::StateRequirementNotMet {
+                state: DocumentState::Frozen,
+                requirement: "lineage information".to_string(),
+            });
+        }
+
+        if !self.manifest.has_precise_layout() {
+            return Err(crate::Error::StateRequirementNotMet {
+                state: DocumentState::Frozen,
+                requirement: "at least one precise layout".to_string(),
+            });
+        }
+
+        // Ensure document ID is computed
+        if self.manifest.id.is_pending() {
+            let doc_id = self.compute_id()?;
+            self.manifest.id = doc_id;
+        }
+
+        self.manifest.state = DocumentState::Frozen;
+        self.manifest.modified = Utc::now();
+
+        Ok(())
+    }
+
+    /// Publish the document.
+    ///
+    /// Transitions from `frozen` to `published` state.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the document is not in frozen state.
+    pub fn publish(&mut self) -> Result<()> {
+        if self.manifest.state != DocumentState::Frozen {
+            return Err(crate::Error::InvalidStateTransition {
+                from: self.manifest.state,
+                to: DocumentState::Published,
+            });
+        }
+
+        self.manifest.state = DocumentState::Published;
+        self.manifest.modified = Utc::now();
+
+        Ok(())
+    }
+
+    /// Revert the document to draft state.
+    ///
+    /// Transitions from `review` back to `draft` state. This is only allowed
+    /// if the document has no signatures (to prevent removing signed content).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The document is not in review state
+    /// - The document has signatures
+    pub fn revert_to_draft(&mut self) -> Result<()> {
+        if self.manifest.state != DocumentState::Review {
+            return Err(crate::Error::InvalidStateTransition {
+                from: self.manifest.state,
+                to: DocumentState::Draft,
+            });
+        }
+
+        if self.has_signatures() {
+            return Err(crate::Error::InvalidManifest {
+                reason: "Cannot revert to draft: document has signatures".to_string(),
+            });
+        }
+
+        self.manifest.state = DocumentState::Draft;
+        self.manifest.id = DocumentId::pending();
+        self.manifest.modified = Utc::now();
+
+        Ok(())
+    }
+
+    /// Fork the document to create a new draft with lineage.
+    ///
+    /// Creates a new document in draft state that references this document
+    /// as its parent in the lineage chain. The forked document:
+    /// - Has a new (pending) document ID
+    /// - Is in draft state
+    /// - Has lineage pointing to this document
+    /// - Has incremented version number
+    /// - Has no signatures
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if computing the document ID fails.
+    pub fn fork(&self) -> Result<Document> {
+        // Compute the current document's ID for lineage
+        let parent_id = if self.manifest.id.is_pending() {
+            self.compute_id()?
+        } else {
+            self.manifest.id.clone()
+        };
+
+        // Determine the new version number
+        let new_version = self
+            .manifest
+            .lineage
+            .as_ref()
+            .and_then(|l| l.version)
+            .unwrap_or(1)
+            + 1;
+
+        // Create lineage pointing to this document
+        let lineage = Lineage {
+            parent: Some(parent_id),
+            version: Some(new_version),
+            branch: self
+                .manifest
+                .lineage
+                .as_ref()
+                .and_then(|l| l.branch.clone()),
+            note: None,
+        };
+
+        // Clone the document
+        let mut forked = self.clone();
+
+        // Reset to draft state
+        forked.manifest.id = DocumentId::pending();
+        forked.manifest.state = DocumentState::Draft;
+        forked.manifest.created = Utc::now();
+        forked.manifest.modified = Utc::now();
+        forked.manifest.lineage = Some(lineage);
+        forked.manifest.security = None;
+        forked.signature_file = None;
+
+        Ok(forked)
+    }
+
+    /// Set lineage information for this document.
+    ///
+    /// This is used to establish lineage before freezing a document.
+    /// For the first version of a document, call with `None` as parent
+    /// to create a root lineage entry.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the document is in an immutable state.
+    pub fn set_lineage(
+        &mut self,
+        parent: Option<DocumentId>,
+        version: u32,
+        note: Option<String>,
+    ) -> Result<()> {
+        if self.manifest.state.is_immutable() {
+            return Err(crate::Error::InvalidManifest {
+                reason: format!("Cannot modify lineage in {} state", self.manifest.state),
+            });
+        }
+
+        self.manifest.lineage = Some(Lineage {
+            parent,
+            version: Some(version),
+            branch: None,
+            note,
+        });
+        self.manifest.modified = Utc::now();
+
+        Ok(())
+    }
+
+    /// Get a mutable reference to the manifest for advanced modifications.
+    ///
+    /// Use with caution - this bypasses state machine validation.
+    #[must_use]
+    pub fn manifest_mut(&mut self) -> &mut Manifest {
+        &mut self.manifest
     }
 }
 
@@ -429,6 +770,7 @@ impl DocumentBuilder {
             manifest,
             content,
             dublin_core,
+            signature_file: None,
         })
     }
 }
