@@ -48,6 +48,30 @@ impl SignatureFile {
     pub fn len(&self) -> usize {
         self.signatures.len()
     }
+
+    /// Serialize to JSON.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if serialization fails.
+    pub fn to_json(&self) -> crate::Result<String> {
+        serde_json::to_string_pretty(self).map_err(Into::into)
+    }
+
+    /// Deserialize from JSON.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if deserialization fails.
+    pub fn from_json(json: &str) -> crate::Result<Self> {
+        serde_json::from_str(json).map_err(Into::into)
+    }
+
+    /// Find a signature by ID.
+    #[must_use]
+    pub fn find_signature(&self, id: &str) -> Option<&Signature> {
+        self.signatures.iter().find(|s| s.id == id)
+    }
 }
 
 /// A digital signature.

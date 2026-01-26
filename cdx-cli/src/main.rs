@@ -159,6 +159,61 @@ enum Commands {
         /// Shell to generate completions for
         shell: Shell,
     },
+
+    /// Submit document for review (draft → review)
+    #[command(name = "submit-review")]
+    SubmitReview {
+        /// Codex document to submit
+        file: PathBuf,
+
+        /// Output file (default: overwrite input)
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+    },
+
+    /// Freeze document (review → frozen)
+    Freeze {
+        /// Codex document to freeze
+        file: PathBuf,
+
+        /// Output file (default: overwrite input)
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+    },
+
+    /// Publish document (frozen → published)
+    Publish {
+        /// Codex document to publish
+        file: PathBuf,
+
+        /// Output file (default: overwrite input)
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+    },
+
+    /// Revert document to draft (review → draft)
+    Revert {
+        /// Codex document to revert
+        file: PathBuf,
+
+        /// Output file (default: overwrite input)
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+    },
+
+    /// Fork document to create new version with lineage
+    Fork {
+        /// Codex document to fork
+        file: PathBuf,
+
+        /// Output file for the forked document
+        #[arg(short, long)]
+        output: PathBuf,
+
+        /// Note describing the changes
+        #[arg(short, long)]
+        note: Option<String>,
+    },
 }
 
 fn main() -> Result<()> {
@@ -234,6 +289,20 @@ fn main() -> Result<()> {
         Commands::Completions { shell } => {
             generate(shell, &mut Cli::command(), "cdx", &mut io::stdout());
             Ok(())
+        }
+
+        Commands::SubmitReview { file, output } => {
+            commands::review::run(file, output, &output_config)
+        }
+
+        Commands::Freeze { file, output } => commands::freeze::run(file, output, &output_config),
+
+        Commands::Publish { file, output } => commands::publish::run(file, output, &output_config),
+
+        Commands::Revert { file, output } => commands::revert::run(file, output, &output_config),
+
+        Commands::Fork { file, output, note } => {
+            commands::fork::run(file, output, note, &output_config)
         }
     };
 
