@@ -517,13 +517,11 @@ mod tests {
 
     #[test]
     fn test_page_element_continuation() {
-        let elem = PrecisePageElement::new("block-1", "1in", "2in", "6in", "3in")
-            .continues();
+        let elem = PrecisePageElement::new("block-1", "1in", "2in", "6in", "3in").continues();
         assert!(elem.continues);
         assert!(!elem.continuation);
 
-        let next = PrecisePageElement::new("block-1", "1in", "1in", "6in", "1in")
-            .continuation();
+        let next = PrecisePageElement::new("block-1", "1in", "1in", "6in", "1in").continuation();
         assert!(!next.continues);
         assert!(next.continuation);
     }
@@ -535,8 +533,8 @@ mod tests {
             LineInfo::new(2, "3.25in", "0.2in"),
             LineInfo::new(3, "3.5in", "0.2in"),
         ];
-        let elem = PrecisePageElement::new("block-5", "1in", "3in", "6.5in", "1.5in")
-            .with_lines(lines);
+        let elem =
+            PrecisePageElement::new("block-5", "1in", "3in", "6.5in", "1.5in").with_lines(lines);
         assert_eq!(elem.lines.len(), 3);
         assert_eq!(elem.lines[0].number, 1);
     }
@@ -544,10 +542,9 @@ mod tests {
     #[test]
     fn test_serialization() {
         let mut layout = PreciseLayout::new_letter("sha256:abc123");
-        layout.add_page(
-            PrecisePage::new(1)
-                .with_element(PrecisePageElement::new("block-1", "1in", "1in", "6.5in", "0.5in"))
-        );
+        layout.add_page(PrecisePage::new(1).with_element(PrecisePageElement::new(
+            "block-1", "1in", "1in", "6.5in", "0.5in",
+        )));
 
         let json = serde_json::to_string_pretty(&layout).unwrap();
         assert!(json.contains("\"presentationType\": \"precise\""));
