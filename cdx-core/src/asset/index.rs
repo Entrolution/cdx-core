@@ -196,6 +196,29 @@ pub enum AssetEntry {
     Font(FontAsset),
     /// Embedded file asset.
     Embed(EmbedAsset),
+    /// Alias to another asset (for deduplication).
+    ///
+    /// When two assets have identical content (same hash), one can be stored
+    /// as an alias pointing to the canonical asset. This saves storage space
+    /// while maintaining separate logical identities.
+    Alias(AssetAlias),
+}
+
+/// An alias entry that references another asset.
+///
+/// Used for deduplication: when the same content is referenced by multiple
+/// logical assets, only one copy is stored and others become aliases.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AssetAlias {
+    /// Unique identifier for this alias.
+    pub id: String,
+
+    /// ID of the canonical asset this aliases to.
+    pub alias_of: String,
+
+    /// The hash of the content (same as the canonical asset).
+    pub hash: DocumentId,
 }
 
 impl AssetEntry {
@@ -206,16 +229,21 @@ impl AssetEntry {
             Self::Image(a) => &a.id,
             Self::Font(a) => &a.id,
             Self::Embed(a) => &a.id,
+            Self::Alias(a) => &a.id,
         }
     }
 
     /// Get the asset path.
+    ///
+    /// For aliases, this returns an empty string as aliases don't have their own path.
+    /// Use `resolve_path` with the asset index to get the canonical asset's path.
     #[must_use]
     pub fn path(&self) -> &str {
         match self {
             Self::Image(a) => &a.path,
             Self::Font(a) => &a.path,
             Self::Embed(a) => &a.path,
+            Self::Alias(_) => "",
         }
     }
 
@@ -226,16 +254,47 @@ impl AssetEntry {
             Self::Image(a) => &a.hash,
             Self::Font(a) => &a.hash,
             Self::Embed(a) => &a.hash,
+            Self::Alias(a) => &a.hash,
         }
     }
 
     /// Get the asset size.
+    ///
+    /// For aliases, this returns 0 as no additional storage is used.
     #[must_use]
     pub fn size(&self) -> u64 {
         match self {
             Self::Image(a) => a.size,
             Self::Font(a) => a.size,
             Self::Embed(a) => a.size,
+            Self::Alias(_) => 0,
+        }
+    }
+
+    /// Check if this entry is an alias.
+    #[must_use]
+    pub fn is_alias(&self) -> bool {
+        matches!(self, Self::Alias(_))
+    }
+
+    /// Get the canonical asset ID if this is an alias.
+    #[must_use]
+    pub fn alias_of(&self) -> Option<&str> {
+        match self {
+            Self::Alias(a) => Some(&a.alias_of),
+            _ => None,
+        }
+    }
+}
+
+impl AssetAlias {
+    /// Create a new asset alias.
+    #[must_use]
+    pub fn new(id: impl Into<String>, alias_of: impl Into<String>, hash: DocumentId) -> Self {
+        Self {
+            id: id.into(),
+            alias_of: alias_of.into(),
+            hash,
         }
     }
 }
@@ -308,5 +367,58 @@ mod tests {
         let deserialized: ImageIndex = serde_json::from_str(&json).unwrap();
         assert_eq!(deserialized.count, 1);
         assert_eq!(deserialized.total_size, 1024);
+    }
+
+    #[test]
+    fn test_asset_alias_creation() {
+        let hash: DocumentId =
+            "sha256:abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234"
+                .parse()
+                .unwrap();
+        let alias = AssetAlias::new("duplicate-logo", "original-logo", hash.clone());
+
+        assert_eq!(alias.id, "duplicate-logo");
+        assert_eq!(alias.alias_of, "original-logo");
+        assert_eq!(alias.hash, hash);
+    }
+
+    #[test]
+    fn test_asset_entry_alias() {
+        let hash: DocumentId =
+            "sha256:abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234"
+                .parse()
+                .unwrap();
+        let alias = AssetEntry::Alias(AssetAlias::new("dup", "orig", hash));
+
+        assert!(alias.is_alias());
+        assert_eq!(alias.alias_of(), Some("orig"));
+        assert_eq!(alias.id(), "dup");
+        assert_eq!(alias.size(), 0); // Aliases don't add storage
+        assert_eq!(alias.path(), ""); // Aliases don't have their own path
+    }
+
+    #[test]
+    fn test_asset_entry_not_alias() {
+        let image = AssetEntry::Image(ImageAsset::new("img", ImageFormat::Png));
+
+        assert!(!image.is_alias());
+        assert_eq!(image.alias_of(), None);
+    }
+
+    #[test]
+    fn test_asset_alias_serialization() {
+        let hash: DocumentId =
+            "sha256:abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234"
+                .parse()
+                .unwrap();
+        let alias = AssetEntry::Alias(AssetAlias::new("dup", "orig", hash));
+
+        let json = serde_json::to_string_pretty(&alias).unwrap();
+        assert!(json.contains(r#""type": "alias""#));
+        assert!(json.contains(r#""aliasOf": "orig""#));
+
+        let deserialized: AssetEntry = serde_json::from_str(&json).unwrap();
+        assert!(deserialized.is_alias());
+        assert_eq!(deserialized.alias_of(), Some("orig"));
     }
 }
