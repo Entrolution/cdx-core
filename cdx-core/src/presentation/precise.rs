@@ -111,12 +111,14 @@ impl PreciseLayout {
     }
 
     /// Set the page template.
+    #[must_use]
     pub fn with_template(mut self, template: PageTemplate) -> Self {
         self.page_template = Some(template);
         self
     }
 
     /// Add font metrics.
+    #[must_use]
     pub fn with_font(mut self, name: impl Into<String>, metrics: FontMetrics) -> Self {
         self.fonts.insert(name.into(), metrics);
         self
@@ -180,7 +182,7 @@ impl PrecisePageSize {
 }
 
 /// Page template for headers, footers, and margins.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct PageTemplate {
     /// Page margins.
     pub margins: Margins,
@@ -192,16 +194,6 @@ pub struct PageTemplate {
     /// Footer region.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub footer: Option<PageRegion>,
-}
-
-impl Default for PageTemplate {
-    fn default() -> Self {
-        Self {
-            margins: Margins::default(),
-            header: None,
-            footer: None,
-        }
-    }
 }
 
 impl PageTemplate {
@@ -344,6 +336,7 @@ pub struct PrecisePageElement {
     pub lines: Vec<LineInfo>,
 }
 
+#[allow(clippy::trivially_copy_pass_by_ref)] // Required by serde skip_serializing_if
 fn is_false(b: &bool) -> bool {
     !*b
 }

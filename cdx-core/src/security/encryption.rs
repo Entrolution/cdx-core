@@ -313,6 +313,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     fn test_large_plaintext() {
         let key = Aes256GcmEncryptor::generate_key();
         let encryptor = Aes256GcmEncryptor::new(&key).unwrap();
