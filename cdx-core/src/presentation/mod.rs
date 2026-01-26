@@ -14,23 +14,31 @@
 
 mod continuous;
 mod paginated;
+mod precise;
 mod responsive;
 mod style;
 
 pub use continuous::{Continuous, Section};
 pub use paginated::{FlowElement, Margins, PageElement, PageSize, Paginated, Position};
+pub use precise::{
+    FontMetrics, LineInfo, PageRegion, PageTemplate, PreciseLayout, PrecisePage,
+    PrecisePageElement, PrecisePageSize,
+};
 pub use responsive::{Breakpoint, Responsive, ResponsiveDefaults, ResponsiveStyle};
 pub use style::{Color, CssValue, FontWeight, Style, StyleMap, TextAlign};
 
 /// Presentation type identifier.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PresentationType {
-    /// Fixed pages for print/PDF.
+    /// Fixed pages for print/PDF (reactive).
     Paginated,
-    /// Vertical scroll for screens.
+    /// Vertical scroll for screens (reactive).
     Continuous,
-    /// Adapts to viewport size.
+    /// Adapts to viewport size (reactive).
     Responsive,
+    /// Exact coordinates for pixel-perfect reproduction.
+    /// Required for FROZEN and PUBLISHED documents.
+    Precise,
 }
 
 impl PresentationType {
@@ -41,7 +49,20 @@ impl PresentationType {
             Self::Paginated => "paginated",
             Self::Continuous => "continuous",
             Self::Responsive => "responsive",
+            Self::Precise => "precise",
         }
+    }
+
+    /// Check if this is a reactive (hint-based) presentation type.
+    #[must_use]
+    pub const fn is_reactive(&self) -> bool {
+        matches!(self, Self::Paginated | Self::Continuous | Self::Responsive)
+    }
+
+    /// Check if this is a precise (coordinate-based) presentation type.
+    #[must_use]
+    pub const fn is_precise(&self) -> bool {
+        matches!(self, Self::Precise)
     }
 }
 

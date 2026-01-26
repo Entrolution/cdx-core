@@ -124,7 +124,32 @@ impl Manifest {
             });
         }
 
+        // Check precise layout requirement for frozen/published states
+        if self.state.requires_precise_layout() && !self.has_precise_layout() {
+            return Err(crate::Error::StateRequirementNotMet {
+                state: self.state,
+                requirement: "at least one precise layout".to_string(),
+            });
+        }
+
         Ok(())
+    }
+
+    /// Check if the manifest contains a precise layout reference.
+    #[must_use]
+    pub fn has_precise_layout(&self) -> bool {
+        self.presentation
+            .iter()
+            .any(|p| p.presentation_type == "precise")
+    }
+
+    /// Get all precise layout references.
+    #[must_use]
+    pub fn precise_layouts(&self) -> Vec<&PresentationRef> {
+        self.presentation
+            .iter()
+            .filter(|p| p.presentation_type == "precise")
+            .collect()
     }
 }
 
@@ -315,5 +340,109 @@ mod tests {
         let json = serde_json::to_string_pretty(&manifest).unwrap();
         assert!(json.contains("\"codex\": \"0.1\""));
         assert!(json.contains("\"state\": \"draft\""));
+    }
+
+    fn test_hash() -> DocumentId {
+        // Valid SHA256 hash (64 hex chars = 32 bytes)
+        "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+            .parse()
+            .unwrap()
+    }
+
+    #[test]
+    fn test_frozen_requires_precise_layout() {
+        let content = ContentRef {
+            path: "content/document.json".to_string(),
+            hash: test_hash(),
+            compression: None,
+        };
+        let metadata = Metadata {
+            dublin_core: "metadata/dublin-core.json".to_string(),
+            custom: None,
+        };
+
+        let mut manifest = Manifest::new(content, metadata);
+        manifest.id = test_hash();
+        manifest.state = DocumentState::Frozen;
+        manifest.security = Some(SecurityRef {
+            signatures: Some("security/signatures.json".to_string()),
+            encryption: None,
+        });
+        manifest.lineage = Some(Lineage {
+            parent: None,
+            version: Some(1),
+            branch: None,
+            note: None,
+        });
+
+        // Without precise layout, validation should fail
+        let result = manifest.validate();
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            crate::Error::StateRequirementNotMet { .. }
+        ));
+
+        // Add precise layout reference
+        manifest.presentation.push(PresentationRef {
+            presentation_type: "precise".to_string(),
+            path: "presentation/layouts/letter.json".to_string(),
+            hash: test_hash(),
+            default: false,
+        });
+
+        // Now validation should pass
+        assert!(manifest.validate().is_ok());
+    }
+
+    #[test]
+    fn test_has_precise_layout() {
+        let content = ContentRef {
+            path: "content/document.json".to_string(),
+            hash: DocumentId::pending(),
+            compression: None,
+        };
+        let metadata = Metadata {
+            dublin_core: "metadata/dublin-core.json".to_string(),
+            custom: None,
+        };
+
+        let mut manifest = Manifest::new(content, metadata);
+        assert!(!manifest.has_precise_layout());
+
+        // Add a reactive presentation
+        manifest.presentation.push(PresentationRef {
+            presentation_type: "paginated".to_string(),
+            path: "presentation/paginated.json".to_string(),
+            hash: test_hash(),
+            default: true,
+        });
+        assert!(!manifest.has_precise_layout());
+
+        // Add a precise layout
+        manifest.presentation.push(PresentationRef {
+            presentation_type: "precise".to_string(),
+            path: "presentation/layouts/letter.json".to_string(),
+            hash: test_hash(),
+            default: false,
+        });
+        assert!(manifest.has_precise_layout());
+    }
+
+    #[test]
+    fn test_draft_does_not_require_precise_layout() {
+        let content = ContentRef {
+            path: "content/document.json".to_string(),
+            hash: DocumentId::pending(),
+            compression: None,
+        };
+        let metadata = Metadata {
+            dublin_core: "metadata/dublin-core.json".to_string(),
+            custom: None,
+        };
+
+        let manifest = Manifest::new(content, metadata);
+        // Draft state should validate without precise layout
+        assert!(manifest.validate().is_ok());
     }
 }

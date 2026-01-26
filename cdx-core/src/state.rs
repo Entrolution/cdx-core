@@ -79,6 +79,15 @@ impl DocumentState {
         matches!(self, Self::Review | Self::Frozen | Self::Published)
     }
 
+    /// Returns whether a precise layout is required in this state.
+    ///
+    /// Frozen and published documents require at least one precise layout
+    /// to ensure exact visual reproduction as part of the immutable record.
+    #[must_use]
+    pub const fn requires_precise_layout(&self) -> bool {
+        matches!(self, Self::Frozen | Self::Published)
+    }
+
     /// Check if transitioning to the target state is valid.
     #[must_use]
     pub const fn can_transition_to(&self, target: Self) -> bool {
@@ -201,5 +210,13 @@ mod tests {
             DocumentState::Frozen
         );
         assert!("invalid".parse::<DocumentState>().is_err());
+    }
+
+    #[test]
+    fn test_precise_layout_requirement() {
+        assert!(!DocumentState::Draft.requires_precise_layout());
+        assert!(!DocumentState::Review.requires_precise_layout());
+        assert!(DocumentState::Frozen.requires_precise_layout());
+        assert!(DocumentState::Published.requires_precise_layout());
     }
 }
