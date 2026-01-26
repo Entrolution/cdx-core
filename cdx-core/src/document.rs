@@ -33,12 +33,15 @@ use std::path::Path;
 
 use chrono::Utc;
 
-use crate::archive::{
-    CdxReader, CdxWriter, CompressionMethod, CONTENT_PATH, DUBLIN_CORE_PATH, SIGNATURES_PATH,
-};
+use crate::archive::{CdxReader, CdxWriter, CompressionMethod, CONTENT_PATH, DUBLIN_CORE_PATH};
+#[cfg(feature = "signatures")]
+use crate::archive::SIGNATURES_PATH;
 use crate::content::{Block, Content, Text};
-use crate::manifest::{Lineage, SecurityRef};
+#[cfg(feature = "signatures")]
+use crate::manifest::SecurityRef;
+use crate::manifest::Lineage;
 use crate::metadata::DublinCore;
+#[cfg(feature = "signatures")]
 use crate::security::{Signature, SignatureFile};
 use crate::{DocumentId, DocumentState, HashAlgorithm, Hasher, Manifest, Result};
 
@@ -51,6 +54,7 @@ pub struct Document {
     manifest: Manifest,
     content: Content,
     dublin_core: DublinCore,
+    #[cfg(feature = "signatures")]
     signature_file: Option<SignatureFile>,
 }
 
@@ -102,7 +106,8 @@ impl Document {
         let dc_data = reader.read_dublin_core()?;
         let dublin_core: DublinCore = serde_json::from_slice(&dc_data)?;
 
-        // Read signatures if present
+        // Read signatures if present (only when signatures feature is enabled)
+        #[cfg(feature = "signatures")]
         let signature_file = if let Some(ref security) = manifest.security {
             if let Some(ref sig_path) = security.signatures {
                 if reader.file_exists(sig_path)? {
@@ -123,6 +128,7 @@ impl Document {
             manifest,
             content,
             dublin_core,
+            #[cfg(feature = "signatures")]
             signature_file,
         })
     }
@@ -166,6 +172,7 @@ impl Document {
         manifest.content.hash = content_hash;
 
         // Update security reference if we have signatures
+        #[cfg(feature = "signatures")]
         if let Some(ref sig_file) = self.signature_file {
             if !sig_file.is_empty() {
                 manifest.security = Some(SecurityRef {
@@ -184,6 +191,7 @@ impl Document {
         cdx_writer.write_file(DUBLIN_CORE_PATH, &dc_json, CompressionMethod::Deflate)?;
 
         // Write signatures if present
+        #[cfg(feature = "signatures")]
         if let Some(ref sig_file) = self.signature_file {
             if !sig_file.is_empty() {
                 let sig_json = sig_file.to_json()?;
@@ -260,12 +268,14 @@ impl Document {
     }
 
     /// Get a reference to the signature file, if present.
+    #[cfg(feature = "signatures")]
     #[must_use]
     pub fn signature_file(&self) -> Option<&SignatureFile> {
         self.signature_file.as_ref()
     }
 
     /// Get the signatures from the document.
+    #[cfg(feature = "signatures")]
     #[must_use]
     pub fn signatures(&self) -> &[Signature] {
         self.signature_file
@@ -282,6 +292,7 @@ impl Document {
     /// # Errors
     ///
     /// Returns an error if the document ID cannot be computed.
+    #[cfg(feature = "signatures")]
     pub fn add_signature(&mut self, signature: Signature) -> Result<()> {
         let doc_id = self.compute_id()?;
 
@@ -309,11 +320,21 @@ impl Document {
     }
 
     /// Check if the document has any signatures.
+    #[cfg(feature = "signatures")]
     #[must_use]
     pub fn has_signatures(&self) -> bool {
         self.signature_file
             .as_ref()
             .is_some_and(|sf| !sf.is_empty())
+    }
+
+    /// Check if the document has any signatures.
+    ///
+    /// Always returns false when the signatures feature is disabled.
+    #[cfg(not(feature = "signatures"))]
+    #[must_use]
+    pub fn has_signatures(&self) -> bool {
+        false
     }
 
     /// Compute the document ID from content.
@@ -570,7 +591,10 @@ impl Document {
         forked.manifest.modified = Utc::now();
         forked.manifest.lineage = Some(lineage);
         forked.manifest.security = None;
-        forked.signature_file = None;
+        #[cfg(feature = "signatures")]
+        {
+            forked.signature_file = None;
+        }
 
         Ok(forked)
     }
@@ -770,6 +794,7 @@ impl DocumentBuilder {
             manifest,
             content,
             dublin_core,
+            #[cfg(feature = "signatures")]
             signature_file: None,
         })
     }
