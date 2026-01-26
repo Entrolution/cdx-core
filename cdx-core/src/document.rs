@@ -198,32 +198,35 @@ impl Document {
         manifest.content.hash = content_hash;
 
         // Update security reference if we have signatures or encryption
-        #[cfg(feature = "signatures")]
-        let has_signatures = self
-            .signature_file
-            .as_ref()
-            .is_some_and(|sf| !sf.is_empty());
-        #[cfg(not(feature = "signatures"))]
-        let has_signatures = false;
+        #[cfg(any(feature = "signatures", feature = "encryption"))]
+        {
+            #[cfg(feature = "signatures")]
+            let has_signatures = self
+                .signature_file
+                .as_ref()
+                .is_some_and(|sf| !sf.is_empty());
+            #[cfg(not(feature = "signatures"))]
+            let has_signatures = false;
 
-        #[cfg(feature = "encryption")]
-        let has_encryption = self.encryption_metadata.is_some();
-        #[cfg(not(feature = "encryption"))]
-        let has_encryption = false;
+            #[cfg(feature = "encryption")]
+            let has_encryption = self.encryption_metadata.is_some();
+            #[cfg(not(feature = "encryption"))]
+            let has_encryption = false;
 
-        if has_signatures || has_encryption {
-            manifest.security = Some(SecurityRef {
-                signatures: if has_signatures {
-                    Some(SIGNATURES_PATH.to_string())
-                } else {
-                    None
-                },
-                encryption: if has_encryption {
-                    Some(ENCRYPTION_PATH.to_string())
-                } else {
-                    None
-                },
-            });
+            if has_signatures || has_encryption {
+                manifest.security = Some(SecurityRef {
+                    signatures: if has_signatures {
+                        Some(SIGNATURES_PATH.to_string())
+                    } else {
+                        None
+                    },
+                    encryption: if has_encryption {
+                        Some(ENCRYPTION_PATH.to_string())
+                    } else {
+                        None
+                    },
+                });
+            }
         }
 
         // Write files
