@@ -26,9 +26,9 @@ wasm = ["getrandom/wasm_js"]
 
 # Network-dependent features (require external services)
 timestamps-ots = ["dep:reqwest", "dep:base64"]
+timestamps-rfc3161 = ["dep:reqwest", "dep:base64", "dep:const-oid", "dep:rand_core"]
 
 # These are stubs for future implementation
-# timestamps-rfc3161 = ["dep:reqwest"]  # RFC 3161 TSA client
 # timestamps-bitcoin = []               # Bitcoin anchoring
 # timestamps-ethereum = []              # Ethereum anchoring
 # ocsp = ["dep:reqwest"]                # Certificate revocation checks
@@ -66,6 +66,9 @@ aes-gcm = { version = "0.10", optional = true }
 
 # HTTP client for timestamps (optional)
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"], optional = true }
+
+# OID support for RFC 3161 timestamps (optional)
+const-oid = { version = "0.9", optional = true }
 
 # Time
 chrono = { version = "0.4", features = ["serde", "now"], default-features = false }

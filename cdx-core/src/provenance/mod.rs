@@ -42,6 +42,8 @@ mod merkle;
 pub mod ots;
 mod proof;
 mod record;
+#[cfg(feature = "timestamps-rfc3161")]
+pub mod rfc3161;
 mod timestamp;
 
 pub use block_index::{BlockHashEntry, BlockIndex};

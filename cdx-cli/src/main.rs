@@ -356,11 +356,19 @@ enum Commands {
         output: Option<PathBuf>,
     },
 
-    /// Acquire a timestamp from OpenTimestamps (requires timestamps-ots feature)
+    /// Acquire a timestamp from a timestamp authority
     #[command(name = "timestamp-acquire")]
     TimestampAcquire {
         /// Codex document to timestamp
         file: PathBuf,
+
+        /// Timestamp method (rfc3161, ots, auto)
+        #[arg(short, long, default_value = "auto")]
+        method: Option<String>,
+
+        /// TSA server URL (for rfc3161, uses defaults if not specified)
+        #[arg(short, long)]
+        server: Option<String>,
 
         /// Output file (default: overwrite input)
         #[arg(short, long)]
@@ -528,8 +536,13 @@ fn main() -> Result<()> {
             &output_config,
         ),
 
-        Commands::TimestampAcquire { file, output } => {
-            commands::timestamp::run_acquire_timestamp(file, output, &output_config)
+        Commands::TimestampAcquire {
+            file,
+            method,
+            server,
+            output,
+        } => {
+            commands::timestamp::run_acquire_timestamp(file, method, server, output, &output_config)
         }
     };
 

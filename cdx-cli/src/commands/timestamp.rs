@@ -12,6 +12,9 @@ use std::path::PathBuf;
 #[cfg(feature = "timestamps-ots")]
 use cdx_core::provenance::ots::OtsClient;
 
+#[cfg(feature = "timestamps-rfc3161")]
+use cdx_core::provenance::rfc3161::Rfc3161Client;
+
 use crate::output::OutputConfig;
 
 /// Show timestamps in a document.
@@ -299,17 +302,148 @@ fn truncate_token(token: &str, max_len: usize) -> String {
     }
 }
 
-/// Acquire a timestamp from OpenTimestamps.
+/// Acquire a timestamp from a timestamp authority.
 ///
-/// This submits the document's hash to OpenTimestamps calendar servers
-/// and retrieves a timestamp proof.
-#[cfg(feature = "timestamps-ots")]
+/// This submits the document's hash to a timestamp service and retrieves
+/// a timestamp proof.
 pub fn run_acquire_timestamp(
     file: PathBuf,
+    method: Option<String>,
+    server: Option<String>,
     _output: Option<PathBuf>,
     config: &OutputConfig,
 ) -> Result<()> {
-    config.verbose(&format!("Acquiring timestamp for: {}", file.display()));
+    let method = method.as_deref().unwrap_or("auto");
+
+    match method.to_lowercase().as_str() {
+        "rfc3161" => run_acquire_rfc3161(file, server, config),
+        "ots" | "opentimestamps" => run_acquire_ots(file, config),
+        "auto" => run_acquire_auto(file, server, config),
+        _ => anyhow::bail!(
+            "Unknown timestamp method: {}. Valid options: rfc3161, ots, auto",
+            method
+        ),
+    }
+}
+
+/// Auto-select timestamp method based on available features.
+#[cfg(feature = "timestamps-rfc3161")]
+fn run_acquire_auto(file: PathBuf, server: Option<String>, config: &OutputConfig) -> Result<()> {
+    // Prefer RFC 3161 when available
+    run_acquire_rfc3161(file, server, config)
+}
+
+#[cfg(all(not(feature = "timestamps-rfc3161"), feature = "timestamps-ots"))]
+fn run_acquire_auto(file: PathBuf, _server: Option<String>, config: &OutputConfig) -> Result<()> {
+    // Fall back to OTS when RFC 3161 is not available
+    run_acquire_ots(file, config)
+}
+
+#[cfg(not(any(feature = "timestamps-rfc3161", feature = "timestamps-ots")))]
+fn run_acquire_auto(_file: PathBuf, _server: Option<String>, _config: &OutputConfig) -> Result<()> {
+    anyhow::bail!(
+        "No timestamp features enabled. Rebuild with: cargo build --features timestamps-rfc3161 or --features timestamps-ots"
+    )
+}
+
+/// Acquire a timestamp from an RFC 3161 TSA.
+#[cfg(feature = "timestamps-rfc3161")]
+fn run_acquire_rfc3161(file: PathBuf, server: Option<String>, config: &OutputConfig) -> Result<()> {
+    config.verbose(&format!(
+        "Acquiring RFC 3161 timestamp for: {}",
+        file.display()
+    ));
+
+    let doc = Document::open(&file)
+        .with_context(|| format!("Failed to open document: {}", file.display()))?;
+
+    // Check document state
+    if doc.state().is_immutable() {
+        anyhow::bail!(
+            "Cannot acquire timestamp: document is in {} state",
+            doc.state()
+        );
+    }
+
+    // Get the document ID (content hash)
+    let doc_id = doc.id();
+    config.verbose(&format!("Document ID: {doc_id}"));
+
+    // Create RFC 3161 client
+    let client = if let Some(ref server_url) = server {
+        Rfc3161Client::with_server(server_url)
+    } else {
+        Rfc3161Client::new()
+    };
+
+    // Run the async operation
+    let runtime =
+        tokio::runtime::Runtime::new().with_context(|| "Failed to create async runtime")?;
+
+    let timestamp = runtime
+        .block_on(async { client.acquire_timestamp(doc_id).await })
+        .with_context(|| "Failed to acquire timestamp from TSA")?;
+
+    if config.json {
+        let output_json = serde_json::json!({
+            "status": "acquired",
+            "document_id": doc_id.to_string(),
+            "timestamp": {
+                "method": "rfc3161",
+                "authority": timestamp.authority,
+                "time": timestamp.time.to_rfc3339(),
+                "token_preview": truncate_token(&timestamp.token, 64),
+            },
+        });
+        println!("{}", serde_json::to_string_pretty(&output_json)?);
+    } else {
+        config.success("Timestamp acquired from RFC 3161 TSA");
+        println!();
+        config.field("Document ID", &doc_id.to_string());
+        config.field("Method", "RFC 3161");
+        config.field("Authority", &timestamp.authority);
+        config.field("Time", &timestamp.time.to_rfc3339());
+        config.field("Token", &truncate_token(&timestamp.token, 64));
+        println!();
+        println!("{}", "To add this timestamp to the document, use:".dimmed());
+        println!(
+            "  {} add-timestamp {} --method rfc3161 --authority {} --token <token>",
+            "cdx".cyan(),
+            file.display(),
+            timestamp.authority
+        );
+    }
+
+    Ok(())
+}
+
+#[cfg(not(feature = "timestamps-rfc3161"))]
+fn run_acquire_rfc3161(
+    _file: PathBuf,
+    _server: Option<String>,
+    config: &OutputConfig,
+) -> Result<()> {
+    if config.json {
+        let output = serde_json::json!({
+            "error": "RFC 3161 feature not enabled",
+            "message": "Rebuild with --features timestamps-rfc3161 to enable RFC 3161 timestamps",
+        });
+        println!("{}", serde_json::to_string_pretty(&output)?);
+        Ok(())
+    } else {
+        anyhow::bail!(
+            "RFC 3161 feature not enabled. Rebuild with: cargo build --features timestamps-rfc3161"
+        )
+    }
+}
+
+/// Acquire a timestamp from OpenTimestamps.
+#[cfg(feature = "timestamps-ots")]
+fn run_acquire_ots(file: PathBuf, config: &OutputConfig) -> Result<()> {
+    config.verbose(&format!(
+        "Acquiring OpenTimestamps timestamp for: {}",
+        file.display()
+    ));
 
     let doc = Document::open(&file)
         .with_context(|| format!("Failed to open document: {}", file.display()))?;
@@ -372,29 +506,21 @@ pub fn run_acquire_timestamp(
         );
     }
 
-    // Note: Full implementation would save the timestamp to the document's provenance record
-    // For now, we output the timestamp so the user can add it manually
-
     Ok(())
 }
 
-/// Stub for when timestamps-ots feature is not enabled.
 #[cfg(not(feature = "timestamps-ots"))]
-pub fn run_acquire_timestamp(
-    _file: PathBuf,
-    _output: Option<PathBuf>,
-    config: &OutputConfig,
-) -> Result<()> {
+fn run_acquire_ots(_file: PathBuf, config: &OutputConfig) -> Result<()> {
     if config.json {
         let output = serde_json::json!({
             "error": "OpenTimestamps feature not enabled",
-            "message": "Rebuild with --features timestamps-ots to enable timestamp acquisition",
+            "message": "Rebuild with --features timestamps-ots to enable OpenTimestamps",
         });
         println!("{}", serde_json::to_string_pretty(&output)?);
+        Ok(())
     } else {
         anyhow::bail!(
             "OpenTimestamps feature not enabled. Rebuild with: cargo build --features timestamps-ots"
-        );
+        )
     }
-    Ok(())
 }

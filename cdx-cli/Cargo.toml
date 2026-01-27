@@ -17,6 +17,8 @@ path = "src/main.rs"
 [features]
 default = []
 timestamps-ots = ["cdx-core/timestamps-ots", "dep:tokio"]
+timestamps-rfc3161 = ["cdx-core/timestamps-rfc3161", "dep:tokio"]
+timestamps = ["timestamps-ots", "timestamps-rfc3161"]
 
 [dependencies]
 cdx-core = { workspace = true, features = ["full"] }
