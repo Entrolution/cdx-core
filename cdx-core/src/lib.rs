@@ -38,6 +38,7 @@ pub mod asset;
 pub mod content;
 mod document;
 mod error;
+pub mod extensions;
 mod hash;
 mod manifest;
 pub mod metadata;

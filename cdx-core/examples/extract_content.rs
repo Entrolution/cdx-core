@@ -120,6 +120,15 @@ fn print_block(block: &Block, index: usize, depth: usize) {
         Block::Break { .. } => {
             println!("{indent}[{index}] <br>");
         }
+        Block::Extension(ext) => {
+            println!(
+                "{indent}[{index}] Extension: {}:{}",
+                ext.namespace, ext.block_type
+            );
+            for (j, child) in ext.children.iter().enumerate() {
+                print_block(child, j, depth + 1);
+            }
+        }
     }
 }
 

@@ -4,6 +4,7 @@ use std::collections::HashSet;
 use std::fmt;
 
 use super::{Block, Content, Text};
+use crate::extensions::ExtensionBlock;
 
 /// Content validation error.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -106,6 +107,7 @@ fn validate_block(
         Block::TableRow { children, .. } => validate_table_row(children, path, parent, &mut ctx),
         Block::TableCell(cell) => validate_table_cell(cell, path, parent, ctx.errors),
         Block::Math(math) => validate_math(math, path, ctx.errors),
+        Block::Extension(ext) => validate_extension(ext, path, &mut ctx),
     }
 }
 
@@ -280,6 +282,28 @@ fn validate_math(math: &super::block::MathBlock, path: &str, errors: &mut Vec<Va
             path: path.to_string(),
             message: "math value is required".to_string(),
         });
+    }
+}
+
+fn validate_extension(ext: &ExtensionBlock, path: &str, ctx: &mut ValidationContext<'_>) {
+    // Validate extension namespace and type
+    if ext.namespace.is_empty() {
+        ctx.add_error(path, "extension namespace is required");
+    }
+    if ext.block_type.is_empty() {
+        ctx.add_error(path, "extension block type is required");
+    }
+
+    // Validate children recursively
+    for (i, child) in ext.children.iter().enumerate() {
+        let child_path = format!("{path}.children[{i}]");
+        validate_block(child, &child_path, ctx.errors, ctx.seen_ids, None);
+    }
+
+    // Validate fallback content if present
+    if let Some(fallback) = &ext.fallback {
+        let fallback_path = format!("{path}.fallback");
+        validate_block(fallback, &fallback_path, ctx.errors, ctx.seen_ids, None);
     }
 }
 
