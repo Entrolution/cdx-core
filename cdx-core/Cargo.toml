@@ -25,11 +25,12 @@ ml-dsa = ["dep:fips204", "dep:base64", "dep:rand_core"]
 wasm = ["getrandom/wasm_js"]
 
 # Network-dependent features (require external services)
+timestamps-ots = ["dep:reqwest", "dep:base64"]
+
 # These are stubs for future implementation
 # timestamps-rfc3161 = ["dep:reqwest"]  # RFC 3161 TSA client
 # timestamps-bitcoin = []               # Bitcoin anchoring
 # timestamps-ethereum = []              # Ethereum anchoring
-# timestamps-ots = []                   # OpenTimestamps client
 # ocsp = ["dep:reqwest"]                # Certificate revocation checks
 
 full = ["zstd", "signatures", "encryption", "eddsa", "ml-dsa"]
@@ -62,6 +63,9 @@ fips204 = { version = "0.4", optional = true }
 
 # Encryption (optional)
 aes-gcm = { version = "0.10", optional = true }
+
+# HTTP client for timestamps (optional)
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"], optional = true }
 
 # Time
 chrono = { version = "0.4", features = ["serde", "now"], default-features = false }

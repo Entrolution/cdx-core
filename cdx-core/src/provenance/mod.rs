@@ -38,6 +38,8 @@
 
 mod block_index;
 mod merkle;
+#[cfg(feature = "timestamps-ots")]
+pub mod ots;
 mod proof;
 mod record;
 mod timestamp;
