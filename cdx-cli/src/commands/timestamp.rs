@@ -330,12 +330,12 @@ pub fn run_acquire_timestamp(
     let client = OtsClient::new();
 
     // Run the async operation
-    let runtime = tokio::runtime::Runtime::new()
-        .with_context(|| "Failed to create async runtime")?;
+    let runtime =
+        tokio::runtime::Runtime::new().with_context(|| "Failed to create async runtime")?;
 
-    let timestamp = runtime.block_on(async {
-        client.acquire_timestamp(doc_id).await
-    }).with_context(|| "Failed to acquire timestamp from OpenTimestamps")?;
+    let timestamp = runtime
+        .block_on(async { client.acquire_timestamp(doc_id).await })
+        .with_context(|| "Failed to acquire timestamp from OpenTimestamps")?;
 
     if config.json {
         let output_json = serde_json::json!({
@@ -363,10 +363,7 @@ pub fn run_acquire_timestamp(
             "Note: Timestamp is pending. Bitcoin anchoring typically completes within 1-2 hours.",
         );
         println!();
-        println!(
-            "{}",
-            "To add this timestamp to the document, use:".dimmed()
-        );
+        println!("{}", "To add this timestamp to the document, use:".dimmed());
         println!(
             "  {} add-timestamp {} --method opentimestamps --authority {} --token <token>",
             "cdx".cyan(),
