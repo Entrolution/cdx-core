@@ -310,6 +310,51 @@ enum Commands {
         /// Second document
         file2: PathBuf,
     },
+
+    /// Show timestamps in a document
+    #[command(name = "show-timestamps")]
+    ShowTimestamps {
+        /// Codex document
+        file: PathBuf,
+    },
+
+    /// Verify timestamps in a document
+    #[command(name = "verify-timestamps")]
+    VerifyTimestamps {
+        /// Codex document
+        file: PathBuf,
+    },
+
+    /// Add a timestamp record to a document
+    #[command(name = "add-timestamp")]
+    AddTimestamp {
+        /// Codex document
+        file: PathBuf,
+
+        /// Timestamp method (rfc3161, bitcoin, ethereum, opentimestamps)
+        #[arg(long)]
+        method: String,
+
+        /// Timestamp authority URL or name
+        #[arg(long)]
+        authority: String,
+
+        /// Base64-encoded timestamp token
+        #[arg(long)]
+        token: String,
+
+        /// Timestamp time (RFC 3339 format, defaults to now)
+        #[arg(long)]
+        time: Option<String>,
+
+        /// Transaction ID (for blockchain timestamps)
+        #[arg(long)]
+        transaction_id: Option<String>,
+
+        /// Output file (default: overwrite input)
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+    },
 }
 
 fn main() -> Result<()> {
@@ -444,6 +489,33 @@ fn main() -> Result<()> {
         ),
 
         Commands::Diff { file1, file2 } => commands::diff::run(file1, file2, &output_config),
+
+        Commands::ShowTimestamps { file } => {
+            commands::timestamp::run_show_timestamps(file, &output_config)
+        }
+
+        Commands::VerifyTimestamps { file } => {
+            commands::timestamp::run_verify_timestamps(file, &output_config)
+        }
+
+        Commands::AddTimestamp {
+            file,
+            method,
+            authority,
+            token,
+            time,
+            transaction_id,
+            output,
+        } => commands::timestamp::run_add_timestamp(
+            file,
+            method,
+            authority,
+            token,
+            time,
+            transaction_id,
+            output,
+            &output_config,
+        ),
     };
 
     if let Err(e) = result {

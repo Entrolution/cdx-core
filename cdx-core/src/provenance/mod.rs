@@ -45,5 +45,8 @@ mod timestamp;
 pub use block_index::{BlockHashEntry, BlockIndex};
 pub use merkle::{MerkleNode, MerkleTree};
 pub use proof::{BlockProof, ProofVerification};
-pub use record::{CreatorInfo, DerivationRecord, MerkleInfo, ProvenanceRecord, TimestampRecord};
+pub use record::{
+    CreatorInfo, DerivationRecord, DerivationType, MerkleInfo, ProvenanceRecord, TimestampMethod,
+    TimestampRecord,
+};
 pub use timestamp::{TimestampRequest, TimestampResponse, TimestampToken};

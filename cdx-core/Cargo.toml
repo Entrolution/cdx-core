@@ -23,6 +23,15 @@ encryption = ["dep:aes-gcm", "dep:rand_core"]
 eddsa = ["dep:ed25519-dalek", "dep:rand_core"]
 ml-dsa = ["dep:fips204", "dep:base64", "dep:rand_core"]
 wasm = ["getrandom/wasm_js"]
+
+# Network-dependent features (require external services)
+# These are stubs for future implementation
+# timestamps-rfc3161 = ["dep:reqwest"]  # RFC 3161 TSA client
+# timestamps-bitcoin = []               # Bitcoin anchoring
+# timestamps-ethereum = []              # Ethereum anchoring
+# timestamps-ots = []                   # OpenTimestamps client
+# ocsp = ["dep:reqwest"]                # Certificate revocation checks
+
 full = ["zstd", "signatures", "encryption", "eddsa", "ml-dsa"]
 
 [dependencies]

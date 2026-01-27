@@ -13,5 +13,6 @@ pub mod revert;
 pub mod review;
 pub mod sign;
 pub mod status;
+pub mod timestamp;
 pub mod validate;
 pub mod verify;
