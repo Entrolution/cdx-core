@@ -228,7 +228,10 @@ mod tests {
             }));
 
         assert_eq!(ext.id, Some("accept-terms".to_string()));
-        assert_eq!(ext.get_string_attribute("label"), Some("I accept the terms"));
+        assert_eq!(
+            ext.get_string_attribute("label"),
+            Some("I accept the terms")
+        );
         assert_eq!(ext.get_bool_attribute("required"), Some(true));
     }
 

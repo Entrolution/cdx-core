@@ -1021,7 +1021,9 @@ mod tests {
 
     #[test]
     fn test_checkbox_field() {
-        let field = CheckboxField::new("I agree to the terms").with_id("terms").required();
+        let field = CheckboxField::new("I agree to the terms")
+            .with_id("terms")
+            .required();
 
         assert_eq!(field.label, "I agree to the terms");
         assert!(field.required);
@@ -1057,10 +1059,7 @@ mod tests {
             .required();
 
         assert_eq!(field.options.len(), 3);
-        assert_eq!(
-            field.options[0].group,
-            Some("North America".to_string())
-        );
+        assert_eq!(field.options[0].group, Some("North America".to_string()));
     }
 
     #[test]
