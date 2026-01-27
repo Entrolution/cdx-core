@@ -24,9 +24,15 @@
 //! }
 //! ```
 
+mod collaboration;
 mod forms;
 mod semantic;
 
+pub use collaboration::{
+    ChangeStatus, ChangeTracking, ChangeType, CollaborationSession, Collaborator, Comment,
+    CommentThread, CommentType, CursorPosition, HighlightColor, Participant, Priority, Selection,
+    SessionStatus, SuggestionStatus, TextRange, TrackedChange,
+};
 pub use forms::{
     CheckboxField, DatePickerField, DropdownField, DropdownOption, FormData, FormField,
     FormValidation, RadioGroupField, RadioOption, SignatureField, TextAreaField, TextInputField,
