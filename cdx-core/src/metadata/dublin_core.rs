@@ -63,6 +63,122 @@ impl DublinCore {
     pub fn language(&self) -> Option<&str> {
         self.terms.language.as_deref()
     }
+
+    /// Get the subject(s) as a slice.
+    #[must_use]
+    pub fn subjects(&self) -> Vec<&str> {
+        self.terms
+            .subject
+            .as_ref()
+            .map_or_else(Vec::new, StringOrArray::as_slice)
+    }
+
+    /// Get the publisher if present.
+    #[must_use]
+    pub fn publisher(&self) -> Option<&str> {
+        self.terms.publisher.as_deref()
+    }
+
+    /// Get the contributor(s) as a slice.
+    #[must_use]
+    pub fn contributors(&self) -> Vec<&str> {
+        self.terms
+            .contributor
+            .as_ref()
+            .map_or_else(Vec::new, StringOrArray::as_slice)
+    }
+
+    /// Get the date if present.
+    #[must_use]
+    pub fn date(&self) -> Option<&str> {
+        self.terms.date.as_deref()
+    }
+
+    /// Get the type if present.
+    #[must_use]
+    pub fn dc_type(&self) -> Option<&str> {
+        self.terms.dc_type.as_deref()
+    }
+
+    /// Get the format if present.
+    #[must_use]
+    pub fn format(&self) -> Option<&str> {
+        self.terms.format.as_deref()
+    }
+
+    /// Get the identifier if present.
+    #[must_use]
+    pub fn identifier(&self) -> Option<&str> {
+        self.terms.identifier.as_deref()
+    }
+
+    /// Get the source if present.
+    #[must_use]
+    pub fn source(&self) -> Option<&str> {
+        self.terms.source.as_deref()
+    }
+
+    /// Get the relation if present.
+    #[must_use]
+    pub fn relation(&self) -> Option<&str> {
+        self.terms.relation.as_deref()
+    }
+
+    /// Get the coverage if present.
+    #[must_use]
+    pub fn coverage(&self) -> Option<&str> {
+        self.terms.coverage.as_deref()
+    }
+
+    /// Get the rights if present.
+    #[must_use]
+    pub fn rights(&self) -> Option<&str> {
+        self.terms.rights.as_deref()
+    }
+
+    /// Set the title.
+    pub fn set_title(&mut self, title: impl Into<String>) {
+        self.terms.title = title.into();
+    }
+
+    /// Set the creator(s).
+    pub fn set_creators(&mut self, creators: Vec<String>) {
+        self.terms.creator = match creators.len() {
+            1 => StringOrArray::Single(creators.into_iter().next().unwrap_or_default()),
+            _ => StringOrArray::Multiple(creators),
+        };
+    }
+
+    /// Set the description.
+    pub fn set_description(&mut self, description: Option<String>) {
+        self.terms.description = description;
+    }
+
+    /// Set the subject(s).
+    pub fn set_subjects(&mut self, subjects: Vec<String>) {
+        self.terms.subject = match subjects.len() {
+            0 => None,
+            1 => Some(StringOrArray::Single(
+                subjects.into_iter().next().unwrap_or_default(),
+            )),
+            _ => Some(StringOrArray::Multiple(subjects)),
+        };
+    }
+
+    /// Set the publisher.
+    pub fn set_publisher(&mut self, publisher: Option<String>) {
+        self.terms.publisher = publisher;
+    }
+
+    /// Set the language.
+    pub fn set_language(&mut self, language: Option<String>) {
+        self.terms.language = language;
+    }
+
+    /// Set the rights.
+    pub fn set_rights(&mut self, rights: Option<String>) {
+        self.terms.rights = rights;
+    }
 }
 
 /// Dublin Core terms.

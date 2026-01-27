@@ -92,6 +92,12 @@ enum Commands {
         provenance: bool,
     },
 
+    /// Show comprehensive document status
+    Status {
+        /// Codex document to check
+        file: PathBuf,
+    },
+
     /// Add a digital signature
     Sign {
         /// Codex document to sign
@@ -214,6 +220,96 @@ enum Commands {
         #[arg(short, long)]
         note: Option<String>,
     },
+
+    /// Generate a Merkle proof for a block
+    Prove {
+        /// Codex document
+        file: PathBuf,
+
+        /// Block ID to prove
+        #[arg(long, conflicts_with = "block_index")]
+        block_id: Option<String>,
+
+        /// Block index to prove (0-based)
+        #[arg(long, conflicts_with = "block_id")]
+        block_index: Option<usize>,
+
+        /// Output file for the proof JSON
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+    },
+
+    /// Verify a Merkle proof against a document
+    #[command(name = "verify-proof")]
+    VerifyProof {
+        /// Codex document
+        file: PathBuf,
+
+        /// Proof JSON file
+        proof: PathBuf,
+    },
+
+    /// Show document lineage (ancestor chain)
+    #[command(name = "show-lineage")]
+    ShowLineage {
+        /// Codex document
+        file: PathBuf,
+    },
+
+    /// Display document metadata
+    #[command(name = "get-metadata")]
+    GetMetadata {
+        /// Codex document
+        file: PathBuf,
+    },
+
+    /// Set document metadata fields
+    #[command(name = "set-metadata")]
+    SetMetadata {
+        /// Codex document
+        file: PathBuf,
+
+        /// Set title
+        #[arg(long)]
+        title: Option<String>,
+
+        /// Set creator(s)
+        #[arg(long)]
+        creator: Vec<String>,
+
+        /// Set subject(s)
+        #[arg(long)]
+        subject: Vec<String>,
+
+        /// Set description
+        #[arg(long)]
+        description: Option<String>,
+
+        /// Set publisher
+        #[arg(long)]
+        publisher: Option<String>,
+
+        /// Set language (BCP 47 code)
+        #[arg(long)]
+        language: Option<String>,
+
+        /// Set rights statement
+        #[arg(long)]
+        rights: Option<String>,
+
+        /// Output file (default: overwrite input)
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+    },
+
+    /// Compare two Codex documents
+    Diff {
+        /// First document
+        file1: PathBuf,
+
+        /// Second document
+        file2: PathBuf,
+    },
 }
 
 fn main() -> Result<()> {
@@ -249,6 +345,8 @@ fn main() -> Result<()> {
             signatures,
             provenance,
         } => commands::inspect::run(file, blocks, signatures, provenance, &output_config),
+
+        Commands::Status { file } => commands::status::run(file, &output_config),
 
         Commands::Sign {
             file,
@@ -304,6 +402,48 @@ fn main() -> Result<()> {
         Commands::Fork { file, output, note } => {
             commands::fork::run(file, output, note, &output_config)
         }
+
+        Commands::Prove {
+            file,
+            block_id,
+            block_index,
+            output,
+        } => commands::prove::run_prove(file, block_id, block_index, output, &output_config),
+
+        Commands::VerifyProof { file, proof } => {
+            commands::prove::run_verify_proof(file, proof, &output_config)
+        }
+
+        Commands::ShowLineage { file } => commands::prove::run_show_lineage(file, &output_config),
+
+        Commands::GetMetadata { file } => {
+            commands::metadata::run_get_metadata(file, &output_config)
+        }
+
+        Commands::SetMetadata {
+            file,
+            title,
+            creator,
+            subject,
+            description,
+            publisher,
+            language,
+            rights,
+            output,
+        } => commands::metadata::run_set_metadata(
+            file,
+            title,
+            creator,
+            subject,
+            description,
+            publisher,
+            language,
+            rights,
+            output,
+            &output_config,
+        ),
+
+        Commands::Diff { file1, file2 } => commands::diff::run(file1, file2, &output_config),
     };
 
     if let Err(e) = result {

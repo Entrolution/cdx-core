@@ -292,10 +292,43 @@ impl Document {
         &self.content
     }
 
+    /// Get a mutable reference to the content.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the document is in an immutable state.
+    pub fn content_mut(&mut self) -> Result<&mut Content> {
+        if self.manifest.state.is_immutable() {
+            return Err(crate::Error::InvalidManifest {
+                reason: format!("Cannot modify content in {} state", self.manifest.state),
+            });
+        }
+        self.manifest.modified = Utc::now();
+        Ok(&mut self.content)
+    }
+
     /// Get a reference to the Dublin Core metadata.
     #[must_use]
     pub fn dublin_core(&self) -> &DublinCore {
         &self.dublin_core
+    }
+
+    /// Get a mutable reference to the Dublin Core metadata.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the document is in an immutable state.
+    pub fn dublin_core_mut(&mut self) -> Result<&mut DublinCore> {
+        if self.manifest.state.is_immutable() {
+            return Err(crate::Error::InvalidManifest {
+                reason: format!(
+                    "Cannot modify Dublin Core metadata in {} state",
+                    self.manifest.state
+                ),
+            });
+        }
+        self.manifest.modified = Utc::now();
+        Ok(&mut self.dublin_core)
     }
 
     /// Get the document title.
