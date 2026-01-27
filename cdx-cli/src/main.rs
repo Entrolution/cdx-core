@@ -355,6 +355,17 @@ enum Commands {
         #[arg(short, long)]
         output: Option<PathBuf>,
     },
+
+    /// Acquire a timestamp from OpenTimestamps (requires timestamps-ots feature)
+    #[command(name = "timestamp-acquire")]
+    TimestampAcquire {
+        /// Codex document to timestamp
+        file: PathBuf,
+
+        /// Output file (default: overwrite input)
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+    },
 }
 
 fn main() -> Result<()> {
@@ -516,6 +527,10 @@ fn main() -> Result<()> {
             output,
             &output_config,
         ),
+
+        Commands::TimestampAcquire { file, output } => {
+            commands::timestamp::run_acquire_timestamp(file, output, &output_config)
+        }
     };
 
     if let Err(e) = result {

@@ -9,6 +9,9 @@ use chrono::{DateTime, Utc};
 use colored::Colorize;
 use std::path::PathBuf;
 
+#[cfg(feature = "timestamps-ots")]
+use cdx_core::provenance::ots::OtsClient;
+
 use crate::output::OutputConfig;
 
 /// Show timestamps in a document.
@@ -294,4 +297,107 @@ fn truncate_token(token: &str, max_len: usize) -> String {
     } else {
         format!("{}...", &token[..max_len])
     }
+}
+
+/// Acquire a timestamp from OpenTimestamps.
+///
+/// This submits the document's hash to OpenTimestamps calendar servers
+/// and retrieves a timestamp proof.
+#[cfg(feature = "timestamps-ots")]
+pub fn run_acquire_timestamp(
+    file: PathBuf,
+    _output: Option<PathBuf>,
+    config: &OutputConfig,
+) -> Result<()> {
+    config.verbose(&format!("Acquiring timestamp for: {}", file.display()));
+
+    let doc = Document::open(&file)
+        .with_context(|| format!("Failed to open document: {}", file.display()))?;
+
+    // Check document state
+    if doc.state().is_immutable() {
+        anyhow::bail!(
+            "Cannot acquire timestamp: document is in {} state",
+            doc.state()
+        );
+    }
+
+    // Get the document ID (content hash)
+    let doc_id = doc.id();
+    config.verbose(&format!("Document ID: {doc_id}"));
+
+    // Create OTS client and acquire timestamp
+    let client = OtsClient::new();
+
+    // Run the async operation
+    let runtime = tokio::runtime::Runtime::new()
+        .with_context(|| "Failed to create async runtime")?;
+
+    let timestamp = runtime.block_on(async {
+        client.acquire_timestamp(doc_id).await
+    }).with_context(|| "Failed to acquire timestamp from OpenTimestamps")?;
+
+    if config.json {
+        let output_json = serde_json::json!({
+            "status": "acquired",
+            "document_id": doc_id.to_string(),
+            "timestamp": {
+                "method": "opentimestamps",
+                "authority": timestamp.authority,
+                "time": timestamp.time.to_rfc3339(),
+                "token_preview": truncate_token(&timestamp.token, 64),
+            },
+            "note": "Timestamp is pending. Bitcoin anchoring typically completes within 1-2 hours.",
+        });
+        println!("{}", serde_json::to_string_pretty(&output_json)?);
+    } else {
+        config.success("Timestamp acquired from OpenTimestamps");
+        println!();
+        config.field("Document ID", &doc_id.to_string());
+        config.field("Method", "OpenTimestamps");
+        config.field("Authority", &timestamp.authority);
+        config.field("Time", &timestamp.time.to_rfc3339());
+        config.field("Token", &truncate_token(&timestamp.token, 64));
+        println!();
+        config.warning(
+            "Note: Timestamp is pending. Bitcoin anchoring typically completes within 1-2 hours.",
+        );
+        println!();
+        println!(
+            "{}",
+            "To add this timestamp to the document, use:".dimmed()
+        );
+        println!(
+            "  {} add-timestamp {} --method opentimestamps --authority {} --token <token>",
+            "cdx".cyan(),
+            file.display(),
+            timestamp.authority
+        );
+    }
+
+    // Note: Full implementation would save the timestamp to the document's provenance record
+    // For now, we output the timestamp so the user can add it manually
+
+    Ok(())
+}
+
+/// Stub for when timestamps-ots feature is not enabled.
+#[cfg(not(feature = "timestamps-ots"))]
+pub fn run_acquire_timestamp(
+    _file: PathBuf,
+    _output: Option<PathBuf>,
+    config: &OutputConfig,
+) -> Result<()> {
+    if config.json {
+        let output = serde_json::json!({
+            "error": "OpenTimestamps feature not enabled",
+            "message": "Rebuild with --features timestamps-ots to enable timestamp acquisition",
+        });
+        println!("{}", serde_json::to_string_pretty(&output)?);
+    } else {
+        anyhow::bail!(
+            "OpenTimestamps feature not enabled. Rebuild with: cargo build --features timestamps-ots"
+        );
+    }
+    Ok(())
 }
