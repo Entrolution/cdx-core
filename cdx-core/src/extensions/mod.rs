@@ -25,11 +25,17 @@
 //! ```
 
 mod forms;
+mod semantic;
 
 pub use forms::{
     CheckboxField, DatePickerField, DropdownField, DropdownOption, FormData, FormField,
     FormValidation, RadioGroupField, RadioOption, SignatureField, TextAreaField, TextInputField,
     ValidationRule,
+};
+pub use semantic::{
+    Author, Bibliography, BibliographyEntry, Citation, CitationStyle, EntityLink, EntityType,
+    EntryType, Glossary, GlossaryRef, GlossaryTerm, JsonLdMetadata, KnowledgeBase, LocatorType,
+    PartialDate,
 };
 
 use serde::{Deserialize, Serialize};
