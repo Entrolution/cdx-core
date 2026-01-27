@@ -48,6 +48,7 @@ pub mod provenance;
 #[cfg_attr(docsrs, doc(cfg(feature = "signatures")))]
 pub mod security;
 mod state;
+pub mod validation;
 
 pub use document::{Document, DocumentBuilder, VerificationReport};
 pub use error::{Error, Result};
