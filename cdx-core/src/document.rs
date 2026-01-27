@@ -214,17 +214,27 @@ impl Document {
             let has_encryption = false;
 
             if has_signatures || has_encryption {
+                #[cfg(feature = "signatures")]
+                let signatures_ref = if has_signatures {
+                    Some(SIGNATURES_PATH.to_string())
+                } else {
+                    None
+                };
+                #[cfg(not(feature = "signatures"))]
+                let signatures_ref = None;
+
+                #[cfg(feature = "encryption")]
+                let encryption_ref = if has_encryption {
+                    Some(ENCRYPTION_PATH.to_string())
+                } else {
+                    None
+                };
+                #[cfg(not(feature = "encryption"))]
+                let encryption_ref = None;
+
                 manifest.security = Some(SecurityRef {
-                    signatures: if has_signatures {
-                        Some(SIGNATURES_PATH.to_string())
-                    } else {
-                        None
-                    },
-                    encryption: if has_encryption {
-                        Some(ENCRYPTION_PATH.to_string())
-                    } else {
-                        None
-                    },
+                    signatures: signatures_ref,
+                    encryption: encryption_ref,
                 });
             }
         }
