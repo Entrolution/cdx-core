@@ -302,6 +302,20 @@ enum Commands {
         output: Option<PathBuf>,
     },
 
+    /// Pack a directory or JSON into a .cdx archive
+    Pack {
+        /// Input directory or JSON file
+        input: PathBuf,
+
+        /// Output .cdx file
+        #[arg(short, long)]
+        output: PathBuf,
+
+        /// Input is combined JSON from Pandoc writer
+        #[arg(long)]
+        from_json: bool,
+    },
+
     /// Compare two Codex documents
     Diff {
         /// First document
@@ -506,6 +520,12 @@ fn main() -> Result<()> {
             output,
             &output_config,
         ),
+
+        Commands::Pack {
+            input,
+            output: output_path,
+            from_json,
+        } => commands::pack::run(input, output_path, from_json, &output_config),
 
         Commands::Diff { file1, file2 } => commands::diff::run(file1, file2, &output_config),
 
