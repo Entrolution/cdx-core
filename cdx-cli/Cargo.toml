@@ -9,6 +9,7 @@ description = "Command-line interface for working with Codex Document Format (.c
 readme = "README.md"
 keywords = ["codex", "document", "cli", "format"]
 categories = ["command-line-utilities"]
+documentation = "https://docs.rs/cdx-cli"
 
 [[bin]]
 name = "cdx"
