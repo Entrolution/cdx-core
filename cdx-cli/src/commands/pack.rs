@@ -10,12 +10,7 @@ use std::path::PathBuf;
 
 use crate::output::OutputConfig;
 
-pub fn run(
-    input: PathBuf,
-    output: PathBuf,
-    from_json: bool,
-    config: &OutputConfig,
-) -> Result<()> {
+pub fn run(input: PathBuf, output: PathBuf, from_json: bool, config: &OutputConfig) -> Result<()> {
     if from_json {
         pack_from_json(input, output, config)
     } else {
