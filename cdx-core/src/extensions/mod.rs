@@ -40,8 +40,8 @@ pub use forms::{
 };
 pub use semantic::{
     Author, Bibliography, BibliographyEntry, Citation, CitationStyle, EntityLink, EntityType,
-    EntryType, Glossary, GlossaryRef, GlossaryTerm, JsonLdMetadata, KnowledgeBase, LocatorType,
-    PartialDate,
+    EntryType, Footnote, Glossary, GlossaryRef, GlossaryTerm, JsonLdMetadata, KnowledgeBase,
+    LocatorType, PartialDate,
 };
 
 use serde::{Deserialize, Serialize};

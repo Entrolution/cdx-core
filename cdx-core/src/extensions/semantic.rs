@@ -638,6 +638,52 @@ pub enum LocatorType {
 }
 
 // ============================================================================
+// Footnotes
+// ============================================================================
+
+/// A footnote with content blocks.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Footnote {
+    /// Sequential footnote number.
+    pub number: u32,
+
+    /// Optional unique identifier.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+
+    /// Simple text content (for footnotes without complex formatting).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub content: Option<String>,
+}
+
+impl Footnote {
+    /// Create a new footnote with the given number.
+    #[must_use]
+    pub fn new(number: u32) -> Self {
+        Self {
+            number,
+            id: None,
+            content: None,
+        }
+    }
+
+    /// Set the unique identifier.
+    #[must_use]
+    pub fn with_id(mut self, id: impl Into<String>) -> Self {
+        self.id = Some(id.into());
+        self
+    }
+
+    /// Set the text content.
+    #[must_use]
+    pub fn with_content(mut self, content: impl Into<String>) -> Self {
+        self.content = Some(content.into());
+        self
+    }
+}
+
+// ============================================================================
 // Glossary
 // ============================================================================
 
@@ -1270,5 +1316,53 @@ mod tests {
         let json = serde_json::to_string(&cite).unwrap();
         assert!(json.contains("\"ref\":\"smith2023\""));
         assert!(json.contains("\"locator\":\"42\""));
+    }
+
+    // Footnote tests
+    #[test]
+    fn test_footnote_new() {
+        let fn1 = Footnote::new(1);
+        assert_eq!(fn1.number, 1);
+        assert_eq!(fn1.id, None);
+        assert_eq!(fn1.content, None);
+    }
+
+    #[test]
+    fn test_footnote_builder() {
+        let fn1 = Footnote::new(1)
+            .with_id("fn-1")
+            .with_content("This is the footnote text.");
+        assert_eq!(fn1.number, 1);
+        assert_eq!(fn1.id, Some("fn-1".to_string()));
+        assert_eq!(fn1.content, Some("This is the footnote text.".to_string()));
+    }
+
+    #[test]
+    fn test_footnote_serialization() {
+        let fn1 = Footnote::new(1).with_content("A footnote.");
+        let json_str = serde_json::to_string(&fn1).unwrap();
+        assert!(json_str.contains("\"number\":1"));
+        assert!(json_str.contains("\"content\":\"A footnote.\""));
+        // id should be omitted when None
+        assert!(!json_str.contains("\"id\""));
+    }
+
+    #[test]
+    fn test_footnote_deserialization() {
+        let json_str = r#"{"number":2,"id":"fn-2","content":"Some text."}"#;
+        let fn2: Footnote = serde_json::from_str(json_str).unwrap();
+        assert_eq!(fn2.number, 2);
+        assert_eq!(fn2.id, Some("fn-2".to_string()));
+        assert_eq!(fn2.content, Some("Some text.".to_string()));
+    }
+
+    #[test]
+    fn test_footnote_roundtrip() {
+        let original = Footnote::new(3)
+            .with_id("fn-3")
+            .with_content("Round-trip test.");
+        let json_str = serde_json::to_string(&original).unwrap();
+        let deserialized: Footnote = serde_json::from_str(&json_str).unwrap();
+        assert_eq!(original, deserialized);
     }
 }
