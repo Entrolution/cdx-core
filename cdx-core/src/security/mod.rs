@@ -6,6 +6,9 @@
 //!
 //! - **Signatures**: ECDSA (ES256), EdDSA (Ed25519), and ML-DSA-65 (post-quantum) digital signatures
 //! - **Encryption**: AES-256-GCM authenticated encryption
+//! - **Certificate Validation**: X.509 certificate chain validation
+//! - **Revocation Checking**: OCSP and CRL certificate revocation (feature: `ocsp`)
+//! - **Access Control**: Permission management for document operations
 //!
 //! # Signing Documents (ECDSA)
 //!
@@ -46,6 +49,8 @@ mod eddsa;
 mod encryption;
 #[cfg(feature = "ml-dsa")]
 mod ml_dsa;
+#[cfg(feature = "ocsp")]
+mod revocation;
 mod signature;
 mod signer;
 
@@ -67,4 +72,11 @@ pub use ml_dsa::{MlDsaSigner, MlDsaVerifier};
 pub use encryption::{
     Aes256GcmEncryptor, EncryptedData, EncryptionAlgorithm, EncryptionMetadata, KdfAlgorithm,
     KeyDerivation, Recipient,
+};
+
+#[cfg(feature = "ocsp")]
+#[cfg_attr(docsrs, doc(cfg(feature = "ocsp")))]
+pub use revocation::{
+    RevocationChecker, RevocationConfig, RevocationMethod, RevocationReason, RevocationResult,
+    RevocationStatus,
 };

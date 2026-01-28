@@ -28,10 +28,12 @@ wasm = ["getrandom/wasm_js"]
 timestamps-ots = ["dep:reqwest", "dep:base64"]
 timestamps-rfc3161 = ["dep:reqwest", "dep:base64", "dep:const-oid", "dep:rand_core"]
 
+# Certificate revocation checking (OCSP/CRL)
+ocsp = ["dep:reqwest", "dep:x509-cert", "dep:der"]
+
 # These are stubs for future implementation
 # timestamps-bitcoin = []               # Bitcoin anchoring
 # timestamps-ethereum = []              # Ethereum anchoring
-# ocsp = ["dep:reqwest"]                # Certificate revocation checks
 
 full = ["zstd", "signatures", "encryption", "eddsa", "ml-dsa"]
 
@@ -69,6 +71,10 @@ reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"
 
 # OID support for RFC 3161 timestamps (optional)
 const-oid = { version = "0.9", optional = true }
+
+# X.509 certificate parsing for OCSP/CRL (optional)
+x509-cert = { version = "0.2", optional = true }
+der = { version = "0.7", features = ["std"], optional = true }
 
 # Time
 chrono = { version = "0.4", features = ["serde", "now"], default-features = false }

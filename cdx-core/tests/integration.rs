@@ -916,3 +916,273 @@ mod round_trip_tests {
         Ok(())
     }
 }
+
+/// Certificate revocation tests.
+#[cfg(feature = "ocsp")]
+mod revocation_tests {
+    use cdx_core::security::{
+        RevocationConfig, RevocationMethod, RevocationReason, RevocationResult, RevocationStatus,
+    };
+    use std::time::Duration;
+
+    /// Test revocation status types.
+    #[test]
+    fn test_revocation_status_types() {
+        let good = RevocationStatus::Good;
+        assert!(good.is_good());
+        assert!(!good.is_revoked());
+
+        let revoked = RevocationStatus::Revoked {
+            reason: Some(RevocationReason::KeyCompromise),
+            revocation_time: Some("2024-01-01T00:00:00Z".to_string()),
+        };
+        assert!(!revoked.is_good());
+        assert!(revoked.is_revoked());
+
+        let unknown = RevocationStatus::Unknown;
+        assert!(!unknown.is_good());
+        assert!(!unknown.is_revoked());
+    }
+
+    /// Test revocation config builder.
+    #[test]
+    fn test_revocation_config() {
+        let config = RevocationConfig::new()
+            .with_timeout(Duration::from_secs(30))
+            .with_prefer_ocsp(true)
+            .with_strict_mode(true)
+            .with_ocsp_responder("https://ocsp.example.com");
+
+        assert_eq!(config.timeout, Duration::from_secs(30));
+        assert!(config.prefer_ocsp);
+        assert!(config.strict_mode);
+        assert_eq!(
+            config.ocsp_responder,
+            Some("https://ocsp.example.com".to_string())
+        );
+    }
+
+    /// Test revocation result builder.
+    #[test]
+    fn test_revocation_result() {
+        let result = RevocationResult::new(
+            RevocationStatus::Good,
+            RevocationMethod::Ocsp,
+            "ABC123".to_string(),
+        )
+        .with_responder("https://ocsp.example.com")
+        .with_produced_at("2024-01-01T12:00:00Z")
+        .with_next_update("2024-01-02T12:00:00Z");
+
+        assert!(result.is_valid());
+        assert_eq!(result.method, RevocationMethod::Ocsp);
+        assert_eq!(result.serial_number, "ABC123");
+        assert!(result.responder_url.is_some());
+    }
+
+    /// Test revocation reason codes.
+    #[test]
+    fn test_revocation_reasons() {
+        assert_eq!(RevocationReason::Unspecified.code(), 0);
+        assert_eq!(RevocationReason::KeyCompromise.code(), 1);
+        assert_eq!(RevocationReason::CaCompromise.code(), 2);
+        assert_eq!(RevocationReason::CessationOfOperation.code(), 5);
+
+        assert_eq!(
+            RevocationReason::from_code(1),
+            Some(RevocationReason::KeyCompromise)
+        );
+        assert_eq!(RevocationReason::from_code(99), None);
+    }
+}
+
+/// Ethereum timestamp tests.
+mod ethereum_tests {
+    use cdx_core::provenance::ethereum::{
+        verify_offline, EthereumConfig, EthereumNetwork, EthereumTimestamp,
+        EthereumTimestampMethod, EthereumVerification,
+    };
+    use cdx_core::{HashAlgorithm, Hasher};
+
+    /// Test Ethereum timestamp creation.
+    #[test]
+    fn test_ethereum_timestamp_creation() {
+        let doc_hash = Hasher::hash(HashAlgorithm::Sha256, b"test document");
+        let tx_hash = "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
+
+        let timestamp = EthereumTimestamp::new(
+            tx_hash.to_string(),
+            doc_hash.clone(),
+            EthereumNetwork::Mainnet,
+        )
+        .with_block_number(12345678)
+        .with_confirmations(100)
+        .with_block_timestamp(1700000000);
+
+        assert!(timestamp.is_valid_tx_hash());
+        assert!(timestamp.is_confirmed(50));
+        assert!(!timestamp.is_confirmed(200));
+        assert_eq!(timestamp.unix_timestamp(), Some(1700000000));
+    }
+
+    /// Test Ethereum network properties.
+    #[test]
+    fn test_ethereum_networks() {
+        assert_eq!(EthereumNetwork::Mainnet.chain_id(), 1);
+        assert_eq!(EthereumNetwork::Polygon.chain_id(), 137);
+        assert!(EthereumNetwork::Mainnet.is_production());
+        assert!(!EthereumNetwork::Sepolia.is_production());
+
+        let url = EthereumNetwork::Mainnet.explorer_url("0x123");
+        assert_eq!(url, Some("https://etherscan.io/tx/0x123".to_string()));
+    }
+
+    /// Test Ethereum verification results.
+    #[test]
+    fn test_ethereum_verification() {
+        let success = EthereumVerification::success(12345678, 100, 1700000000);
+        assert!(success.verified);
+        assert!(success.hash_matches);
+        assert_eq!(success.confirmations, 100);
+
+        let failure = EthereumVerification::failure("Test error");
+        assert!(!failure.verified);
+        assert!(failure.error.is_some());
+
+        let pending = EthereumVerification::pending();
+        assert!(!pending.verified);
+    }
+
+    /// Test offline verification with valid data.
+    #[test]
+    fn test_offline_verification_valid() {
+        let doc_hash = Hasher::hash(HashAlgorithm::Sha256, b"test");
+        let tx_hash = "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
+
+        let timestamp =
+            EthereumTimestamp::new(tx_hash.to_string(), doc_hash, EthereumNetwork::Mainnet)
+                .with_block_number(12345678)
+                .with_confirmations(50)
+                .with_block_timestamp(1700000000);
+
+        let config = EthereumConfig::new().with_min_confirmations(12);
+        let result = verify_offline(&timestamp, &config);
+
+        assert!(result.verified);
+    }
+
+    /// Test offline verification with insufficient confirmations.
+    #[test]
+    fn test_offline_verification_insufficient_confirmations() {
+        let doc_hash = Hasher::hash(HashAlgorithm::Sha256, b"test");
+        let tx_hash = "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
+
+        let timestamp =
+            EthereumTimestamp::new(tx_hash.to_string(), doc_hash, EthereumNetwork::Mainnet)
+                .with_confirmations(5);
+
+        let config = EthereumConfig::new().with_min_confirmations(12);
+        let result = verify_offline(&timestamp, &config);
+
+        assert!(!result.verified);
+        assert!(result.error.unwrap().contains("Insufficient"));
+    }
+
+    /// Test timestamp method types.
+    #[test]
+    fn test_timestamp_methods() {
+        assert_eq!(
+            EthereumTimestampMethod::TransactionData.to_string(),
+            "Transaction Data"
+        );
+        assert_eq!(
+            EthereumTimestampMethod::SmartContract.to_string(),
+            "Smart Contract Event"
+        );
+    }
+}
+
+/// OpenTimestamps tests.
+#[cfg(feature = "timestamps-ots")]
+mod ots_tests {
+    use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
+    use cdx_core::provenance::ots::{
+        calendars, OtsClient, TimestampStatus, UpgradeResult, VerificationStatus,
+    };
+    use cdx_core::provenance::TimestampRecord;
+    use cdx_core::{HashAlgorithm, Hasher};
+    use chrono::Utc;
+
+    /// Test OTS client creation.
+    #[test]
+    fn test_ots_client_creation() {
+        let client = OtsClient::new();
+        // Client should have default calendars
+        let custom_client =
+            OtsClient::with_calendars(vec!["https://custom.example.com".to_string()]);
+        let _ = custom_client.with_timeout(60);
+    }
+
+    /// Test calendar constants.
+    #[test]
+    fn test_calendar_urls() {
+        assert!(!calendars::ALICE.is_empty());
+        assert!(!calendars::BOB.is_empty());
+        assert!(!calendars::FINNEY.is_empty());
+        assert!(calendars::ALICE.starts_with("https://"));
+    }
+
+    /// Test timestamp verification with empty proof.
+    #[test]
+    fn test_verify_empty_proof() {
+        let client = OtsClient::new();
+        let doc_id = Hasher::hash(HashAlgorithm::Sha256, b"test document");
+        let timestamp = TimestampRecord::open_timestamps(Utc::now(), "");
+
+        let result = client.verify_timestamp(&timestamp, &doc_id).unwrap();
+        assert!(!result.valid);
+        assert_eq!(result.status, VerificationStatus::Invalid);
+    }
+
+    /// Test timestamp verification with valid proof data.
+    #[test]
+    fn test_verify_valid_proof_structure() {
+        let client = OtsClient::new();
+        let doc_id = Hasher::hash(HashAlgorithm::Sha256, b"test document");
+        let proof_data = BASE64.encode(b"some_proof_data_here");
+        let timestamp = TimestampRecord::open_timestamps(Utc::now(), proof_data);
+
+        let result = client.verify_timestamp(&timestamp, &doc_id).unwrap();
+        assert!(result.valid);
+        assert_eq!(result.status, VerificationStatus::Pending);
+    }
+
+    /// Test upgrade result types.
+    #[test]
+    fn test_upgrade_result_types() {
+        let pending = UpgradeResult::Pending {
+            message: "Not ready".to_string(),
+        };
+        assert!(!pending.is_complete());
+        assert!(pending.into_record().is_none());
+    }
+
+    /// Test timestamp status types.
+    #[test]
+    fn test_timestamp_status_types() {
+        let pending = TimestampStatus::Pending;
+        assert!(pending.is_pending());
+        assert!(!pending.is_complete());
+
+        let complete = TimestampStatus::Complete {
+            bitcoin_txid: Some("abc123".to_string()),
+            block_height: Some(800000),
+        };
+        assert!(!complete.is_pending());
+        assert!(complete.is_complete());
+
+        // Test display
+        assert_eq!(pending.to_string(), "Pending");
+        assert!(complete.to_string().contains("abc123"));
+    }
+}
