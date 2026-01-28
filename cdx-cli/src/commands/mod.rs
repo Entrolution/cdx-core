@@ -7,6 +7,7 @@ pub mod fork;
 pub mod freeze;
 pub mod inspect;
 pub mod metadata;
+pub mod pack;
 pub mod prove;
 pub mod publish;
 pub mod revert;

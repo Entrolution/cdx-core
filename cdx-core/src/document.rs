@@ -937,6 +937,8 @@ pub struct DocumentBuilder {
     blocks: Vec<Block>,
     state: DocumentState,
     hash_algorithm: HashAlgorithm,
+    content_override: Option<Content>,
+    dublin_core_override: Option<DublinCore>,
 }
 
 impl Default for DocumentBuilder {
@@ -957,6 +959,8 @@ impl DocumentBuilder {
             blocks: Vec::new(),
             state: DocumentState::Draft,
             hash_algorithm: HashAlgorithm::default(),
+            content_override: None,
+            dublin_core_override: None,
         }
     }
 
@@ -1027,6 +1031,20 @@ impl DocumentBuilder {
         self.add_block(Block::code_block(code, language))
     }
 
+    /// Set pre-built content, overriding any blocks added via `add_block()`.
+    #[must_use]
+    pub fn with_content(mut self, content: Content) -> Self {
+        self.content_override = Some(content);
+        self
+    }
+
+    /// Set pre-built Dublin Core metadata, overriding title/creator/description/language.
+    #[must_use]
+    pub fn with_dublin_core(mut self, dublin_core: DublinCore) -> Self {
+        self.dublin_core_override = Some(dublin_core);
+        self
+    }
+
     /// Build the document.
     ///
     /// # Errors
@@ -1035,13 +1053,15 @@ impl DocumentBuilder {
     pub fn build(self) -> Result<Document> {
         use crate::manifest::{ContentRef, Metadata};
 
-        let content = Content::new(self.blocks);
-        let dublin_core = {
+        let content = self
+            .content_override
+            .unwrap_or_else(|| Content::new(self.blocks));
+        let dublin_core = self.dublin_core_override.unwrap_or_else(|| {
             let mut dc = DublinCore::new(&self.title, &self.creator);
             dc.terms.description = self.description;
             dc.terms.language = self.language;
             dc
-        };
+        });
 
         let content_ref = ContentRef {
             path: CONTENT_PATH.to_string(),
