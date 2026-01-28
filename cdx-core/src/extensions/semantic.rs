@@ -1334,10 +1334,7 @@ mod tests {
             .with_content("This is the footnote text.");
         assert_eq!(fn1.number, 1);
         assert_eq!(fn1.id, Some("fn-1".to_string()));
-        assert_eq!(
-            fn1.content,
-            Some("This is the footnote text.".to_string())
-        );
+        assert_eq!(fn1.content, Some("This is the footnote text.".to_string()));
     }
 
     #[test]
@@ -1361,7 +1358,9 @@ mod tests {
 
     #[test]
     fn test_footnote_roundtrip() {
-        let original = Footnote::new(3).with_id("fn-3").with_content("Round-trip test.");
+        let original = Footnote::new(3)
+            .with_id("fn-3")
+            .with_content("Round-trip test.");
         let json_str = serde_json::to_string(&original).unwrap();
         let deserialized: Footnote = serde_json::from_str(&json_str).unwrap();
         assert_eq!(original, deserialized);
