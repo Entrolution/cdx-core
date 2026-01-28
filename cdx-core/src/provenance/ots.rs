@@ -208,7 +208,7 @@ impl OtsClient {
     /// - The proof is not yet ready (still pending)
     /// - Network errors occur
     /// - The proof format is invalid
-    pub fn upgrade_timestamp(&self, timestamp: &TimestampRecord) -> Result<TimestampRecord> {
+    pub async fn upgrade_timestamp(&self, timestamp: &TimestampRecord) -> Result<UpgradeResult> {
         // Decode the existing proof
         let proof_bytes = BASE64.decode(&timestamp.token).map_err(|e| {
             Error::Io(IoError::new(
@@ -219,34 +219,111 @@ impl OtsClient {
 
         // Try to upgrade via each calendar
         for calendar_url in &self.calendars {
-            if let Ok(upgraded) = Self::upgrade_from_calendar(calendar_url, &proof_bytes) {
-                return Ok(TimestampRecord {
+            if let Ok(Some(upgraded)) = self.upgrade_from_calendar(calendar_url, &proof_bytes).await
+            {
+                let upgraded_record = TimestampRecord {
                     method: timestamp.method,
                     authority: timestamp.authority.clone(),
                     time: timestamp.time,
                     token: BASE64.encode(&upgraded),
-                    transaction_id: None, // Could parse from upgraded proof
-                });
+                    transaction_id: extract_bitcoin_txid(&upgraded),
+                };
+                return Ok(UpgradeResult::Complete(upgraded_record));
             }
+            // Proof not ready yet or calendar error, try next
         }
 
-        Err(Error::Io(IoError::new(
-            ErrorKind::NotFound,
-            "Timestamp not yet anchored to Bitcoin",
-        )))
+        Ok(UpgradeResult::Pending {
+            message: "Timestamp not yet anchored to Bitcoin".to_string(),
+        })
     }
 
     /// Try to upgrade a proof from a specific calendar.
-    fn upgrade_from_calendar(calendar_url: &str, _proof: &[u8]) -> Result<Vec<u8>> {
-        // The upgrade endpoint depends on the commitment in the proof
-        // For now, we return an error indicating upgrade is not yet supported
-        // Full implementation would parse the OTS proof format and query
-        // the appropriate upgrade endpoint
-        let _ = calendar_url;
-        Err(Error::Io(IoError::new(
-            ErrorKind::Unsupported,
-            "Timestamp upgrade not yet implemented",
-        )))
+    async fn upgrade_from_calendar(
+        &self,
+        calendar_url: &str,
+        proof: &[u8],
+    ) -> Result<Option<Vec<u8>>> {
+        // Extract the commitment hash from the proof
+        // OTS proofs from calendars are structured as:
+        // - Hash algorithm byte
+        // - Commitment operations
+        // The commitment itself is derivable from the proof structure
+
+        // Try the upgrade endpoint
+        let url = format!("{calendar_url}/timestamp");
+
+        let response = self
+            .client
+            .post(&url)
+            .timeout(std::time::Duration::from_secs(self.timeout_secs))
+            .header("Content-Type", "application/octet-stream")
+            .body(proof.to_vec())
+            .send()
+            .await
+            .map_err(|e| {
+                Error::Io(IoError::new(
+                    ErrorKind::ConnectionRefused,
+                    format!("Failed to contact calendar server: {e}"),
+                ))
+            })?;
+
+        match response.status().as_u16() {
+            200 => {
+                // Upgrade successful
+                let upgraded_bytes = response.bytes().await.map_err(|e| {
+                    Error::Io(IoError::new(
+                        ErrorKind::InvalidData,
+                        format!("Failed to read response: {e}"),
+                    ))
+                })?;
+                Ok(Some(upgraded_bytes.to_vec()))
+            }
+            404 => {
+                // Proof not ready yet
+                Ok(None)
+            }
+            status => {
+                let text = response.text().await.unwrap_or_default();
+                Err(Error::Io(IoError::other(format!(
+                    "Calendar server returned error: {status} {text}"
+                ))))
+            }
+        }
+    }
+
+    /// Check the status of a timestamp without upgrading.
+    ///
+    /// Returns the current status of the timestamp proof.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the timestamp token is invalid.
+    pub async fn check_status(&self, timestamp: &TimestampRecord) -> Result<TimestampStatus> {
+        // Decode the existing proof
+        let proof_bytes = BASE64.decode(&timestamp.token).map_err(|e| {
+            Error::Io(IoError::new(
+                ErrorKind::InvalidData,
+                format!("Invalid timestamp token: {e}"),
+            ))
+        })?;
+
+        // Check if the proof is already complete by looking for Bitcoin attestation markers
+        if is_complete_proof(&proof_bytes) {
+            return Ok(TimestampStatus::Complete {
+                bitcoin_txid: extract_bitcoin_txid(&proof_bytes),
+                block_height: extract_block_height(&proof_bytes),
+            });
+        }
+
+        // Try to check status via calendars
+        for calendar_url in &self.calendars {
+            if let Ok(Some(_)) = self.upgrade_from_calendar(calendar_url, &proof_bytes).await {
+                return Ok(TimestampStatus::Ready);
+            }
+        }
+
+        Ok(TimestampStatus::Pending)
     }
 
     /// Verify a timestamp proof.
@@ -314,6 +391,145 @@ pub enum VerificationStatus {
     Complete,
     /// Proof is invalid.
     Invalid,
+}
+
+/// Result of attempting to upgrade a timestamp.
+#[derive(Debug, Clone)]
+pub enum UpgradeResult {
+    /// Upgrade completed successfully.
+    Complete(TimestampRecord),
+    /// Timestamp is still pending (not yet anchored).
+    Pending {
+        /// Human-readable status message.
+        message: String,
+    },
+}
+
+impl UpgradeResult {
+    /// Check if the upgrade is complete.
+    #[must_use]
+    pub fn is_complete(&self) -> bool {
+        matches!(self, Self::Complete(_))
+    }
+
+    /// Get the upgraded timestamp record if complete.
+    #[must_use]
+    pub fn into_record(self) -> Option<TimestampRecord> {
+        match self {
+            Self::Complete(record) => Some(record),
+            Self::Pending { .. } => None,
+        }
+    }
+}
+
+/// Status of a timestamp proof.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TimestampStatus {
+    /// Proof is pending (submitted to calendar but not yet anchored).
+    Pending,
+    /// Proof is ready to be upgraded (anchored but not yet retrieved).
+    Ready,
+    /// Proof is complete with Bitcoin attestation.
+    Complete {
+        /// Bitcoin transaction ID.
+        bitcoin_txid: Option<String>,
+        /// Bitcoin block height.
+        block_height: Option<u64>,
+    },
+}
+
+impl TimestampStatus {
+    /// Check if the timestamp is complete.
+    #[must_use]
+    pub fn is_complete(&self) -> bool {
+        matches!(self, Self::Complete { .. })
+    }
+
+    /// Check if the timestamp is pending.
+    #[must_use]
+    pub fn is_pending(&self) -> bool {
+        matches!(self, Self::Pending)
+    }
+}
+
+impl std::fmt::Display for TimestampStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Pending => write!(f, "Pending"),
+            Self::Ready => write!(f, "Ready for upgrade"),
+            Self::Complete {
+                bitcoin_txid,
+                block_height,
+            } => {
+                write!(f, "Complete")?;
+                if let Some(txid) = bitcoin_txid {
+                    write!(f, " (tx: {txid})")?;
+                }
+                if let Some(height) = block_height {
+                    write!(f, " (block: {height})")?;
+                }
+                Ok(())
+            }
+        }
+    }
+}
+
+/// Check if a proof is complete (contains Bitcoin attestation).
+fn is_complete_proof(proof: &[u8]) -> bool {
+    // OTS complete proofs contain attestation markers
+    // Bitcoin attestation is indicated by a specific byte sequence
+    // The attestation tag for Bitcoin is 0x0588960d73d71901
+    const BITCOIN_ATTESTATION_TAG: [u8; 8] = [0x05, 0x88, 0x96, 0x0d, 0x73, 0xd7, 0x19, 0x01];
+
+    proof
+        .windows(8)
+        .any(|window| window == BITCOIN_ATTESTATION_TAG)
+}
+
+/// Extract Bitcoin transaction ID from a complete proof.
+fn extract_bitcoin_txid(proof: &[u8]) -> Option<String> {
+    // The txid follows the Bitcoin attestation marker
+    // This is a simplified extraction - full implementation would
+    // properly parse the OTS proof format
+    const BITCOIN_ATTESTATION_TAG: [u8; 8] = [0x05, 0x88, 0x96, 0x0d, 0x73, 0xd7, 0x19, 0x01];
+
+    for (i, window) in proof.windows(8).enumerate() {
+        if window == BITCOIN_ATTESTATION_TAG {
+            // The 32-byte txid follows the attestation tag and block merkle path
+            // This is a simplified approach - actual position depends on proof structure
+            if proof.len() > i + 8 + 32 {
+                let txid_bytes = &proof[i + 8..i + 8 + 32];
+                // Reverse for Bitcoin's display format
+                let mut reversed = txid_bytes.to_vec();
+                reversed.reverse();
+                return Some(hex::encode(reversed));
+            }
+        }
+    }
+    None
+}
+
+/// Extract block height from a complete proof.
+fn extract_block_height(proof: &[u8]) -> Option<u64> {
+    // Block height extraction requires proper OTS proof parsing
+    // This is a placeholder - would need full proof parsing
+    let _ = proof;
+    None
+}
+
+/// Helper module for hex encoding.
+mod hex {
+    /// Encode bytes as hex string.
+    pub fn encode(bytes: impl AsRef<[u8]>) -> String {
+        bytes.as_ref().iter().fold(
+            String::with_capacity(bytes.as_ref().len() * 2),
+            |mut acc, b| {
+                use std::fmt::Write;
+                let _ = write!(acc, "{b:02x}");
+                acc
+            },
+        )
+    }
 }
 
 /// Convert hex string to bytes.

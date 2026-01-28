@@ -6,7 +6,10 @@
 //! - **Block Index**: Persistent block hash index for Merkle proof generation
 //! - **Block Proofs**: Selective disclosure proofs for individual content blocks
 //! - **Lineage Verification**: Chain verification for document version history
-//! - **Timestamp Anchoring**: RFC 3161 timestamp token support
+//! - **Timestamp Anchoring**: Multiple timestamp methods:
+//!   - RFC 3161 Time Stamp Protocol (feature: `timestamps-rfc3161`)
+//!   - OpenTimestamps/Bitcoin anchoring (feature: `timestamps-ots`)
+//!   - Ethereum blockchain anchoring (types and offline verification)
 //! - **Provenance Records**: Complete provenance tracking for documents
 //!
 //! # Block Index Example
@@ -37,6 +40,7 @@
 //! ```
 
 mod block_index;
+pub mod ethereum;
 mod merkle;
 #[cfg(feature = "timestamps-ots")]
 pub mod ots;

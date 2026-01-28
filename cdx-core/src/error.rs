@@ -107,4 +107,25 @@ pub enum Error {
         /// Path to the missing file.
         path: PathBuf,
     },
+
+    /// Invalid certificate.
+    #[error("invalid certificate: {reason}")]
+    InvalidCertificate {
+        /// Description of the certificate issue.
+        reason: String,
+    },
+
+    /// Network operation failed.
+    #[error("network error: {message}")]
+    Network {
+        /// Description of the network error.
+        message: String,
+    },
+
+    /// Feature not implemented.
+    #[error("not implemented: {feature}")]
+    NotImplemented {
+        /// Description of the unimplemented feature.
+        feature: String,
+    },
 }

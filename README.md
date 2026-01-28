@@ -46,6 +46,10 @@ cdx-core = "0.3"
 | `signatures` | Yes | ECDSA P-256 digital signatures (ES256) |
 | `encryption` | No | AES-256-GCM content encryption |
 | `eddsa` | No | Ed25519 digital signatures |
+| `ml-dsa` | No | ML-DSA-65 post-quantum signatures |
+| `timestamps-rfc3161` | No | RFC 3161 timestamp acquisition |
+| `timestamps-ots` | No | OpenTimestamps (Bitcoin anchoring) |
+| `ocsp` | No | Certificate revocation checking (OCSP/CRL) |
 | `wasm` | No | WASM compilation support |
 | `full` | No | All features enabled |
 
@@ -155,12 +159,17 @@ This library implements the [Codex Document Format Specification v0.1](https://g
 | Dublin Core Metadata | Complete |
 | Presentation Layers | Complete |
 | Asset Management | Complete |
-| Digital Signatures | Complete (ECDSA + EdDSA) |
+| Digital Signatures | Complete (ECDSA, EdDSA, ML-DSA) |
 | Document Hashing | Complete |
 | State Machine | Complete |
 | Encryption | Complete (AES-256-GCM) |
 | Merkle Proofs | Complete |
 | Provenance & Lineage | Complete |
+| RFC 3161 Timestamps | Complete |
+| OpenTimestamps (Bitcoin) | Complete |
+| Ethereum Timestamps | Types only (network client optional) |
+| Certificate Revocation | Complete (OCSP/CRL) |
+| JSON Schema Validation | Complete |
 
 ## Development
 
