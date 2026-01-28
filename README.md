@@ -1,3 +1,9 @@
+[![CI](https://github.com/gvonness-apolitical/cdx-core/actions/workflows/ci.yml/badge.svg)](https://github.com/gvonness-apolitical/cdx-core/actions/workflows/ci.yml)
+[![Crates.io](https://img.shields.io/crates/v/cdx-core.svg)](https://crates.io/crates/cdx-core)
+[![Documentation](https://docs.rs/cdx-core/badge.svg)](https://docs.rs/cdx-core)
+[![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](LICENSE-MIT)
+[![MSRV](https://img.shields.io/badge/MSRV-1.85-blue.svg)](https://www.rust-lang.org)
+
 # cdx-core
 
 Core Rust library for reading, writing, and validating [Codex Document Format](https://github.com/gvonness-apolitical/codex-file-format-spec) (`.cdx`) files.
