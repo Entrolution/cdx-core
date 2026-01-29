@@ -24,6 +24,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::content::Block;
+
 // ============================================================================
 // Bibliography
 // ============================================================================
@@ -642,19 +644,28 @@ pub enum LocatorType {
 // ============================================================================
 
 /// A footnote with content blocks.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+///
+/// Per the spec, footnotes support either `content` (plain text) or `children`
+/// (rich content with blocks), but not both on the same footnote.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Footnote {
     /// Sequential footnote number.
     pub number: u32,
 
-    /// Optional unique identifier.
+    /// Optional unique identifier for cross-referencing with footnote marks.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
 
     /// Simple text content (for footnotes without complex formatting).
+    /// Mutually exclusive with `children`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub content: Option<String>,
+
+    /// Rich content blocks (paragraph blocks with formatting).
+    /// Mutually exclusive with `content`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub children: Vec<Block>,
 }
 
 impl Footnote {
@@ -665,6 +676,7 @@ impl Footnote {
             number,
             id: None,
             content: None,
+            children: Vec::new(),
         }
     }
 
@@ -675,11 +687,36 @@ impl Footnote {
         self
     }
 
-    /// Set the text content.
+    /// Set the text content (simple footnotes without formatting).
+    ///
+    /// Note: This is mutually exclusive with `with_children`. If both are
+    /// set, implementations should prefer `children`.
     #[must_use]
     pub fn with_content(mut self, content: impl Into<String>) -> Self {
         self.content = Some(content.into());
         self
+    }
+
+    /// Set the rich content blocks (footnotes with formatting).
+    ///
+    /// Note: This is mutually exclusive with `with_content`. If both are
+    /// set, implementations should prefer `children`.
+    #[must_use]
+    pub fn with_children(mut self, children: Vec<Block>) -> Self {
+        self.children = children;
+        self
+    }
+
+    /// Check if this footnote has rich content (children).
+    #[must_use]
+    pub fn has_children(&self) -> bool {
+        !self.children.is_empty()
+    }
+
+    /// Check if this footnote has simple content.
+    #[must_use]
+    pub fn has_content(&self) -> bool {
+        self.content.is_some()
     }
 }
 
@@ -1325,6 +1362,7 @@ mod tests {
         assert_eq!(fn1.number, 1);
         assert_eq!(fn1.id, None);
         assert_eq!(fn1.content, None);
+        assert!(fn1.children.is_empty());
     }
 
     #[test]
@@ -1364,5 +1402,58 @@ mod tests {
         let json_str = serde_json::to_string(&original).unwrap();
         let deserialized: Footnote = serde_json::from_str(&json_str).unwrap();
         assert_eq!(original, deserialized);
+    }
+
+    #[test]
+    fn test_footnote_with_children() {
+        use crate::content::{Block, Text};
+
+        let para = Block::paragraph(vec![Text::plain("Rich footnote content.")]);
+        let fn1 = Footnote::new(1).with_id("fn-1").with_children(vec![para]);
+
+        assert!(fn1.has_children());
+        assert!(!fn1.has_content());
+        assert_eq!(fn1.children.len(), 1);
+    }
+
+    #[test]
+    fn test_footnote_children_serialization() {
+        use crate::content::{Block, Text};
+
+        let para = Block::paragraph(vec![Text::plain("Footnote text.")]);
+        let fn1 = Footnote::new(1).with_children(vec![para]);
+
+        let json_str = serde_json::to_string(&fn1).unwrap();
+        assert!(json_str.contains("\"number\":1"));
+        assert!(json_str.contains("\"children\""));
+        assert!(json_str.contains("\"type\":\"paragraph\""));
+        // content should be omitted when None
+        assert!(!json_str.contains("\"content\""));
+    }
+
+    #[test]
+    fn test_footnote_children_deserialization() {
+        let json_str = r#"{
+            "number": 1,
+            "id": "fn-1",
+            "children": [
+                {
+                    "type": "paragraph",
+                    "children": [{"value": "Rich content."}]
+                }
+            ]
+        }"#;
+        let fn1: Footnote = serde_json::from_str(json_str).unwrap();
+        assert_eq!(fn1.number, 1);
+        assert_eq!(fn1.id, Some("fn-1".to_string()));
+        assert!(fn1.has_children());
+        assert_eq!(fn1.children.len(), 1);
+    }
+
+    #[test]
+    fn test_footnote_has_content() {
+        let fn1 = Footnote::new(1).with_content("Text");
+        assert!(fn1.has_content());
+        assert!(!fn1.has_children());
     }
 }

@@ -80,6 +80,12 @@ impl Text {
         )
     }
 
+    /// Create a footnote reference text node.
+    #[must_use]
+    pub fn footnote(value: impl Into<String>, number: u32) -> Self {
+        Self::with_marks(value, vec![Mark::Footnote { number, id: None }])
+    }
+
     /// Check if this text has any marks.
     #[must_use]
     pub fn has_marks(&self) -> bool {
@@ -136,6 +142,18 @@ pub enum Mark {
         /// Unique identifier for this anchor.
         id: String,
     },
+
+    /// Footnote reference mark (semantic extension).
+    ///
+    /// Links text to a footnote block elsewhere in the document.
+    Footnote {
+        /// Sequential footnote number.
+        number: u32,
+
+        /// Optional unique identifier for cross-referencing.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        id: Option<String>,
+    },
 }
 
 impl Mark {
@@ -152,6 +170,7 @@ impl Mark {
             Self::Subscript => MarkType::Subscript,
             Self::Link { .. } => MarkType::Link,
             Self::Anchor { .. } => MarkType::Anchor,
+            Self::Footnote { .. } => MarkType::Footnote,
         }
     }
 }
@@ -177,6 +196,8 @@ pub enum MarkType {
     Link,
     /// Anchor mark type.
     Anchor,
+    /// Footnote mark type.
+    Footnote,
 }
 
 #[cfg(test)]
@@ -237,6 +258,54 @@ mod tests {
             assert_eq!(title, Some("Example".to_string()));
         } else {
             panic!("Expected Link mark");
+        }
+    }
+
+    #[test]
+    fn test_text_footnote() {
+        let text = Text::footnote("important claim", 1);
+        assert!(text.has_mark(MarkType::Footnote));
+        if let Mark::Footnote { number, id } = &text.marks[0] {
+            assert_eq!(*number, 1);
+            assert!(id.is_none());
+        } else {
+            panic!("Expected Footnote mark");
+        }
+    }
+
+    #[test]
+    fn test_footnote_mark_serialization() {
+        let mark = Mark::Footnote {
+            number: 1,
+            id: Some("fn1".to_string()),
+        };
+        let json = serde_json::to_string(&mark).unwrap();
+        assert!(json.contains("\"type\":\"footnote\""));
+        assert!(json.contains("\"number\":1"));
+        assert!(json.contains("\"id\":\"fn1\""));
+    }
+
+    #[test]
+    fn test_footnote_mark_deserialization() {
+        let json = r#"{"type":"footnote","number":2,"id":"fn-2"}"#;
+        let mark: Mark = serde_json::from_str(json).unwrap();
+        if let Mark::Footnote { number, id } = mark {
+            assert_eq!(number, 2);
+            assert_eq!(id, Some("fn-2".to_string()));
+        } else {
+            panic!("Expected Footnote mark");
+        }
+    }
+
+    #[test]
+    fn test_footnote_mark_without_id() {
+        let json = r#"{"type":"footnote","number":3}"#;
+        let mark: Mark = serde_json::from_str(json).unwrap();
+        if let Mark::Footnote { number, id } = mark {
+            assert_eq!(number, 3);
+            assert!(id.is_none());
+        } else {
+            panic!("Expected Footnote mark");
         }
     }
 }

@@ -42,6 +42,7 @@
 //! ```
 
 mod access_control;
+mod annotations;
 mod certificate;
 #[cfg(feature = "eddsa")]
 mod eddsa;
@@ -55,6 +56,7 @@ mod signature;
 mod signer;
 
 pub use access_control::{AccessControl, Operation, PermissionGrant, Permissions, Principal};
+pub use annotations::{Annotation, AnnotationType, AnnotationsFile};
 pub use certificate::{eku, CertificateChain, CertificateInfo, CertificateValidation, KeyUsage};
 pub use signature::{
     Signature, SignatureAlgorithm, SignatureFile, SignatureScope, SignatureVerification, SignerInfo,
