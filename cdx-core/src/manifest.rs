@@ -113,7 +113,7 @@ impl Manifest {
         if self.state.requires_lineage() && self.lineage.is_none() {
             return Err(crate::Error::StateRequirementNotMet {
                 state: self.state,
-                requirement: "lineage with parent reference".to_string(),
+                requirement: "lineage information".to_string(),
             });
         }
 
@@ -593,7 +593,7 @@ mod tests {
                 .unwrap();
         let v2_lineage = Lineage::from_parent(root_id.clone(), Some(&root_lineage));
 
-        let v3_id: DocumentId =
+        let _v3_id: DocumentId =
             "sha256:2222222222222222222222222222222222222222222222222222222222222222"
                 .parse()
                 .unwrap();

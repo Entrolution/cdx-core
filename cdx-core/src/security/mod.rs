@@ -57,7 +57,7 @@ mod signer;
 pub use access_control::{AccessControl, Operation, PermissionGrant, Permissions, Principal};
 pub use certificate::{eku, CertificateChain, CertificateInfo, CertificateValidation, KeyUsage};
 pub use signature::{
-    Signature, SignatureAlgorithm, SignatureFile, SignatureVerification, SignerInfo,
+    Signature, SignatureAlgorithm, SignatureFile, SignatureScope, SignatureVerification, SignerInfo,
 };
 pub use signer::{EcdsaSigner, EcdsaVerifier, Signer, Verifier};
 

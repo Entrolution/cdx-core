@@ -858,12 +858,37 @@ pub enum ValidationRule {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         message: Option<String>,
     },
-    /// Custom validation expression.
-    Custom {
-        /// Validation expression.
-        expression: String,
-        /// Error message when validation fails.
-        message: String,
+    /// Requires at least one uppercase letter.
+    ContainsUppercase {
+        /// Custom error message.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        message: Option<String>,
+    },
+    /// Requires at least one lowercase letter.
+    ContainsLowercase {
+        /// Custom error message.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        message: Option<String>,
+    },
+    /// Requires at least one digit.
+    ContainsDigit {
+        /// Custom error message.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        message: Option<String>,
+    },
+    /// Requires at least one special character.
+    ContainsSpecial {
+        /// Custom error message.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        message: Option<String>,
+    },
+    /// Value must match another field.
+    MatchesField {
+        /// The field name that this value must match.
+        field: String,
+        /// Custom error message.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        message: Option<String>,
     },
 }
 
@@ -911,6 +936,39 @@ impl ValidationRule {
     #[must_use]
     pub fn url() -> Self {
         Self::Url { message: None }
+    }
+
+    /// Create a contains uppercase rule.
+    #[must_use]
+    pub fn contains_uppercase() -> Self {
+        Self::ContainsUppercase { message: None }
+    }
+
+    /// Create a contains lowercase rule.
+    #[must_use]
+    pub fn contains_lowercase() -> Self {
+        Self::ContainsLowercase { message: None }
+    }
+
+    /// Create a contains digit rule.
+    #[must_use]
+    pub fn contains_digit() -> Self {
+        Self::ContainsDigit { message: None }
+    }
+
+    /// Create a contains special character rule.
+    #[must_use]
+    pub fn contains_special() -> Self {
+        Self::ContainsSpecial { message: None }
+    }
+
+    /// Create a matches field rule.
+    #[must_use]
+    pub fn matches_field(field: impl Into<String>) -> Self {
+        Self::MatchesField {
+            field: field.into(),
+            message: None,
+        }
     }
 }
 
@@ -1126,5 +1184,48 @@ mod tests {
         let field = FormField::TextInput(TextInputField::new("Name").with_id("name"));
         let json = serde_json::to_string(&field).unwrap();
         assert!(json.contains("\"fieldType\":\"textInput\""));
+    }
+
+    #[test]
+    fn test_declarative_validation_rules() {
+        // Test construction
+        let uppercase = ValidationRule::contains_uppercase();
+        let lowercase = ValidationRule::contains_lowercase();
+        let digit = ValidationRule::contains_digit();
+        let special = ValidationRule::contains_special();
+        let matches = ValidationRule::matches_field("password");
+
+        // Test serialization
+        let json = serde_json::to_string(&uppercase).unwrap();
+        assert!(json.contains("\"type\":\"containsUppercase\""));
+
+        let json = serde_json::to_string(&lowercase).unwrap();
+        assert!(json.contains("\"type\":\"containsLowercase\""));
+
+        let json = serde_json::to_string(&digit).unwrap();
+        assert!(json.contains("\"type\":\"containsDigit\""));
+
+        let json = serde_json::to_string(&special).unwrap();
+        assert!(json.contains("\"type\":\"containsSpecial\""));
+
+        let json = serde_json::to_string(&matches).unwrap();
+        assert!(json.contains("\"type\":\"matchesField\""));
+        assert!(json.contains("\"field\":\"password\""));
+    }
+
+    #[test]
+    fn test_matches_field_with_message() {
+        let rule = ValidationRule::MatchesField {
+            field: "confirm_password".to_string(),
+            message: Some("Passwords must match".to_string()),
+        };
+
+        let json = serde_json::to_string(&rule).unwrap();
+        assert!(json.contains("\"field\":\"confirm_password\""));
+        assert!(json.contains("\"message\":\"Passwords must match\""));
+
+        // Test roundtrip
+        let parsed: ValidationRule = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed, rule);
     }
 }

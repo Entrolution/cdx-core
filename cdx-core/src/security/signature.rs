@@ -1,5 +1,7 @@
 //! Signature types and structures.
 
+use std::collections::HashMap;
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
@@ -96,6 +98,99 @@ pub struct Signature {
     /// Optional certificate chain.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub certificate_chain: Option<Vec<String>>,
+
+    /// Optional signature scope for layout attestation.
+    ///
+    /// When present, the signature covers the scope object (serialized with JCS)
+    /// instead of just the document ID. This allows signatures to attest to
+    /// specific layout renditions in addition to the semantic content.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scope: Option<SignatureScope>,
+}
+
+/// Signature scope for scoped signatures.
+///
+/// Scoped signatures allow attesting to specific layout renditions
+/// in addition to the semantic content. The scope is serialized using
+/// JSON Canonicalization Scheme (JCS, RFC 8785) before signing.
+///
+/// # Example
+///
+/// ```rust
+/// use cdx_core::security::SignatureScope;
+/// use cdx_core::{HashAlgorithm, Hasher};
+/// use std::collections::HashMap;
+///
+/// let doc_id = Hasher::hash(HashAlgorithm::Sha256, b"content");
+/// let layout_hash = Hasher::hash(HashAlgorithm::Sha256, b"layout");
+///
+/// let mut layouts = HashMap::new();
+/// layouts.insert("presentation/print.json".to_string(), layout_hash);
+///
+/// let scope = SignatureScope::new(doc_id).with_layouts(layouts);
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SignatureScope {
+    /// Document ID that must match the top-level document ID.
+    pub document_id: DocumentId,
+
+    /// Layout paths and their content hashes for layout attestation.
+    ///
+    /// Keys are presentation file paths (e.g., "presentation/print.json"),
+    /// values are the content hashes of those files.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub layouts: Option<HashMap<String, DocumentId>>,
+}
+
+impl SignatureScope {
+    /// Create a new signature scope for a document.
+    #[must_use]
+    pub fn new(document_id: DocumentId) -> Self {
+        Self {
+            document_id,
+            layouts: None,
+        }
+    }
+
+    /// Add layout attestations.
+    #[must_use]
+    pub fn with_layouts(mut self, layouts: HashMap<String, DocumentId>) -> Self {
+        self.layouts = Some(layouts);
+        self
+    }
+
+    /// Add a single layout attestation.
+    #[must_use]
+    pub fn with_layout(mut self, path: impl Into<String>, hash: DocumentId) -> Self {
+        self.layouts
+            .get_or_insert_with(HashMap::new)
+            .insert(path.into(), hash);
+        self
+    }
+
+    /// Check if this scope attests to any layouts.
+    #[must_use]
+    pub fn has_layouts(&self) -> bool {
+        self.layouts.as_ref().is_some_and(|l| !l.is_empty())
+    }
+
+    /// Serialize the scope using JSON Canonicalization Scheme (JCS).
+    ///
+    /// This produces a deterministic JSON representation suitable for signing.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if serialization fails.
+    pub fn to_jcs(&self) -> crate::Result<Vec<u8>> {
+        // Use json-canon for JCS serialization
+        let value = serde_json::to_value(self)?;
+        let canonical =
+            json_canon::to_string(&value).map_err(|e| crate::Error::InvalidManifest {
+                reason: format!("JCS serialization failed: {e}"),
+            })?;
+        Ok(canonical.into_bytes())
+    }
 }
 
 impl Signature {
@@ -114,7 +209,21 @@ impl Signature {
             signer,
             value: value.into(),
             certificate_chain: None,
+            scope: None,
         }
+    }
+
+    /// Set the signature scope for layout attestation.
+    #[must_use]
+    pub fn with_scope(mut self, scope: SignatureScope) -> Self {
+        self.scope = Some(scope);
+        self
+    }
+
+    /// Check if this signature has a scope (scoped signature).
+    #[must_use]
+    pub fn is_scoped(&self) -> bool {
+        self.scope.is_some()
     }
 }
 
@@ -326,5 +435,70 @@ mod tests {
         let invalid = SignatureVerification::invalid("sig-2", "bad signature");
         assert!(!invalid.is_valid());
         assert_eq!(invalid.error, Some("bad signature".to_string()));
+    }
+
+    #[test]
+    fn test_signature_scope_new() {
+        let doc_id = crate::Hasher::hash(HashAlgorithm::Sha256, b"test");
+        let scope = SignatureScope::new(doc_id.clone());
+
+        assert_eq!(scope.document_id, doc_id);
+        assert!(scope.layouts.is_none());
+        assert!(!scope.has_layouts());
+    }
+
+    #[test]
+    fn test_signature_scope_with_layouts() {
+        let doc_id = crate::Hasher::hash(HashAlgorithm::Sha256, b"test");
+        let layout_hash = crate::Hasher::hash(HashAlgorithm::Sha256, b"layout");
+
+        let scope =
+            SignatureScope::new(doc_id).with_layout("presentation/print.json", layout_hash.clone());
+
+        assert!(scope.has_layouts());
+        let layouts = scope.layouts.as_ref().unwrap();
+        assert_eq!(layouts.get("presentation/print.json"), Some(&layout_hash));
+    }
+
+    #[test]
+    fn test_signature_scope_jcs_serialization() {
+        let doc_id = crate::Hasher::hash(HashAlgorithm::Sha256, b"test");
+        let scope = SignatureScope::new(doc_id);
+
+        let jcs = scope.to_jcs().unwrap();
+        assert!(!jcs.is_empty());
+        // JCS should produce valid JSON
+        let json_str = String::from_utf8(jcs).unwrap();
+        assert!(json_str.contains("documentId"));
+    }
+
+    #[test]
+    fn test_scoped_signature() {
+        let doc_id = crate::Hasher::hash(HashAlgorithm::Sha256, b"test");
+        let scope = SignatureScope::new(doc_id);
+
+        let signer = SignerInfo::new("Test User");
+        let sig = Signature::new("sig-1", SignatureAlgorithm::ES256, signer, "base64value")
+            .with_scope(scope);
+
+        assert!(sig.is_scoped());
+        assert!(sig.scope.is_some());
+    }
+
+    #[test]
+    fn test_signature_scope_serialization() {
+        let doc_id = crate::Hasher::hash(HashAlgorithm::Sha256, b"test");
+        let layout_hash = crate::Hasher::hash(HashAlgorithm::Sha256, b"layout");
+
+        let scope = SignatureScope::new(doc_id).with_layout("presentation/print.json", layout_hash);
+
+        let json = serde_json::to_string(&scope).unwrap();
+        assert!(json.contains("\"documentId\":"));
+        assert!(json.contains("\"layouts\":"));
+        assert!(json.contains("presentation/print.json"));
+
+        // Roundtrip
+        let parsed: SignatureScope = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed, scope);
     }
 }

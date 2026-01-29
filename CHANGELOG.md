@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+#### Unified Anchor System
+- `ContentAnchor` for block-level, point, and range anchors
+- `ContentAnchorUri` for URI format parsing/formatting (`#blockId/start-end`)
+- `Mark::Anchor { id }` variant for named anchor marks in text
+- Full bidirectional conversion between anchor types
+
+#### Phantom Extension
+- `PhantomClusters` for off-page annotation clusters
+- `PhantomCluster` with anchor, scope, author, and metadata
+- `Phantom` with position, size, content, and connections
+- `PhantomScope` for visibility control (Shared, Private, Role-based)
+- `PhantomConnection` with style options (Line, Arrow, Dashed)
+- Connection validation with cycle detection
+- Archive integration: `read_phantoms()` and `write_phantoms()`
+
+#### Scoped Signatures
+- `SignatureScope` for layout attestation
+- JCS (RFC 8785) serialization for deterministic scope hashing
+- `Signature.scope` field for scoped signature support
+- `with_layout()` builder for adding layout hashes
+
+#### Declarative Validation Rules
+- `ValidationRule::ContainsUppercase` - requires uppercase letter
+- `ValidationRule::ContainsLowercase` - requires lowercase letter
+- `ValidationRule::ContainsDigit` - requires digit
+- `ValidationRule::ContainsSpecial` - requires special character
+- `ValidationRule::MatchesField` - cross-field validation
+
+#### Collaboration
+- `Collaborator.color` field for real-time cursor coloring
+- `with_color()` builder method
+
+### Changed
+
+#### Breaking Changes
+- **Paginated presentation**: `blockRef` renamed to `blockId`, `blockRefs` to `blockIds`
+- **Forms**: Removed `ValidationRule::Custom` (executable expressions prohibited per DD-010/DD-019)
+
+#### Documentation
+- Clarified lineage requirements: parent only required for forked documents
+- Clarified hash scope: document ID covers semantic content only, not layout
+
 ## [0.3.0] - 2025-01-25
 
 ### Added

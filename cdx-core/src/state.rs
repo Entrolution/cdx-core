@@ -36,7 +36,7 @@ pub enum DocumentState {
     /// - Content cannot be modified
     /// - Document ID must be computed and valid
     /// - At least one signature required
-    /// - Parent lineage required
+    /// - Lineage required (parent required only if forked)
     Frozen,
 
     /// Distribution state.
@@ -44,7 +44,7 @@ pub enum DocumentState {
     /// - Same immutability as frozen
     /// - Indicates document is ready for public distribution
     /// - At least one signature required
-    /// - Parent lineage required
+    /// - Lineage required (parent required only if forked)
     Published,
 }
 
@@ -67,7 +67,10 @@ impl DocumentState {
         matches!(self, Self::Frozen | Self::Published)
     }
 
-    /// Returns whether parent lineage is required in this state.
+    /// Returns whether lineage is required in this state.
+    ///
+    /// Note: The `lineage.parent` field is only required for forked documents.
+    /// Root documents (first version) can have lineage with `parent: None`.
     #[must_use]
     pub const fn requires_lineage(&self) -> bool {
         matches!(self, Self::Frozen | Self::Published)

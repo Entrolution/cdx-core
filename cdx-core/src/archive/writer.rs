@@ -9,7 +9,7 @@ use zip::ZipWriter;
 
 use crate::{Manifest, Result};
 
-use super::{validate_path, ZIP_COMMENT};
+use super::{validate_path, PHANTOMS_PATH, ZIP_COMMENT};
 
 /// Compression method for files in the archive.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -201,6 +201,20 @@ impl<W: Write + Seek> CdxWriter<W> {
         let hash = crate::Hasher::hash(algorithm, data);
         self.write_file(path, data, compression)?;
         Ok(hash)
+    }
+
+    /// Write phantom clusters to the archive.
+    ///
+    /// Phantom clusters are stored at `phantoms/clusters.json` and are
+    /// not included in the content hash since they exist outside the
+    /// core content boundary.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if writing fails.
+    pub fn write_phantoms(&mut self, phantoms: &crate::extensions::PhantomClusters) -> Result<()> {
+        let json = serde_json::to_vec_pretty(phantoms)?;
+        self.write_file(PHANTOMS_PATH, &json, CompressionMethod::Deflate)
     }
 
     /// Start a directory in the archive.

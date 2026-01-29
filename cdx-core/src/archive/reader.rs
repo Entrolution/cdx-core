@@ -8,7 +8,7 @@ use zip::ZipArchive;
 
 use crate::{Error, HashAlgorithm, Hasher, Manifest, Result};
 
-use super::{validate_path, CONTENT_PATH, DUBLIN_CORE_PATH, MANIFEST_PATH};
+use super::{validate_path, CONTENT_PATH, DUBLIN_CORE_PATH, MANIFEST_PATH, PHANTOMS_PATH};
 
 /// Reader for Codex document archives.
 ///
@@ -245,6 +245,23 @@ impl<R: Read + Seek> CdxReader<R> {
     #[must_use]
     pub fn hash_algorithm(&self) -> HashAlgorithm {
         self.manifest.hash_algorithm
+    }
+
+    /// Read phantom clusters from the archive.
+    ///
+    /// Returns `None` if the phantom clusters file doesn't exist.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the file exists but cannot be parsed.
+    pub fn read_phantoms(&mut self) -> Result<Option<crate::extensions::PhantomClusters>> {
+        if self.archive.index_for_name(PHANTOMS_PATH).is_none() {
+            return Ok(None);
+        }
+
+        let data = Self::read_file_internal(&mut self.archive, PHANTOMS_PATH)?;
+        let phantoms: crate::extensions::PhantomClusters = serde_json::from_slice(&data)?;
+        Ok(Some(phantoms))
     }
 
     /// Verify all file hashes in the manifest.

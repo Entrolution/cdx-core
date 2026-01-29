@@ -31,8 +31,10 @@ pub struct PreciseLayout {
     /// Exact page dimensions.
     pub page_size: PrecisePageSize,
 
-    /// Hash of content when this layout was generated.
+    /// Hash of the semantic content layer when this layout was generated.
     /// Used to detect staleness when content changes.
+    /// Note: The document ID covers semantic content only; this layout hash
+    /// can be included in scoped signatures for layout attestation.
     pub content_hash: String,
 
     /// Timestamp when this layout was generated.

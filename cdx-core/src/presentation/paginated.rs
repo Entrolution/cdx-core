@@ -187,8 +187,8 @@ pub struct Page {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PageElement {
-    /// Reference to content block ID.
-    pub block_ref: String,
+    /// Reference to the content block ID.
+    pub block_id: String,
 
     /// Position and size.
     pub position: Position,
@@ -236,8 +236,8 @@ pub struct FlowElement {
     #[serde(rename = "type")]
     pub element_type: String,
 
-    /// Block references to flow.
-    pub block_refs: Vec<String>,
+    /// Content block IDs to flow.
+    pub block_ids: Vec<String>,
 
     /// Number of columns.
     #[serde(default = "default_columns")]
