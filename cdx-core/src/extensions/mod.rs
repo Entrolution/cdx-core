@@ -26,6 +26,7 @@
 
 mod collaboration;
 mod forms;
+pub mod phantom;
 mod semantic;
 
 pub use collaboration::{
@@ -37,6 +38,10 @@ pub use forms::{
     CheckboxField, DatePickerField, DropdownField, DropdownOption, FormData, FormField,
     FormValidation, RadioGroupField, RadioOption, SignatureField, TextAreaField, TextInputField,
     ValidationRule,
+};
+pub use phantom::{
+    ConnectionStyle, Phantom, PhantomCluster, PhantomClusters, PhantomConnection, PhantomContent,
+    PhantomPosition, PhantomScope, PhantomSize,
 };
 pub use semantic::{
     Author, Bibliography, BibliographyEntry, Citation, CitationStyle, EntityLink, EntityType,

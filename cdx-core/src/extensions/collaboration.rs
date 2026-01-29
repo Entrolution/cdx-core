@@ -463,6 +463,10 @@ pub struct Collaborator {
     /// User ID in an external system.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub user_id: Option<String>,
+
+    /// Color for real-time cursor coloring (e.g., "#FF5733" or "blue").
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub color: Option<String>,
 }
 
 impl Collaborator {
@@ -474,6 +478,7 @@ impl Collaborator {
             email: None,
             avatar: None,
             user_id: None,
+            color: None,
         }
     }
 
@@ -495,6 +500,13 @@ impl Collaborator {
     #[must_use]
     pub fn with_user_id(mut self, user_id: impl Into<String>) -> Self {
         self.user_id = Some(user_id.into());
+        self
+    }
+
+    /// Set color for real-time cursor coloring.
+    #[must_use]
+    pub fn with_color(mut self, color: impl Into<String>) -> Self {
+        self.color = Some(color.into());
         self
     }
 }

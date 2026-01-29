@@ -1102,6 +1102,440 @@ mod ethereum_tests {
     }
 }
 
+/// Content anchor tests.
+mod anchor_tests {
+    use cdx_core::anchor::{ContentAnchor, ContentAnchorUri};
+
+    /// Test parsing block-level anchors.
+    #[test]
+    fn test_anchor_uri_block_level() {
+        let uri: ContentAnchorUri = "#blockId".parse().unwrap();
+        assert_eq!(uri.block_id, "blockId");
+        assert!(uri.offset.is_none());
+        assert!(uri.start.is_none());
+        assert!(uri.end.is_none());
+
+        // Roundtrip
+        assert_eq!(uri.to_string(), "#blockId");
+    }
+
+    /// Test parsing point anchors.
+    #[test]
+    fn test_anchor_uri_point() {
+        let uri: ContentAnchorUri = "#blockId/15".parse().unwrap();
+        assert_eq!(uri.block_id, "blockId");
+        assert_eq!(uri.offset, Some(15));
+        assert!(uri.start.is_none());
+
+        // Roundtrip
+        assert_eq!(uri.to_string(), "#blockId/15");
+    }
+
+    /// Test parsing range anchors.
+    #[test]
+    fn test_anchor_uri_range() {
+        let uri: ContentAnchorUri = "#blockId/10-25".parse().unwrap();
+        assert_eq!(uri.block_id, "blockId");
+        assert!(uri.offset.is_none());
+        assert_eq!(uri.start, Some(10));
+        assert_eq!(uri.end, Some(25));
+
+        // Roundtrip
+        assert_eq!(uri.to_string(), "#blockId/10-25");
+    }
+
+    /// Test anchor conversion between types.
+    #[test]
+    fn test_anchor_uri_to_anchor_conversion() {
+        let uri: ContentAnchorUri = "#para-1/10-25".parse().unwrap();
+        let anchor = ContentAnchor::from(uri);
+
+        assert_eq!(anchor.block_id, "para-1");
+        assert!(anchor.is_range_anchor());
+        assert_eq!(anchor.start, Some(10));
+        assert_eq!(anchor.end, Some(25));
+
+        // Convert back
+        let uri_back = anchor.to_uri();
+        assert_eq!(uri_back.to_string(), "#para-1/10-25");
+    }
+
+    /// Test anchor type checks.
+    #[test]
+    fn test_anchor_type_predicates() {
+        let block = ContentAnchor::block("para-1");
+        assert!(block.is_block_anchor());
+        assert!(!block.is_point_anchor());
+        assert!(!block.is_range_anchor());
+
+        let point = ContentAnchor::point("para-1", 15);
+        assert!(!point.is_block_anchor());
+        assert!(point.is_point_anchor());
+        assert!(!point.is_range_anchor());
+
+        let range = ContentAnchor::range("para-1", 10, 25);
+        assert!(!range.is_block_anchor());
+        assert!(!range.is_point_anchor());
+        assert!(range.is_range_anchor());
+    }
+}
+
+/// Phantom extension tests.
+mod phantom_tests {
+    use cdx_core::anchor::ContentAnchor;
+    use cdx_core::extensions::{
+        ConnectionStyle, Phantom, PhantomCluster, PhantomClusters, PhantomConnection,
+        PhantomContent, PhantomPosition, PhantomScope, PhantomSize,
+    };
+    use cdx_core::DocumentState;
+
+    /// Test phantom cluster creation and serialization.
+    #[test]
+    fn test_phantom_clusters_roundtrip() {
+        let anchor = ContentAnchor::range("para-1", 10, 25);
+        let content = PhantomContent::paragraph("Note text");
+        let phantom = Phantom::new("phantom-1", PhantomPosition::new(100.0, 50.0), content)
+            .with_size(PhantomSize::new(200.0, 100.0));
+
+        let cluster = PhantomCluster::new("cluster-1", anchor, "Research Notes")
+            .with_scope(PhantomScope::Shared)
+            .with_phantom(phantom);
+
+        let mut clusters = PhantomClusters::new();
+        clusters.add_cluster(cluster);
+
+        // Serialize to JSON
+        let json = serde_json::to_string_pretty(&clusters).unwrap();
+        assert!(json.contains("\"version\": \"0.1\""));
+        assert!(json.contains("\"clusters\":"));
+        assert!(json.contains("\"phantoms\":"));
+        assert!(json.contains("Research Notes"));
+
+        // Deserialize back
+        let parsed: PhantomClusters = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.clusters.len(), 1);
+        assert_eq!(parsed.clusters[0].id, "cluster-1");
+        assert_eq!(parsed.clusters[0].phantoms.len(), 1);
+    }
+
+    /// Test phantom connection validation with valid connections.
+    #[test]
+    fn test_phantom_connection_valid() {
+        let anchor = ContentAnchor::block("para-1");
+
+        let phantom1 = Phantom::new(
+            "p1",
+            PhantomPosition::new(0.0, 0.0),
+            PhantomContent::paragraph("First"),
+        )
+        .connect_to("p2");
+
+        let phantom2 = Phantom::new(
+            "p2",
+            PhantomPosition::new(100.0, 0.0),
+            PhantomContent::paragraph("Second"),
+        );
+
+        let cluster = PhantomCluster::new("cluster-1", anchor, "Test")
+            .with_phantom(phantom1)
+            .with_phantom(phantom2);
+
+        let errors = cluster.validate_connections(DocumentState::Draft);
+        assert!(
+            errors.is_empty(),
+            "Valid connections should pass: {:?}",
+            errors
+        );
+    }
+
+    /// Test phantom connection validation catches missing target.
+    #[test]
+    fn test_phantom_connection_missing_target() {
+        let anchor = ContentAnchor::block("para-1");
+
+        let phantom1 = Phantom::new(
+            "p1",
+            PhantomPosition::new(0.0, 0.0),
+            PhantomContent::paragraph("First"),
+        )
+        .connect_to("nonexistent");
+
+        let cluster = PhantomCluster::new("cluster-1", anchor, "Test").with_phantom(phantom1);
+
+        // In Draft state, should produce warnings
+        let warnings = cluster.validate_connections(DocumentState::Draft);
+        assert!(!warnings.is_empty());
+        assert!(warnings[0].starts_with("WARNING:"));
+
+        // In Frozen state, should produce errors
+        let errors = cluster.validate_connections(DocumentState::Frozen);
+        assert!(!errors.is_empty());
+        assert!(errors[0].starts_with("ERROR:"));
+    }
+
+    /// Test phantom scope serialization.
+    #[test]
+    fn test_phantom_scope_serialization() {
+        let shared = PhantomScope::Shared;
+        let json = serde_json::to_string(&shared).unwrap();
+        assert!(json.contains("\"type\":\"shared\""));
+
+        let private = PhantomScope::Private;
+        let json = serde_json::to_string(&private).unwrap();
+        assert!(json.contains("\"type\":\"private\""));
+
+        let role = PhantomScope::role("editor");
+        let json = serde_json::to_string(&role).unwrap();
+        assert!(json.contains("\"type\":\"role\""));
+        assert!(json.contains("\"role\":\"editor\""));
+    }
+
+    /// Test connection styles.
+    #[test]
+    fn test_connection_styles() {
+        let conn = PhantomConnection::new("target")
+            .with_style(ConnectionStyle::Arrow)
+            .with_label("relates to");
+
+        let json = serde_json::to_string(&conn).unwrap();
+        assert!(json.contains("\"style\":\"arrow\""));
+        assert!(json.contains("\"label\":\"relates to\""));
+
+        // Test other styles
+        let line = ConnectionStyle::Line;
+        let dashed = ConnectionStyle::Dashed;
+        assert_eq!(serde_json::to_string(&line).unwrap(), "\"line\"");
+        assert_eq!(serde_json::to_string(&dashed).unwrap(), "\"dashed\"");
+    }
+}
+
+/// Scoped signature tests.
+#[cfg(feature = "signatures")]
+mod scoped_signature_tests {
+    use cdx_core::security::{Signature, SignatureAlgorithm, SignatureScope, SignerInfo};
+    use cdx_core::{HashAlgorithm, Hasher};
+    use std::collections::HashMap;
+
+    /// Test signature scope creation and serialization.
+    #[test]
+    fn test_signature_scope_creation() {
+        let doc_id = Hasher::hash(HashAlgorithm::Sha256, b"document content");
+        let layout_hash = Hasher::hash(HashAlgorithm::Sha256, b"layout content");
+
+        let scope = SignatureScope::new(doc_id.clone())
+            .with_layout("presentation/print.json", layout_hash.clone());
+
+        assert_eq!(scope.document_id, doc_id);
+        assert!(scope.has_layouts());
+
+        let layouts = scope.layouts.as_ref().unwrap();
+        assert_eq!(layouts.get("presentation/print.json"), Some(&layout_hash));
+    }
+
+    /// Test JCS serialization produces deterministic output.
+    #[test]
+    fn test_signature_scope_jcs_deterministic() {
+        let doc_id = Hasher::hash(HashAlgorithm::Sha256, b"test");
+        let layout1 = Hasher::hash(HashAlgorithm::Sha256, b"layout1");
+        let layout2 = Hasher::hash(HashAlgorithm::Sha256, b"layout2");
+
+        // Create scope with layouts added in different orders
+        let mut layouts1 = HashMap::new();
+        layouts1.insert("a.json".to_string(), layout1.clone());
+        layouts1.insert("b.json".to_string(), layout2.clone());
+
+        let mut layouts2 = HashMap::new();
+        layouts2.insert("b.json".to_string(), layout2.clone());
+        layouts2.insert("a.json".to_string(), layout1.clone());
+
+        let scope1 = SignatureScope::new(doc_id.clone()).with_layouts(layouts1);
+        let scope2 = SignatureScope::new(doc_id).with_layouts(layouts2);
+
+        // JCS should produce identical output regardless of insertion order
+        let jcs1 = scope1.to_jcs().unwrap();
+        let jcs2 = scope2.to_jcs().unwrap();
+        assert_eq!(jcs1, jcs2);
+    }
+
+    /// Test scoped signature with scope field.
+    #[test]
+    fn test_scoped_signature_serialization() {
+        let doc_id = Hasher::hash(HashAlgorithm::Sha256, b"test");
+        let scope = SignatureScope::new(doc_id);
+
+        let signer = SignerInfo::new("Test Signer");
+        let sig = Signature::new("sig-1", SignatureAlgorithm::ES256, signer, "base64value")
+            .with_scope(scope.clone());
+
+        assert!(sig.is_scoped());
+
+        // Serialize and check scope is included
+        let json = serde_json::to_string_pretty(&sig).unwrap();
+        assert!(json.contains("\"scope\":"));
+        assert!(json.contains("\"documentId\":"));
+
+        // Deserialize and verify
+        let parsed: Signature = serde_json::from_str(&json).unwrap();
+        assert!(parsed.is_scoped());
+        assert_eq!(parsed.scope.unwrap().document_id, scope.document_id);
+    }
+}
+
+/// Declarative validation rules tests.
+mod validation_rule_tests {
+    use cdx_core::extensions::ValidationRule;
+
+    /// Test new declarative validators.
+    #[test]
+    fn test_declarative_validators() {
+        let uppercase = ValidationRule::contains_uppercase();
+        let lowercase = ValidationRule::contains_lowercase();
+        let digit = ValidationRule::contains_digit();
+        let special = ValidationRule::contains_special();
+        let matches = ValidationRule::matches_field("password");
+
+        // Serialize and check camelCase naming
+        let json = serde_json::to_string(&uppercase).unwrap();
+        assert!(json.contains("containsUppercase"));
+
+        let json = serde_json::to_string(&lowercase).unwrap();
+        assert!(json.contains("containsLowercase"));
+
+        let json = serde_json::to_string(&digit).unwrap();
+        assert!(json.contains("containsDigit"));
+
+        let json = serde_json::to_string(&special).unwrap();
+        assert!(json.contains("containsSpecial"));
+
+        let json = serde_json::to_string(&matches).unwrap();
+        assert!(json.contains("matchesField"));
+        assert!(json.contains("password"));
+    }
+
+    /// Test validation rule with custom message.
+    #[test]
+    fn test_validation_rule_with_message() {
+        let rule = ValidationRule::ContainsUppercase {
+            message: Some("Must contain uppercase letter".to_string()),
+        };
+
+        let json = serde_json::to_string(&rule).unwrap();
+        assert!(json.contains("Must contain uppercase letter"));
+
+        // Roundtrip
+        let parsed: ValidationRule = serde_json::from_str(&json).unwrap();
+        if let ValidationRule::ContainsUppercase { message } = parsed {
+            assert_eq!(message, Some("Must contain uppercase letter".to_string()));
+        } else {
+            panic!("Expected ContainsUppercase variant");
+        }
+    }
+
+    /// Test matchesField validator.
+    #[test]
+    fn test_matches_field_validator() {
+        let rule = ValidationRule::MatchesField {
+            field: "confirm_password".to_string(),
+            message: Some("Passwords must match".to_string()),
+        };
+
+        let json = serde_json::to_string(&rule).unwrap();
+        assert!(json.contains("confirm_password"));
+        assert!(json.contains("Passwords must match"));
+
+        // Roundtrip
+        let parsed: ValidationRule = serde_json::from_str(&json).unwrap();
+        if let ValidationRule::MatchesField { field, message } = parsed {
+            assert_eq!(field, "confirm_password");
+            assert_eq!(message, Some("Passwords must match".to_string()));
+        } else {
+            panic!("Expected MatchesField variant");
+        }
+    }
+}
+
+/// Paginated presentation field rename tests.
+mod paginated_presentation_tests {
+    use cdx_core::presentation::{FlowElement, PageElement, Position};
+
+    /// Test paginated presentation uses blockId not blockRef.
+    #[test]
+    fn test_page_element_block_id() {
+        let element = PageElement {
+            block_id: "block-1".to_string(),
+            position: Position::new("72pt", "72pt", "468pt"),
+            style: None,
+            overflow: None,
+        };
+
+        let json = serde_json::to_string(&element).unwrap();
+        // Should serialize as blockId (camelCase)
+        assert!(json.contains("\"blockId\":"));
+        assert!(!json.contains("\"blockRef\":"));
+
+        // Deserialize with blockId
+        let json_in = r#"{"blockId":"block-1","position":{"x":"72pt","y":"72pt","width":"468pt","height":"auto"}}"#;
+        let parsed: PageElement = serde_json::from_str(json_in).unwrap();
+        assert_eq!(parsed.block_id, "block-1");
+    }
+
+    /// Test flow element uses blockIds not blockRefs.
+    #[test]
+    fn test_flow_element_block_ids() {
+        // Test serialization/deserialization from JSON directly
+        let json_in = r#"{"type":"flow","blockIds":["block-1","block-2"],"columns":1,"startPage":1,"regions":[{"page":1,"position":{"x":"72pt","y":"72pt","width":"468pt","height":"auto"}}]}"#;
+        let parsed: FlowElement = serde_json::from_str(json_in).unwrap();
+        assert_eq!(parsed.block_ids, vec!["block-1", "block-2"]);
+
+        // Re-serialize and check blockIds appears
+        let json_out = serde_json::to_string(&parsed).unwrap();
+        assert!(json_out.contains("\"blockIds\":"));
+        assert!(!json_out.contains("\"blockRefs\":"));
+    }
+}
+
+/// Mark::Anchor tests.
+mod anchor_mark_tests {
+    use cdx_core::content::{Mark, Text};
+
+    /// Test Mark::Anchor variant.
+    #[test]
+    fn test_mark_anchor() {
+        let anchor_mark = Mark::Anchor {
+            id: "anchor-1".to_string(),
+        };
+
+        // Serialize
+        let json = serde_json::to_string(&anchor_mark).unwrap();
+        assert!(json.contains("\"type\":\"anchor\""));
+        assert!(json.contains("\"id\":\"anchor-1\""));
+
+        // Deserialize
+        let parsed: Mark = serde_json::from_str(&json).unwrap();
+        if let Mark::Anchor { id } = parsed {
+            assert_eq!(id, "anchor-1");
+        } else {
+            panic!("Expected Anchor mark");
+        }
+    }
+
+    /// Test text with anchor mark.
+    #[test]
+    fn test_text_with_anchor_mark() {
+        let text = Text::with_marks(
+            "anchor point",
+            vec![Mark::Anchor {
+                id: "ref-1".to_string(),
+            }],
+        );
+        assert!(text.has_marks());
+
+        let json = serde_json::to_string(&text).unwrap();
+        assert!(json.contains("anchor point"));
+        assert!(json.contains("\"type\":\"anchor\""));
+    }
+}
+
 /// OpenTimestamps tests.
 #[cfg(feature = "timestamps-ots")]
 mod ots_tests {

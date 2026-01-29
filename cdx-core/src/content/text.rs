@@ -130,6 +130,12 @@ pub enum Mark {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         title: Option<String>,
     },
+
+    /// Named anchor mark for creating anchor points in text.
+    Anchor {
+        /// Unique identifier for this anchor.
+        id: String,
+    },
 }
 
 impl Mark {
@@ -145,6 +151,7 @@ impl Mark {
             Self::Superscript => MarkType::Superscript,
             Self::Subscript => MarkType::Subscript,
             Self::Link { .. } => MarkType::Link,
+            Self::Anchor { .. } => MarkType::Anchor,
         }
     }
 }
@@ -168,6 +175,8 @@ pub enum MarkType {
     Subscript,
     /// Link mark type.
     Link,
+    /// Anchor mark type.
+    Anchor,
 }
 
 #[cfg(test)]

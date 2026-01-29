@@ -33,6 +33,7 @@
 #![warn(clippy::pedantic)]
 #![allow(clippy::module_name_repetitions)]
 
+pub mod anchor;
 pub mod archive;
 pub mod asset;
 pub mod content;

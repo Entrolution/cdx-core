@@ -45,6 +45,9 @@ pub const SIGNATURES_PATH: &str = "security/signatures.json";
 /// Path to the encryption metadata file within the archive.
 pub const ENCRYPTION_PATH: &str = "security/encryption.json";
 
+/// Path to the phantom clusters file within the archive.
+pub const PHANTOMS_PATH: &str = "phantoms/clusters.json";
+
 /// ZIP comment for Codex documents.
 pub const ZIP_COMMENT: &str = "Codex Document Format v0.1";
 

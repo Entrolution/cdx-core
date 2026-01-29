@@ -490,7 +490,9 @@ impl Document {
 
     /// Compute the document ID from content.
     ///
-    /// The document ID is computed by hashing the canonicalized content.
+    /// The document ID is computed by hashing the canonicalized semantic content layer.
+    /// This covers only the content blocks and their structure, not presentation/layout
+    /// information. Presentation layers have their own hashes in the manifest.
     ///
     /// # Errors
     ///
