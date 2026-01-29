@@ -483,10 +483,11 @@ pub enum ConnectionStyle {
 }
 
 /// Visibility scope for phantom clusters.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", tag = "type")]
 pub enum PhantomScope {
     /// Visible to all readers.
+    #[default]
     Shared,
     /// Visible only to the author.
     Private,
@@ -495,12 +496,6 @@ pub enum PhantomScope {
         /// The role that can see this cluster.
         role: String,
     },
-}
-
-impl Default for PhantomScope {
-    fn default() -> Self {
-        Self::Shared
-    }
 }
 
 impl PhantomScope {
