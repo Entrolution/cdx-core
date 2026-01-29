@@ -160,3 +160,143 @@ fn format_block_type(block_type: &str) -> String {
     }
     .to_string()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use cdx_core::Document;
+    use tempfile::TempDir;
+
+    fn test_config() -> OutputConfig {
+        OutputConfig {
+            verbose: false,
+            quiet: true,
+            json: false,
+        }
+    }
+
+    fn create_test_document(path: &PathBuf, title: &str) {
+        let doc = Document::builder()
+            .title(title)
+            .creator("Test Author")
+            .add_paragraph("Test content")
+            .build()
+            .unwrap();
+        doc.save(path).unwrap();
+    }
+
+    #[test]
+    fn test_inspect_basic() {
+        let temp = TempDir::new().unwrap();
+        let doc_path = temp.path().join("test.cdx");
+
+        create_test_document(&doc_path, "Inspect Test");
+
+        let result = run(doc_path, false, false, false, &test_config());
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_inspect_with_blocks_flag() {
+        let temp = TempDir::new().unwrap();
+        let doc_path = temp.path().join("test.cdx");
+
+        create_test_document(&doc_path, "Blocks Test");
+
+        let result = run(doc_path, true, false, false, &test_config());
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_inspect_with_signatures_flag() {
+        let temp = TempDir::new().unwrap();
+        let doc_path = temp.path().join("test.cdx");
+
+        create_test_document(&doc_path, "Signatures Test");
+
+        let result = run(doc_path, false, true, false, &test_config());
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_inspect_with_provenance_flag() {
+        let temp = TempDir::new().unwrap();
+        let doc_path = temp.path().join("test.cdx");
+
+        create_test_document(&doc_path, "Provenance Test");
+
+        let result = run(doc_path, false, false, true, &test_config());
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_inspect_all_flags() {
+        let temp = TempDir::new().unwrap();
+        let doc_path = temp.path().join("test.cdx");
+
+        create_test_document(&doc_path, "All Flags Test");
+
+        let result = run(doc_path, true, true, true, &test_config());
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_inspect_nonexistent_file() {
+        let result = run(
+            PathBuf::from("/nonexistent/file.cdx"),
+            false,
+            false,
+            false,
+            &test_config(),
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_inspect_multiple_blocks() {
+        let temp = TempDir::new().unwrap();
+        let doc_path = temp.path().join("test.cdx");
+
+        let doc = Document::builder()
+            .title("Multi Block")
+            .creator("Test")
+            .add_heading(1, "Introduction")
+            .add_paragraph("First paragraph")
+            .add_paragraph("Second paragraph")
+            .build()
+            .unwrap();
+        doc.save(&doc_path).unwrap();
+
+        let result = run(doc_path.clone(), true, false, false, &test_config());
+        assert!(result.is_ok());
+
+        // Verify block count
+        let opened = Document::open(&doc_path).unwrap();
+        assert_eq!(opened.content().len(), 3);
+    }
+
+    #[test]
+    fn test_format_block_type_paragraph() {
+        assert_eq!(format_block_type("paragraph"), "Paragraph");
+    }
+
+    #[test]
+    fn test_format_block_type_heading() {
+        assert_eq!(format_block_type("heading"), "Heading");
+    }
+
+    #[test]
+    fn test_format_block_type_list() {
+        assert_eq!(format_block_type("list"), "List");
+    }
+
+    #[test]
+    fn test_format_block_type_code_block() {
+        assert_eq!(format_block_type("codeBlock"), "Code Block");
+    }
+
+    #[test]
+    fn test_format_block_type_unknown() {
+        assert_eq!(format_block_type("unknownType"), "unknownType");
+    }
+}

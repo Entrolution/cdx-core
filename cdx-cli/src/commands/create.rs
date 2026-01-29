@@ -91,3 +91,272 @@ pub fn run(
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use cdx_core::Document;
+    use tempfile::TempDir;
+
+    fn test_config() -> OutputConfig {
+        OutputConfig {
+            verbose: false,
+            quiet: true,
+            json: false,
+        }
+    }
+
+    #[test]
+    fn test_create_minimal_document() {
+        let temp = TempDir::new().unwrap();
+        let output = temp.path().join("test.cdx");
+
+        let result = run(
+            "Test Document".to_string(),
+            vec![],
+            "draft".to_string(),
+            None,
+            output.clone(),
+            &test_config(),
+        );
+
+        assert!(result.is_ok());
+        assert!(output.exists());
+
+        // Verify the document can be opened
+        let doc = Document::open(&output).unwrap();
+        assert_eq!(doc.dublin_core().title(), "Test Document");
+    }
+
+    #[test]
+    fn test_create_with_single_author() {
+        let temp = TempDir::new().unwrap();
+        let output = temp.path().join("test.cdx");
+
+        let result = run(
+            "Test".to_string(),
+            vec!["Jane Doe".to_string()],
+            "draft".to_string(),
+            None,
+            output.clone(),
+            &test_config(),
+        );
+
+        assert!(result.is_ok());
+        let doc = Document::open(&output).unwrap();
+        let creators = doc.dublin_core().creators();
+        assert!(creators.contains(&"Jane Doe"));
+    }
+
+    #[test]
+    fn test_create_with_multiple_authors() {
+        let temp = TempDir::new().unwrap();
+        let output = temp.path().join("test.cdx");
+
+        let result = run(
+            "Test".to_string(),
+            vec!["Jane Doe".to_string(), "John Smith".to_string()],
+            "draft".to_string(),
+            None,
+            output.clone(),
+            &test_config(),
+        );
+
+        assert!(result.is_ok());
+        let doc = Document::open(&output).unwrap();
+        let creators = doc.dublin_core().creators();
+        assert!(creators.contains(&"Jane Doe, John Smith"));
+    }
+
+    #[test]
+    fn test_create_with_draft_state() {
+        let temp = TempDir::new().unwrap();
+        let output = temp.path().join("test.cdx");
+
+        run(
+            "Test".to_string(),
+            vec![],
+            "draft".to_string(),
+            None,
+            output.clone(),
+            &test_config(),
+        )
+        .unwrap();
+
+        let doc = Document::open(&output).unwrap();
+        assert_eq!(doc.state(), DocumentState::Draft);
+    }
+
+    #[test]
+    fn test_create_with_review_state() {
+        // The create command allows creating documents in review state.
+        // However, the document can only be opened if state requirements
+        // are met. Review state requires a computed document ID, which
+        // the create command provides (it's computed during save).
+        // But opening validates additional requirements.
+        let temp = TempDir::new().unwrap();
+        let output = temp.path().join("test.cdx");
+
+        let result = run(
+            "Test".to_string(),
+            vec![],
+            "review".to_string(),
+            None,
+            output.clone(),
+            &test_config(),
+        );
+
+        // The create command should succeed
+        assert!(result.is_ok());
+
+        // Note: Opening the document may fail validation since
+        // review state has requirements. We just verify it was created.
+        assert!(output.exists());
+    }
+
+    #[test]
+    fn test_create_with_frozen_state() {
+        // The create command allows creating documents in frozen state.
+        // However, the document may fail validation when opened since
+        // frozen state requires signatures and precise layout.
+        let temp = TempDir::new().unwrap();
+        let output = temp.path().join("test.cdx");
+
+        let result = run(
+            "Test".to_string(),
+            vec![],
+            "frozen".to_string(),
+            None,
+            output.clone(),
+            &test_config(),
+        );
+
+        // The create command should succeed
+        assert!(result.is_ok());
+
+        // Note: Opening the document may fail validation since
+        // frozen state has requirements. We just verify it was created.
+        assert!(output.exists());
+    }
+
+    #[test]
+    fn test_create_invalid_state() {
+        let temp = TempDir::new().unwrap();
+        let output = temp.path().join("test.cdx");
+
+        let result = run(
+            "Test".to_string(),
+            vec![],
+            "invalid".to_string(),
+            None,
+            output,
+            &test_config(),
+        );
+
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.to_string().contains("Invalid state"));
+    }
+
+    #[test]
+    fn test_create_state_case_insensitive() {
+        let temp = TempDir::new().unwrap();
+        let output = temp.path().join("test.cdx");
+
+        run(
+            "Test".to_string(),
+            vec![],
+            "DRAFT".to_string(),
+            None,
+            output.clone(),
+            &test_config(),
+        )
+        .unwrap();
+
+        let doc = Document::open(&output).unwrap();
+        assert_eq!(doc.state(), DocumentState::Draft);
+    }
+
+    #[test]
+    fn test_create_with_input_file() {
+        let temp = TempDir::new().unwrap();
+        let input = temp.path().join("content.txt");
+        let output = temp.path().join("test.cdx");
+
+        std::fs::write(&input, "First paragraph.\n\nSecond paragraph.").unwrap();
+
+        run(
+            "Test".to_string(),
+            vec![],
+            "draft".to_string(),
+            Some(input),
+            output.clone(),
+            &test_config(),
+        )
+        .unwrap();
+
+        let doc = Document::open(&output).unwrap();
+        assert_eq!(doc.content().len(), 2);
+    }
+
+    #[test]
+    fn test_create_with_nonexistent_input_file() {
+        let temp = TempDir::new().unwrap();
+        let input = temp.path().join("nonexistent.txt");
+        let output = temp.path().join("test.cdx");
+
+        let result = run(
+            "Test".to_string(),
+            vec![],
+            "draft".to_string(),
+            Some(input),
+            output,
+            &test_config(),
+        );
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_create_empty_authors_defaults_to_unknown() {
+        let temp = TempDir::new().unwrap();
+        let output = temp.path().join("test.cdx");
+
+        run(
+            "Test".to_string(),
+            vec![],
+            "draft".to_string(),
+            None,
+            output.clone(),
+            &test_config(),
+        )
+        .unwrap();
+
+        let doc = Document::open(&output).unwrap();
+        let creators = doc.dublin_core().creators();
+        assert!(creators.contains(&"Unknown"));
+    }
+
+    #[test]
+    fn test_create_content_splitting() {
+        let temp = TempDir::new().unwrap();
+        let input = temp.path().join("content.txt");
+        let output = temp.path().join("test.cdx");
+
+        // Three paragraphs separated by blank lines
+        std::fs::write(&input, "Para 1.\n\nPara 2.\n\nPara 3.").unwrap();
+
+        run(
+            "Test".to_string(),
+            vec![],
+            "draft".to_string(),
+            Some(input),
+            output.clone(),
+            &test_config(),
+        )
+        .unwrap();
+
+        let doc = Document::open(&output).unwrap();
+        assert_eq!(doc.content().len(), 3);
+    }
+}
