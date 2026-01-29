@@ -179,36 +179,14 @@ This library implements the [Codex Document Format Specification v0.1](https://g
 
 ## Development
 
-### Prerequisites
+See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed development setup, building, testing, and contribution guidelines.
 
-- Rust 1.85 or later (MSRV)
-- Cargo
-
-### Building
+### Quick Start
 
 ```bash
-cargo build
-cargo build --all-features
-```
-
-### Testing
-
-```bash
-cargo test
-cargo test --all-features
-```
-
-### Linting
-
-```bash
-cargo clippy --all-features -- -D warnings
-cargo fmt --check
-```
-
-### Documentation
-
-```bash
-cargo doc --no-deps --all-features --open
+cargo build --all-features    # Build
+cargo test --all-features     # Test
+cargo clippy --all-features   # Lint
 ```
 
 ## API Documentation

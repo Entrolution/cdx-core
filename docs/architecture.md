@@ -192,24 +192,31 @@ All fallible operations return `Result<T, Error>`. Errors include context about 
 - **Compression**: Zstd provides high compression ratios for text content
 - **Zero-copy where possible**: References are preferred over cloning
 
-## Future Architecture (v0.2+)
+## Implementation Status
+
+All core features have been implemented:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                      v0.2.0 - Security                          │
+│                         Security                                 │
 │                                                                  │
 │  ┌──────────────────┐  ┌──────────────────┐  ┌───────────────┐ │
-│  │    Encryption    │  │  EdDSA Signer    │  │  Certificate  │ │
-│  │   (AES-256-GCM)  │  │   (Ed25519)      │  │    Chain      │ │
+│  │    Encryption    │  │  EdDSA Signer    │  │   ML-DSA-65   │ │
+│  │   (AES-256-GCM)  │  │   (Ed25519)      │  │ (Post-Quantum)│ │
 │  └──────────────────┘  └──────────────────┘  └───────────────┘ │
 └─────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────┐
-│                      v0.3.0 - Provenance                        │
+│                        Provenance                                │
 │                                                                  │
 │  ┌──────────────────┐  ┌──────────────────┐  ┌───────────────┐ │
 │  │   Merkle Tree    │  │  Block Proofs    │  │   Timestamp   │ │
 │  │                  │  │                  │  │   Anchoring   │ │
+│  └──────────────────┘  └──────────────────┘  └───────────────┘ │
+│                                                                  │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌───────────────┐ │
+│  │   RFC 3161 TSA   │  │ OpenTimestamps   │  │  OCSP/CRL     │ │
+│  │                  │  │   (Bitcoin)      │  │  Revocation   │ │
 │  └──────────────────┘  └──────────────────┘  └───────────────┘ │
 └─────────────────────────────────────────────────────────────────┘
 ```

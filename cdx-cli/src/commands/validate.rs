@@ -103,3 +103,142 @@ pub fn run(file: PathBuf, config: &OutputConfig) -> Result<()> {
     config.success("Document is valid");
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use cdx_core::Document;
+    use tempfile::TempDir;
+
+    fn test_config() -> OutputConfig {
+        OutputConfig {
+            verbose: false,
+            quiet: true,
+            json: false,
+        }
+    }
+
+    fn create_test_document(path: &PathBuf, title: &str) {
+        let doc = Document::builder()
+            .title(title)
+            .creator("Test")
+            .add_paragraph("Test content")
+            .build()
+            .unwrap();
+        doc.save(path).unwrap();
+    }
+
+    #[test]
+    fn test_validate_valid_document() {
+        let temp = TempDir::new().unwrap();
+        let doc_path = temp.path().join("test.cdx");
+
+        create_test_document(&doc_path, "Valid Document");
+
+        let result = run(doc_path, &test_config());
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_validate_nonexistent_file() {
+        let result = run(PathBuf::from("/nonexistent/file.cdx"), &test_config());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_draft_document() {
+        let temp = TempDir::new().unwrap();
+        let doc_path = temp.path().join("test.cdx");
+
+        let doc = Document::builder()
+            .title("Draft Doc")
+            .creator("Test")
+            .state(cdx_core::DocumentState::Draft)
+            .add_paragraph("Content")
+            .build()
+            .unwrap();
+        doc.save(&doc_path).unwrap();
+
+        let result = run(doc_path, &test_config());
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_validate_with_multiple_blocks() {
+        let temp = TempDir::new().unwrap();
+        let doc_path = temp.path().join("test.cdx");
+
+        let doc = Document::builder()
+            .title("Multi Block Doc")
+            .creator("Test")
+            .state(cdx_core::DocumentState::Draft)
+            .add_heading(1, "Introduction")
+            .add_paragraph("First paragraph")
+            .add_paragraph("Second paragraph")
+            .build()
+            .unwrap();
+        doc.save(&doc_path).unwrap();
+
+        let result = run(doc_path, &test_config());
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_validate_document_integrity() {
+        let temp = TempDir::new().unwrap();
+        let doc_path = temp.path().join("test.cdx");
+
+        create_test_document(&doc_path, "Integrity Test");
+
+        // Validate and verify the document passes integrity checks
+        let result = run(doc_path.clone(), &test_config());
+        assert!(result.is_ok());
+
+        // Also verify by opening and checking the report directly
+        let doc = Document::open(&doc_path).unwrap();
+        let report = doc.verify().unwrap();
+        assert!(report.is_valid());
+        assert!(report.id_valid);
+        assert!(report.content_valid);
+    }
+
+    #[test]
+    fn test_validate_with_verbose_config() {
+        let temp = TempDir::new().unwrap();
+        let doc_path = temp.path().join("test.cdx");
+
+        create_test_document(&doc_path, "Verbose Test");
+
+        let config = OutputConfig {
+            verbose: true,
+            quiet: false,
+            json: false,
+        };
+
+        let result = run(doc_path, &config);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_validate_preserves_state() {
+        let temp = TempDir::new().unwrap();
+        let doc_path = temp.path().join("test.cdx");
+
+        let doc = Document::builder()
+            .title("State Test")
+            .creator("Test")
+            .state(cdx_core::DocumentState::Draft)
+            .add_paragraph("Content")
+            .build()
+            .unwrap();
+        doc.save(&doc_path).unwrap();
+
+        // Validate to ensure state doesn't cause validation failure
+        let result = run(doc_path.clone(), &test_config());
+        assert!(result.is_ok());
+
+        // Verify state was preserved
+        let opened = Document::open(&doc_path).unwrap();
+        assert_eq!(opened.state(), cdx_core::DocumentState::Draft);
+    }
+}
