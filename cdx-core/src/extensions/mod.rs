@@ -24,8 +24,10 @@
 //! }
 //! ```
 
+pub mod academic;
 mod collaboration;
 mod forms;
+pub mod legal;
 pub mod phantom;
 mod semantic;
 
@@ -207,6 +209,12 @@ pub mod namespaces {
     pub const SEMANTIC: &str = "semantic";
     /// Collaboration extension for comments, suggestions, change tracking.
     pub const COLLABORATION: &str = "collaboration";
+    /// Academic extension for theorems, proofs, exercises, algorithms.
+    pub const ACADEMIC: &str = "academic";
+    /// Legal extension for legal citations, captions, tables of authorities.
+    pub const LEGAL: &str = "legal";
+    /// Presentation extension for layout, printing, index generation.
+    pub const PRESENTATION: &str = "presentation";
 }
 
 #[cfg(test)]

@@ -165,6 +165,144 @@ pub enum Mark {
         /// The mathematical expression.
         value: String,
     },
+
+    /// Extension mark for custom/unknown mark types.
+    ///
+    /// Extension marks use namespaced types like "semantic:citation" or
+    /// "legal:cite". This enables extensions to add custom inline marks
+    /// without modifying the core Mark enum.
+    Extension(ExtensionMark),
+}
+
+/// An extension mark for unsupported or unknown mark types.
+///
+/// When parsing a document with extension marks (e.g., "semantic:citation"),
+/// this struct preserves the raw data so it can be:
+/// - Passed through unchanged when saving
+/// - Processed by extension-aware applications
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExtensionMark {
+    /// The extension namespace (e.g., "semantic", "legal", "presentation").
+    pub namespace: String,
+
+    /// The mark type within the namespace (e.g., "citation", "entity", "index").
+    pub mark_type: String,
+
+    /// Extension-specific attributes.
+    #[serde(default, skip_serializing_if = "serde_json::Value::is_null")]
+    pub attributes: serde_json::Value,
+}
+
+impl ExtensionMark {
+    /// Create a new extension mark.
+    #[must_use]
+    pub fn new(namespace: impl Into<String>, mark_type: impl Into<String>) -> Self {
+        Self {
+            namespace: namespace.into(),
+            mark_type: mark_type.into(),
+            attributes: serde_json::Value::Null,
+        }
+    }
+
+    /// Parse an extension type string like "semantic:citation" into (namespace, mark_type).
+    ///
+    /// Returns `None` if the type doesn't contain a colon.
+    #[must_use]
+    pub fn parse_type(type_str: &str) -> Option<(&str, &str)> {
+        type_str.split_once(':')
+    }
+
+    /// Get the full type string (e.g., "semantic:citation").
+    #[must_use]
+    pub fn full_type(&self) -> String {
+        format!("{}:{}", self.namespace, self.mark_type)
+    }
+
+    /// Check if this extension is from a specific namespace.
+    #[must_use]
+    pub fn is_namespace(&self, namespace: &str) -> bool {
+        self.namespace == namespace
+    }
+
+    /// Check if this is a specific extension type.
+    #[must_use]
+    pub fn is_type(&self, namespace: &str, mark_type: &str) -> bool {
+        self.namespace == namespace && self.mark_type == mark_type
+    }
+
+    /// Set the attributes.
+    #[must_use]
+    pub fn with_attributes(mut self, attributes: serde_json::Value) -> Self {
+        self.attributes = attributes;
+        self
+    }
+
+    /// Get an attribute value by key.
+    #[must_use]
+    pub fn get_attribute(&self, key: &str) -> Option<&serde_json::Value> {
+        self.attributes.get(key)
+    }
+
+    /// Get a string attribute.
+    #[must_use]
+    pub fn get_string_attribute(&self, key: &str) -> Option<&str> {
+        self.attributes.get(key).and_then(serde_json::Value::as_str)
+    }
+
+    // ===== Convenience constructors for common extension marks =====
+
+    /// Create a citation mark (semantic extension).
+    #[must_use]
+    pub fn citation(reference: impl Into<String>) -> Self {
+        Self::new("semantic", "citation").with_attributes(serde_json::json!({
+            "ref": reference.into()
+        }))
+    }
+
+    /// Create a citation mark with page locator.
+    #[must_use]
+    pub fn citation_with_page(reference: impl Into<String>, page: impl Into<String>) -> Self {
+        Self::new("semantic", "citation").with_attributes(serde_json::json!({
+            "ref": reference.into(),
+            "locator": page.into(),
+            "locatorType": "page"
+        }))
+    }
+
+    /// Create an entity link mark (semantic extension).
+    #[must_use]
+    pub fn entity(uri: impl Into<String>, entity_type: impl Into<String>) -> Self {
+        Self::new("semantic", "entity").with_attributes(serde_json::json!({
+            "uri": uri.into(),
+            "entityType": entity_type.into()
+        }))
+    }
+
+    /// Create a glossary reference mark (semantic extension).
+    #[must_use]
+    pub fn glossary(term_id: impl Into<String>) -> Self {
+        Self::new("semantic", "glossary").with_attributes(serde_json::json!({
+            "termId": term_id.into()
+        }))
+    }
+
+    /// Create an index mark (presentation extension).
+    #[must_use]
+    pub fn index(term: impl Into<String>) -> Self {
+        Self::new("presentation", "index").with_attributes(serde_json::json!({
+            "term": term.into()
+        }))
+    }
+
+    /// Create an index mark with subterm.
+    #[must_use]
+    pub fn index_with_subterm(term: impl Into<String>, subterm: impl Into<String>) -> Self {
+        Self::new("presentation", "index").with_attributes(serde_json::json!({
+            "term": term.into(),
+            "subterm": subterm.into()
+        }))
+    }
 }
 
 impl Mark {
@@ -183,6 +321,22 @@ impl Mark {
             Self::Anchor { .. } => MarkType::Anchor,
             Self::Footnote { .. } => MarkType::Footnote,
             Self::Math { .. } => MarkType::Math,
+            Self::Extension(_) => MarkType::Extension,
+        }
+    }
+
+    /// Check if this mark is an extension mark.
+    #[must_use]
+    pub fn is_extension(&self) -> bool {
+        matches!(self, Self::Extension(_))
+    }
+
+    /// Get the extension mark if this is one.
+    #[must_use]
+    pub fn as_extension(&self) -> Option<&ExtensionMark> {
+        match self {
+            Self::Extension(ext) => Some(ext),
+            _ => None,
         }
     }
 }
@@ -212,6 +366,8 @@ pub enum MarkType {
     Footnote,
     /// Math mark type.
     Math,
+    /// Extension mark type.
+    Extension,
 }
 
 #[cfg(test)]
@@ -374,5 +530,166 @@ mod tests {
             }],
         );
         assert!(text.has_mark(MarkType::Math));
+    }
+
+    // Extension mark tests
+
+    #[test]
+    fn test_extension_mark_new() {
+        let ext = ExtensionMark::new("semantic", "citation");
+        assert_eq!(ext.namespace, "semantic");
+        assert_eq!(ext.mark_type, "citation");
+        assert_eq!(ext.full_type(), "semantic:citation");
+    }
+
+    #[test]
+    fn test_extension_mark_parse_type() {
+        assert_eq!(
+            ExtensionMark::parse_type("semantic:citation"),
+            Some(("semantic", "citation"))
+        );
+        assert_eq!(
+            ExtensionMark::parse_type("legal:cite"),
+            Some(("legal", "cite"))
+        );
+        assert_eq!(ExtensionMark::parse_type("bold"), None);
+    }
+
+    #[test]
+    fn test_extension_mark_with_attributes() {
+        let ext = ExtensionMark::new("semantic", "citation").with_attributes(serde_json::json!({
+            "ref": "smith2023",
+            "page": "42"
+        }));
+
+        assert_eq!(ext.get_string_attribute("ref"), Some("smith2023"));
+        assert_eq!(ext.get_string_attribute("page"), Some("42"));
+    }
+
+    #[test]
+    fn test_extension_mark_namespace_check() {
+        let ext = ExtensionMark::new("semantic", "citation");
+        assert!(ext.is_namespace("semantic"));
+        assert!(!ext.is_namespace("legal"));
+        assert!(ext.is_type("semantic", "citation"));
+        assert!(!ext.is_type("semantic", "entity"));
+    }
+
+    #[test]
+    fn test_mark_extension_variant() {
+        let ext = ExtensionMark::new("semantic", "citation");
+        let mark = Mark::Extension(ext.clone());
+
+        assert!(mark.is_extension());
+        assert_eq!(mark.mark_type(), MarkType::Extension);
+        assert_eq!(mark.as_extension().unwrap().full_type(), "semantic:citation");
+    }
+
+    #[test]
+    fn test_extension_mark_serialization() {
+        let ext = ExtensionMark::new("semantic", "citation").with_attributes(serde_json::json!({
+            "ref": "smith2023"
+        }));
+        let mark = Mark::Extension(ext);
+
+        let json = serde_json::to_string(&mark).unwrap();
+        assert!(json.contains("\"type\":\"extension\""));
+        assert!(json.contains("\"namespace\":\"semantic\""));
+        assert!(json.contains("\"markType\":\"citation\""));
+        assert!(json.contains("\"ref\":\"smith2023\""));
+    }
+
+    #[test]
+    fn test_extension_mark_deserialization() {
+        let json = r#"{
+            "type": "extension",
+            "namespace": "legal",
+            "markType": "cite",
+            "attributes": {
+                "citation": "Brown v. Board of Education"
+            }
+        }"#;
+        let mark: Mark = serde_json::from_str(json).unwrap();
+
+        if let Mark::Extension(ext) = mark {
+            assert_eq!(ext.namespace, "legal");
+            assert_eq!(ext.mark_type, "cite");
+            assert_eq!(
+                ext.get_string_attribute("citation"),
+                Some("Brown v. Board of Education")
+            );
+        } else {
+            panic!("Expected Extension mark");
+        }
+    }
+
+    #[test]
+    fn test_text_with_extension_mark() {
+        let mark = Mark::Extension(ExtensionMark::citation("smith2023"));
+        let text = Text::with_marks("important claim", vec![mark]);
+
+        assert!(text.has_mark(MarkType::Extension));
+        if let Mark::Extension(ext) = &text.marks[0] {
+            assert_eq!(ext.namespace, "semantic");
+            assert_eq!(ext.mark_type, "citation");
+        } else {
+            panic!("Expected Extension mark");
+        }
+    }
+
+    #[test]
+    fn test_citation_convenience() {
+        let ext = ExtensionMark::citation("smith2023");
+        assert!(ext.is_type("semantic", "citation"));
+        assert_eq!(ext.get_string_attribute("ref"), Some("smith2023"));
+    }
+
+    #[test]
+    fn test_citation_with_page_convenience() {
+        let ext = ExtensionMark::citation_with_page("smith2023", "42-45");
+        assert!(ext.is_type("semantic", "citation"));
+        assert_eq!(ext.get_string_attribute("ref"), Some("smith2023"));
+        assert_eq!(ext.get_string_attribute("locator"), Some("42-45"));
+        assert_eq!(ext.get_string_attribute("locatorType"), Some("page"));
+    }
+
+    #[test]
+    fn test_entity_convenience() {
+        let ext = ExtensionMark::entity("https://www.wikidata.org/wiki/Q937", "person");
+        assert!(ext.is_type("semantic", "entity"));
+        assert_eq!(
+            ext.get_string_attribute("uri"),
+            Some("https://www.wikidata.org/wiki/Q937")
+        );
+        assert_eq!(ext.get_string_attribute("entityType"), Some("person"));
+    }
+
+    #[test]
+    fn test_glossary_convenience() {
+        let ext = ExtensionMark::glossary("api-term");
+        assert!(ext.is_type("semantic", "glossary"));
+        assert_eq!(ext.get_string_attribute("termId"), Some("api-term"));
+    }
+
+    #[test]
+    fn test_index_convenience() {
+        let ext = ExtensionMark::index("algorithm");
+        assert!(ext.is_type("presentation", "index"));
+        assert_eq!(ext.get_string_attribute("term"), Some("algorithm"));
+    }
+
+    #[test]
+    fn test_index_with_subterm_convenience() {
+        let ext = ExtensionMark::index_with_subterm("algorithm", "sorting");
+        assert!(ext.is_type("presentation", "index"));
+        assert_eq!(ext.get_string_attribute("term"), Some("algorithm"));
+        assert_eq!(ext.get_string_attribute("subterm"), Some("sorting"));
+    }
+
+    #[test]
+    fn test_non_extension_mark_as_extension() {
+        let mark = Mark::Bold;
+        assert!(!mark.is_extension());
+        assert!(mark.as_extension().is_none());
     }
 }
