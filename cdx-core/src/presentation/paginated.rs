@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::style::StyleMap;
+use super::style::{StyleMap, Transform};
 
 /// Paginated presentation for print/PDF output.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -200,6 +200,10 @@ pub struct PageElement {
     /// Overflow behavior.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub overflow: Option<String>,
+
+    /// 2D transform for rotation, scale, skew.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub transform: Option<Transform>,
 }
 
 /// Element position on a page.

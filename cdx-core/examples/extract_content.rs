@@ -129,6 +129,49 @@ fn print_block(block: &Block, index: usize, depth: usize) {
                 print_block(child, j, depth + 1);
             }
         }
+        Block::DefinitionList(dl) => {
+            println!("{indent}[{index}] Definition List:");
+            for (j, child) in dl.children.iter().enumerate() {
+                print_block(child, j, depth + 1);
+            }
+        }
+        Block::DefinitionItem { children, .. } => {
+            println!("{indent}[{index}] Definition Item:");
+            for (j, child) in children.iter().enumerate() {
+                print_block(child, j, depth + 1);
+            }
+        }
+        Block::DefinitionTerm { children, .. } => {
+            println!("{indent}[{index}] Definition Term: {}", extract_text(children));
+        }
+        Block::DefinitionDescription { children, .. } => {
+            println!("{indent}[{index}] Definition Description:");
+            for (j, child) in children.iter().enumerate() {
+                print_block(child, j, depth + 1);
+            }
+        }
+        Block::Measurement(m) => {
+            println!("{indent}[{index}] Measurement: {}", m.display);
+        }
+        Block::Signature(sig) => {
+            println!("{indent}[{index}] Signature: {:?}", sig.signature_type);
+        }
+        Block::Svg(svg) => {
+            let src = svg.src.as_deref().unwrap_or("[inline]");
+            println!("{indent}[{index}] SVG: {src}");
+        }
+        Block::Barcode(bc) => {
+            println!("{indent}[{index}] Barcode ({:?}): {}", bc.format, bc.alt);
+        }
+        Block::Figure(fig) => {
+            println!("{indent}[{index}] Figure:");
+            for (j, child) in fig.children.iter().enumerate() {
+                print_block(child, j, depth + 1);
+            }
+        }
+        Block::FigCaption(fc) => {
+            println!("{indent}[{index}] Figure Caption: {}", extract_text(&fc.children));
+        }
     }
 }
 

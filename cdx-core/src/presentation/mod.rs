@@ -25,7 +25,10 @@ pub use precise::{
     PrecisePageElement, PrecisePageSize,
 };
 pub use responsive::{Breakpoint, Responsive, ResponsiveDefaults, ResponsiveStyle};
-pub use style::{Color, CssValue, FontWeight, Style, StyleMap, TextAlign};
+pub use style::{
+    Color, CssValue, FontWeight, Scale, Style, StyleMap, TextAlign, Transform, TransformOrigin,
+    WritingMode,
+};
 
 /// Presentation type identifier.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

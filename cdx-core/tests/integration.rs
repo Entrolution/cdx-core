@@ -1466,6 +1466,7 @@ mod paginated_presentation_tests {
             position: Position::new("72pt", "72pt", "468pt"),
             style: None,
             overflow: None,
+            transform: None,
         };
 
         let json = serde_json::to_string(&element).unwrap();

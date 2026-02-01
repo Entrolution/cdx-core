@@ -2,6 +2,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::content::block::MathFormat;
+
 /// A text node containing content and optional formatting marks.
 ///
 /// Text nodes are the leaf nodes in the content tree, containing
@@ -154,6 +156,15 @@ pub enum Mark {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         id: Option<String>,
     },
+
+    /// Inline mathematical expression.
+    Math {
+        /// Math format (latex or mathml).
+        format: MathFormat,
+
+        /// The mathematical expression.
+        value: String,
+    },
 }
 
 impl Mark {
@@ -171,6 +182,7 @@ impl Mark {
             Self::Link { .. } => MarkType::Link,
             Self::Anchor { .. } => MarkType::Anchor,
             Self::Footnote { .. } => MarkType::Footnote,
+            Self::Math { .. } => MarkType::Math,
         }
     }
 }
@@ -198,6 +210,8 @@ pub enum MarkType {
     Anchor,
     /// Footnote mark type.
     Footnote,
+    /// Math mark type.
+    Math,
 }
 
 #[cfg(test)]
@@ -307,5 +321,58 @@ mod tests {
         } else {
             panic!("Expected Footnote mark");
         }
+    }
+
+    #[test]
+    fn test_math_mark() {
+        use crate::content::block::MathFormat;
+
+        let mark = Mark::Math {
+            format: MathFormat::Latex,
+            value: "E = mc^2".to_string(),
+        };
+        assert_eq!(mark.mark_type(), MarkType::Math);
+    }
+
+    #[test]
+    fn test_math_mark_serialization() {
+        use crate::content::block::MathFormat;
+
+        let mark = Mark::Math {
+            format: MathFormat::Latex,
+            value: "\\frac{1}{2}".to_string(),
+        };
+        let json = serde_json::to_string(&mark).unwrap();
+        assert!(json.contains("\"type\":\"math\""));
+        assert!(json.contains("\"format\":\"latex\""));
+        assert!(json.contains("\"value\":\"\\\\frac{1}{2}\""));
+    }
+
+    #[test]
+    fn test_math_mark_deserialization() {
+        use crate::content::block::MathFormat;
+
+        let json = r#"{"type":"math","format":"mathml","value":"<math>...</math>"}"#;
+        let mark: Mark = serde_json::from_str(json).unwrap();
+        if let Mark::Math { format, value } = mark {
+            assert_eq!(format, MathFormat::Mathml);
+            assert_eq!(value, "<math>...</math>");
+        } else {
+            panic!("Expected Math mark");
+        }
+    }
+
+    #[test]
+    fn test_text_with_math_mark() {
+        use crate::content::block::MathFormat;
+
+        let text = Text::with_marks(
+            "x²",
+            vec![Mark::Math {
+                format: MathFormat::Latex,
+                value: "x^2".to_string(),
+            }],
+        );
+        assert!(text.has_mark(MarkType::Math));
     }
 }
