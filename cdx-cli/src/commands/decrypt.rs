@@ -65,10 +65,7 @@ pub fn run(
 
         // Check document state
         if doc.state().is_immutable() {
-            anyhow::bail!(
-                "Cannot decrypt: document is in {} state",
-                doc.state()
-            );
+            anyhow::bail!("Cannot decrypt: document is in {} state", doc.state());
         }
 
         // Get password (from argument or prompt)
@@ -113,8 +110,12 @@ pub fn run(
         let output_path = output.unwrap_or_else(|| file.clone());
 
         // Save the document
-        doc.save(&output_path)
-            .with_context(|| format!("Failed to save decrypted document: {}", output_path.display()))?;
+        doc.save(&output_path).with_context(|| {
+            format!(
+                "Failed to save decrypted document: {}",
+                output_path.display()
+            )
+        })?;
 
         if config.json {
             let result = serde_json::json!({
@@ -171,9 +172,8 @@ fn derive_key_argon2(
     let argon2 = Argon2::new(
         argon2::Algorithm::Argon2id,
         argon2::Version::V0x13,
-        argon2::Params::new(memory, 3, parallelism, Some(32)).map_err(|e| {
-            anyhow::anyhow!("Failed to configure Argon2: {}", e)
-        })?,
+        argon2::Params::new(memory, 3, parallelism, Some(32))
+            .map_err(|e| anyhow::anyhow!("Failed to configure Argon2: {}", e))?,
     );
 
     argon2

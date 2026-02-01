@@ -582,7 +582,10 @@ mod tests {
 
         assert!(mark.is_extension());
         assert_eq!(mark.mark_type(), MarkType::Extension);
-        assert_eq!(mark.as_extension().unwrap().full_type(), "semantic:citation");
+        assert_eq!(
+            mark.as_extension().unwrap().full_type(),
+            "semantic:citation"
+        );
     }
 
     #[test]

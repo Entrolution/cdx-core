@@ -347,10 +347,7 @@ impl Extension {
     /// For "semantic", returns "semantic".
     #[must_use]
     pub fn namespace(&self) -> &str {
-        self.id
-            .rsplit('.')
-            .next()
-            .unwrap_or(&self.id)
+        self.id.rsplit('.').next().unwrap_or(&self.id)
     }
 }
 
@@ -703,9 +700,18 @@ mod tests {
 
     #[test]
     fn test_extension_namespace() {
-        assert_eq!(Extension::new("codex.semantic", "0.1", true).namespace(), "semantic");
-        assert_eq!(Extension::new("semantic", "0.1", true).namespace(), "semantic");
-        assert_eq!(Extension::new("org.example.custom", "0.1", true).namespace(), "custom");
+        assert_eq!(
+            Extension::new("codex.semantic", "0.1", true).namespace(),
+            "semantic"
+        );
+        assert_eq!(
+            Extension::new("semantic", "0.1", true).namespace(),
+            "semantic"
+        );
+        assert_eq!(
+            Extension::new("org.example.custom", "0.1", true).namespace(),
+            "custom"
+        );
     }
 
     #[test]
@@ -723,8 +729,12 @@ mod tests {
         };
 
         let mut manifest = Manifest::new(content, metadata);
-        manifest.extensions.push(Extension::required("codex.semantic", "0.1"));
-        manifest.extensions.push(Extension::optional("codex.legal", "0.1"));
+        manifest
+            .extensions
+            .push(Extension::required("codex.semantic", "0.1"));
+        manifest
+            .extensions
+            .push(Extension::optional("codex.legal", "0.1"));
 
         // Check by namespace
         assert!(manifest.has_extension("semantic"));
@@ -751,7 +761,9 @@ mod tests {
         };
 
         let mut manifest = Manifest::new(content, metadata);
-        manifest.extensions.push(Extension::required("codex.semantic", "0.1"));
+        manifest
+            .extensions
+            .push(Extension::required("codex.semantic", "0.1"));
 
         let ext = manifest.get_extension("semantic");
         assert!(ext.is_some());
@@ -776,8 +788,12 @@ mod tests {
         };
 
         let mut manifest = Manifest::new(content, metadata);
-        manifest.extensions.push(Extension::required("codex.semantic", "0.1"));
-        manifest.extensions.push(Extension::optional("codex.forms", "0.1"));
+        manifest
+            .extensions
+            .push(Extension::required("codex.semantic", "0.1"));
+        manifest
+            .extensions
+            .push(Extension::optional("codex.forms", "0.1"));
 
         let ids = manifest.declared_extension_ids();
         assert_eq!(ids.len(), 2);

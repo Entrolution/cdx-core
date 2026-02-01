@@ -76,8 +76,13 @@ pub fn run(
 
     // Asset extraction
     if asset_name.is_some() || all_assets {
-        let asset_results =
-            extract_assets(&file, &output_dir, asset_name.as_deref(), all_assets, config)?;
+        let asset_results = extract_assets(
+            &file,
+            &output_dir,
+            asset_name.as_deref(),
+            all_assets,
+            config,
+        )?;
         extracted_items.extend(asset_results);
     }
 
@@ -194,9 +199,9 @@ fn extract_assets(
     // Extract each asset
     let mut extracted_count = 0;
     for asset_path in to_extract {
-        let data = reader.read_file(asset_path).with_context(|| {
-            format!("Failed to read asset: {}", asset_path)
-        })?;
+        let data = reader
+            .read_file(asset_path)
+            .with_context(|| format!("Failed to read asset: {}", asset_path))?;
 
         // Create the output path, preserving directory structure under assets/
         let relative_path = asset_path.strip_prefix("assets/").unwrap_or(asset_path);
@@ -204,9 +209,8 @@ fn extract_assets(
 
         // Ensure parent directory exists
         if let Some(parent) = output_path.parent() {
-            fs::create_dir_all(parent).with_context(|| {
-                format!("Failed to create directory: {}", parent.display())
-            })?;
+            fs::create_dir_all(parent)
+                .with_context(|| format!("Failed to create directory: {}", parent.display()))?;
         }
 
         fs::write(&output_path, &data)

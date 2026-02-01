@@ -811,8 +811,7 @@ mod tests {
 
     #[test]
     fn test_citation_serialization() {
-        let cite = LegalCitation::statute("42 U.S.C. § 1983")
-            .at(Pinpoint::section("1983"));
+        let cite = LegalCitation::statute("42 U.S.C. § 1983").at(Pinpoint::section("1983"));
 
         let json = serde_json::to_string(&cite).unwrap();
         assert!(json.contains("\"category\":\"statute\""));
@@ -823,7 +822,10 @@ mod tests {
     fn test_citation_type_display() {
         assert_eq!(LegalCitationType::Case.to_string(), "Cases");
         assert_eq!(LegalCitationType::Statute.to_string(), "Statutes");
-        assert_eq!(LegalCitationType::Constitution.to_string(), "Constitutional Provisions");
+        assert_eq!(
+            LegalCitationType::Constitution.to_string(),
+            "Constitutional Provisions"
+        );
     }
 
     #[test]

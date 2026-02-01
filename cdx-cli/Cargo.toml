@@ -21,6 +21,7 @@ timestamps-ots = ["cdx-core/timestamps-ots", "dep:tokio"]
 timestamps-rfc3161 = ["cdx-core/timestamps-rfc3161", "dep:tokio"]
 timestamps = ["timestamps-ots", "timestamps-rfc3161"]
 encryption = ["dep:argon2", "dep:pbkdf2", "dep:hmac", "dep:sha2", "dep:base64", "dep:rand_core"]
+rpassword = ["dep:rpassword"]
 
 [dependencies]
 cdx-core = { workspace = true, features = ["full"] }
@@ -41,6 +42,7 @@ hmac = { version = "0.12", optional = true }
 sha2 = { version = "0.10", optional = true }
 base64 = { version = "0.22", optional = true }
 rand_core = { version = "0.6", features = ["getrandom"], optional = true }
+rpassword = { version = "7", optional = true }
 
 [dev-dependencies]
 tempfile = "3.14"

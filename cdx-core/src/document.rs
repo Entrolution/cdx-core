@@ -1443,7 +1443,8 @@ mod tests {
 
         // Create content with multiple extensions
         let citation_mark = Mark::Extension(ExtensionMark::citation("smith2023"));
-        let entity_mark = Mark::Extension(ExtensionMark::entity("https://wikidata.org/Q937", "person"));
+        let entity_mark =
+            Mark::Extension(ExtensionMark::entity("https://wikidata.org/Q937", "person"));
 
         let form_block = Block::Extension(
             ExtensionBlock::new("forms", "textInput")

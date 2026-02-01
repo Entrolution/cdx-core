@@ -12,9 +12,7 @@ use std::path::PathBuf;
 use crate::output::OutputConfig;
 
 #[cfg(feature = "encryption")]
-use cdx_core::security::{
-    EncryptionAlgorithm, EncryptionMetadata, KdfAlgorithm, KeyDerivation,
-};
+use cdx_core::security::{EncryptionAlgorithm, EncryptionMetadata, KdfAlgorithm, KeyDerivation};
 #[cfg(feature = "encryption")]
 use cdx_core::Document;
 
@@ -66,10 +64,7 @@ pub fn run(
 
         // Check document state
         if doc.state().is_immutable() {
-            anyhow::bail!(
-                "Cannot encrypt: document is in {} state",
-                doc.state()
-            );
+            anyhow::bail!("Cannot encrypt: document is in {} state", doc.state());
         }
 
         // Get password (from argument or prompt)
@@ -119,8 +114,12 @@ pub fn run(
         let output_path = output.unwrap_or_else(|| file.clone());
 
         // Save the document
-        doc.save(&output_path)
-            .with_context(|| format!("Failed to save encrypted document: {}", output_path.display()))?;
+        doc.save(&output_path).with_context(|| {
+            format!(
+                "Failed to save encrypted document: {}",
+                output_path.display()
+            )
+        })?;
 
         if config.json {
             let result = serde_json::json!({
@@ -189,9 +188,8 @@ fn derive_key(password: &str, salt: &[u8]) -> Result<[u8; 32]> {
     let argon2 = Argon2::new(
         argon2::Algorithm::Argon2id,
         argon2::Version::V0x13,
-        argon2::Params::new(65536, 3, 4, Some(32)).map_err(|e| {
-            anyhow::anyhow!("Failed to configure Argon2: {}", e)
-        })?,
+        argon2::Params::new(65536, 3, 4, Some(32))
+            .map_err(|e| anyhow::anyhow!("Failed to configure Argon2: {}", e))?,
     );
 
     argon2
