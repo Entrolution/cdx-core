@@ -205,7 +205,7 @@ impl ExtensionMark {
         }
     }
 
-    /// Parse an extension type string like "semantic:citation" into (namespace, mark_type).
+    /// Parse an extension type string like "semantic:citation" into (namespace, `mark_type`).
     ///
     /// Returns `None` if the type doesn't contain a colon.
     #[must_use]

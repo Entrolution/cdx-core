@@ -569,10 +569,8 @@ impl Document {
     /// - Warnings for any issues found
     #[must_use]
     pub fn validate_extensions(&self) -> ExtensionValidationReport {
-        let mut report = ExtensionValidationReport::default();
-
         // Collect declared namespaces
-        report.declared_namespaces = self
+        let declared_namespaces: Vec<String> = self
             .manifest
             .extensions
             .iter()
@@ -581,28 +579,34 @@ impl Document {
 
         // Collect used namespaces from content
         let mut used = std::collections::HashSet::new();
-        self.collect_extension_namespaces(&self.content.blocks, &mut used);
+        Self::collect_extension_namespaces(&self.content.blocks, &mut used);
 
-        report.used_namespaces = used.iter().cloned().collect();
-        report.used_namespaces.sort();
+        let mut used_namespaces: Vec<String> = used.iter().cloned().collect();
+        used_namespaces.sort();
 
         // Find undeclared namespaces
-        for namespace in &report.used_namespaces {
+        let mut undeclared = Vec::new();
+        let mut warnings = Vec::new();
+        for namespace in &used_namespaces {
             if !self.manifest.has_extension(namespace) {
-                report.undeclared.push(namespace.clone());
-                report.warnings.push(format!(
-                    "Extension namespace '{}' is used but not declared in manifest",
-                    namespace
+                undeclared.push(namespace.clone());
+                warnings.push(format!(
+                    "Extension namespace '{namespace}' is used but not declared in manifest"
                 ));
             }
         }
 
-        report
+        ExtensionValidationReport {
+            used_namespaces,
+            declared_namespaces,
+            undeclared,
+            unsupported_required: Vec::new(),
+            warnings,
+        }
     }
 
     /// Recursively collect extension namespaces from blocks.
     fn collect_extension_namespaces(
-        &self,
         blocks: &[Block],
         namespaces: &mut std::collections::HashSet<String>,
     ) {
@@ -618,37 +622,35 @@ impl Document {
                 | Block::Heading { children, .. }
                 | Block::CodeBlock { children, .. }
                 | Block::DefinitionTerm { children, .. } => {
-                    self.collect_marks_namespaces(children, namespaces);
+                    Self::collect_marks_namespaces(children, namespaces);
                 }
                 Block::List { children, .. }
                 | Block::ListItem { children, .. }
                 | Block::Blockquote { children, .. }
                 | Block::Table { children, .. }
-                | Block::TableRow { children, .. } => {
-                    self.collect_extension_namespaces(children, namespaces);
+                | Block::TableRow { children, .. }
+                | Block::DefinitionItem { children, .. }
+                | Block::DefinitionDescription { children, .. } => {
+                    Self::collect_extension_namespaces(children, namespaces);
                 }
                 Block::DefinitionList(dl) => {
-                    self.collect_extension_namespaces(&dl.children, namespaces);
+                    Self::collect_extension_namespaces(&dl.children, namespaces);
                 }
                 Block::TableCell(cell) => {
-                    self.collect_marks_namespaces(&cell.children, namespaces);
-                }
-                Block::DefinitionItem { children, .. }
-                | Block::DefinitionDescription { children, .. } => {
-                    self.collect_extension_namespaces(children, namespaces);
+                    Self::collect_marks_namespaces(&cell.children, namespaces);
                 }
                 Block::Figure(fig) => {
-                    self.collect_extension_namespaces(&fig.children, namespaces);
+                    Self::collect_extension_namespaces(&fig.children, namespaces);
                 }
                 Block::FigCaption(fc) => {
-                    self.collect_marks_namespaces(&fc.children, namespaces);
+                    Self::collect_marks_namespaces(&fc.children, namespaces);
                 }
                 Block::Admonition(adm) => {
-                    self.collect_extension_namespaces(&adm.children, namespaces);
+                    Self::collect_extension_namespaces(&adm.children, namespaces);
                 }
                 Block::Extension(ext) => {
                     // Already handled above, but also check children
-                    self.collect_extension_namespaces(&ext.children, namespaces);
+                    Self::collect_extension_namespaces(&ext.children, namespaces);
                 }
                 // Leaf blocks without children
                 Block::HorizontalRule { .. }
@@ -665,7 +667,6 @@ impl Document {
 
     /// Collect extension namespaces from text marks.
     fn collect_marks_namespaces(
-        &self,
         texts: &[Text],
         namespaces: &mut std::collections::HashSet<String>,
     ) {

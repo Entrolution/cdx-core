@@ -5,7 +5,7 @@ use cdx_core::archive::CdxReader;
 use cdx_core::content::{Block, Text};
 use cdx_core::Document;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::output::OutputConfig;
 
@@ -113,8 +113,8 @@ pub fn run(
 
 /// Extract assets from a Codex document.
 fn extract_assets(
-    file: &PathBuf,
-    output_dir: &PathBuf,
+    file: &Path,
+    output_dir: &Path,
     asset_name: Option<&str>,
     all_assets: bool,
     config: &OutputConfig,

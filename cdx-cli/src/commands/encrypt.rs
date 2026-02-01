@@ -88,7 +88,7 @@ pub fn run(
 
         // Generate salt for key derivation
         let salt = generate_salt();
-        let salt_b64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &salt);
+        let salt_b64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, salt);
 
         // Derive key from password using Argon2id
         let key = derive_key(&password, &salt)?;

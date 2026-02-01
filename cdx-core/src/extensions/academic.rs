@@ -9,8 +9,8 @@
 //! - **Theorem**: Theorem-like blocks (theorem, lemma, proposition, etc.)
 //! - **Proof**: Proof blocks with method annotations
 //! - **Exercise**: Exercises with hints and solutions
-//! - **ExerciseSet**: Grouped exercises with shared context
-//! - **EquationGroup**: Multi-line equation environments
+//! - **`ExerciseSet`**: Grouped exercises with shared context
+//! - **`EquationGroup`**: Multi-line equation environments
 //! - **Algorithm**: Pseudocode blocks with line numbering
 //!
 //! # Example

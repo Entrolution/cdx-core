@@ -5,10 +5,10 @@
 //!
 //! # Features
 //!
-//! - **TableOfAuthorities**: Auto-generated citation index
-//! - **Caption**: Court caption block
-//! - **SignatureBlock**: Legal signature block format
-//! - **LegalCitation**: Legal citation marks (Bluebook, ALWD, etc.)
+//! - **`TableOfAuthorities`**: Auto-generated citation index
+//! - **`Caption`**: Court caption block
+//! - **`SignatureBlock`**: Legal signature block format
+//! - **`LegalCitation`**: Legal citation marks (Bluebook, ALWD, etc.)
 //!
 //! # Example
 //!
@@ -720,7 +720,7 @@ pub enum LegalCitationFormat {
     Bluebook,
     /// ALWD Citation Manual.
     Alwd,
-    /// McGill Guide (Canada).
+    /// `McGill` Guide (Canada).
     McGill,
     /// OSCOLA (UK).
     Oscola,
