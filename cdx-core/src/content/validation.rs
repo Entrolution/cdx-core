@@ -418,10 +418,7 @@ fn validate_barcode(
     }
     // Check for generic/placeholder alt text
     let alt_lower = bc.alt.to_lowercase();
-    if bc.alt.is_empty()
-        || alt_lower == "barcode"
-        || alt_lower == "qr code"
-        || alt_lower == "image"
+    if bc.alt.is_empty() || alt_lower == "barcode" || alt_lower == "qr code" || alt_lower == "image"
     {
         errors.push(ValidationError {
             path: path.to_string(),
@@ -684,9 +681,7 @@ mod tests {
     fn test_figcaption_outside_figure() {
         let content = Content::new(vec![Block::figcaption(vec![Text::plain("Orphan caption")])]);
         let errors = validate_content(&content);
-        assert!(errors
-            .iter()
-            .any(|e| e.message.contains("child of figure")));
+        assert!(errors.iter().any(|e| e.message.contains("child of figure")));
     }
 
     #[test]

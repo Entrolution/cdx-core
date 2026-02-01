@@ -1425,9 +1425,7 @@ mod tests {
     fn test_definition_list() {
         let dl = Block::definition_list(vec![Block::definition_item(vec![
             Block::definition_term(vec![Text::plain("Term")]),
-            Block::definition_description(vec![Block::paragraph(vec![Text::plain(
-                "Description",
-            )])]),
+            Block::definition_description(vec![Block::paragraph(vec![Text::plain("Description")])]),
         ])]);
         assert_eq!(dl.block_type(), "definitionList");
     }
@@ -1451,7 +1449,10 @@ mod tests {
             .with_uncertainty(0.005, UncertaintyNotation::Parenthetical);
         assert_eq!(m.unit, Some("m".to_string()));
         assert!(m.uncertainty.is_some());
-        assert_eq!(m.uncertainty_notation, Some(UncertaintyNotation::Parenthetical));
+        assert_eq!(
+            m.uncertainty_notation,
+            Some(UncertaintyNotation::Parenthetical)
+        );
     }
 
     #[test]
@@ -1502,7 +1503,11 @@ mod tests {
 
     #[test]
     fn test_barcode() {
-        let bc = Block::barcode(BarcodeFormat::Qr, "https://example.com", "Link to example.com");
+        let bc = Block::barcode(
+            BarcodeFormat::Qr,
+            "https://example.com",
+            "Link to example.com",
+        );
         assert_eq!(bc.block_type(), "barcode");
         if let Block::Barcode(b) = &bc {
             assert_eq!(b.format, BarcodeFormat::Qr);

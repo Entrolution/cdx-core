@@ -142,7 +142,10 @@ fn print_block(block: &Block, index: usize, depth: usize) {
             }
         }
         Block::DefinitionTerm { children, .. } => {
-            println!("{indent}[{index}] Definition Term: {}", extract_text(children));
+            println!(
+                "{indent}[{index}] Definition Term: {}",
+                extract_text(children)
+            );
         }
         Block::DefinitionDescription { children, .. } => {
             println!("{indent}[{index}] Definition Description:");
@@ -170,7 +173,10 @@ fn print_block(block: &Block, index: usize, depth: usize) {
             }
         }
         Block::FigCaption(fc) => {
-            println!("{indent}[{index}] Figure Caption: {}", extract_text(&fc.children));
+            println!(
+                "{indent}[{index}] Figure Caption: {}",
+                extract_text(&fc.children)
+            );
         }
     }
 }
