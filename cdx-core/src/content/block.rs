@@ -305,6 +305,9 @@ pub enum Block {
     /// Figure caption.
     FigCaption(FigCaptionBlock),
 
+    /// Admonition block (note, warning, tip, etc.).
+    Admonition(AdmonitionBlock),
+
     /// Extension block for custom/unknown block types.
     ///
     /// Extension blocks use namespaced types like "forms:textInput" or
@@ -892,6 +895,94 @@ impl FigCaptionBlock {
     }
 }
 
+/// Admonition block for callout boxes (note, warning, tip, etc.).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdmonitionBlock {
+    /// Optional unique identifier.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+
+    /// Admonition variant (note, tip, warning, etc.).
+    pub variant: AdmonitionVariant,
+
+    /// Optional title (if not provided, variant name is used).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+
+    /// Content blocks within the admonition.
+    pub children: Vec<Block>,
+
+    /// Block attributes.
+    #[serde(default, skip_serializing_if = "BlockAttributes::is_empty")]
+    pub attributes: BlockAttributes,
+}
+
+impl AdmonitionBlock {
+    /// Create a new admonition block.
+    #[must_use]
+    pub fn new(variant: AdmonitionVariant, children: Vec<Block>) -> Self {
+        Self {
+            id: None,
+            variant,
+            title: None,
+            children,
+            attributes: BlockAttributes::default(),
+        }
+    }
+
+    /// Set the admonition title.
+    #[must_use]
+    pub fn with_title(mut self, title: impl Into<String>) -> Self {
+        self.title = Some(title.into());
+        self
+    }
+
+    /// Set the block ID.
+    #[must_use]
+    pub fn with_id(mut self, id: impl Into<String>) -> Self {
+        self.id = Some(id.into());
+        self
+    }
+}
+
+/// Admonition variant/type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum AdmonitionVariant {
+    /// General note or information.
+    Note,
+    /// Helpful tip.
+    Tip,
+    /// Informational notice.
+    Info,
+    /// Warning about potential issues.
+    Warning,
+    /// Caution about important considerations.
+    Caution,
+    /// Danger alert for critical issues.
+    Danger,
+    /// Important notice requiring attention.
+    Important,
+    /// Example content.
+    Example,
+}
+
+impl std::fmt::Display for AdmonitionVariant {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Note => write!(f, "Note"),
+            Self::Tip => write!(f, "Tip"),
+            Self::Info => write!(f, "Info"),
+            Self::Warning => write!(f, "Warning"),
+            Self::Caution => write!(f, "Caution"),
+            Self::Danger => write!(f, "Danger"),
+            Self::Important => write!(f, "Important"),
+            Self::Example => write!(f, "Example"),
+        }
+    }
+}
+
 /// Definition list block.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DefinitionListBlock {
@@ -1157,6 +1248,12 @@ impl Block {
         Self::FigCaption(FigCaptionBlock::new(children))
     }
 
+    /// Create an admonition block.
+    #[must_use]
+    pub fn admonition(variant: AdmonitionVariant, children: Vec<Block>) -> Self {
+        Self::Admonition(AdmonitionBlock::new(variant, children))
+    }
+
     /// Get the block type as a string.
     ///
     /// For extension blocks, this returns "extension". Use [`ExtensionBlock::full_type()`]
@@ -1187,6 +1284,7 @@ impl Block {
             Self::Barcode(_) => "barcode",
             Self::Figure(_) => "figure",
             Self::FigCaption(_) => "figCaption",
+            Self::Admonition(_) => "admonition",
             Self::Extension(_) => "extension",
         }
     }
@@ -1218,6 +1316,7 @@ impl Block {
             Self::Barcode(bc) => bc.id.as_deref(),
             Self::Figure(fig) => fig.id.as_deref(),
             Self::FigCaption(fc) => fc.id.as_deref(),
+            Self::Admonition(adm) => adm.id.as_deref(),
             Self::Extension(ext) => ext.id.as_deref(),
         }
     }
@@ -1612,5 +1711,98 @@ mod tests {
         let json = r#"{"type":"figure","children":[]}"#;
         let block: Block = serde_json::from_str(json).unwrap();
         assert_eq!(block.block_type(), "figure");
+    }
+
+    // Admonition tests
+
+    #[test]
+    fn test_admonition() {
+        let adm = Block::admonition(
+            AdmonitionVariant::Warning,
+            vec![Block::paragraph(vec![Text::plain("Be careful!")])],
+        );
+        assert_eq!(adm.block_type(), "admonition");
+        if let Block::Admonition(a) = &adm {
+            assert_eq!(a.variant, AdmonitionVariant::Warning);
+            assert_eq!(a.children.len(), 1);
+        } else {
+            panic!("Expected Admonition");
+        }
+    }
+
+    #[test]
+    fn test_admonition_with_title() {
+        let adm = AdmonitionBlock::new(
+            AdmonitionVariant::Note,
+            vec![Block::paragraph(vec![Text::plain("Important info")])],
+        )
+        .with_title("Please Note")
+        .with_id("note-1");
+
+        assert_eq!(adm.title, Some("Please Note".to_string()));
+        assert_eq!(adm.id, Some("note-1".to_string()));
+    }
+
+    #[test]
+    fn test_admonition_serialization() {
+        let adm = Block::admonition(
+            AdmonitionVariant::Tip,
+            vec![Block::paragraph(vec![Text::plain("Pro tip!")])],
+        );
+        let json = serde_json::to_string(&adm).unwrap();
+        assert!(json.contains("\"type\":\"admonition\""));
+        assert!(json.contains("\"variant\":\"tip\""));
+    }
+
+    #[test]
+    fn test_admonition_deserialization() {
+        let json = r#"{
+            "type": "admonition",
+            "variant": "danger",
+            "title": "Warning!",
+            "children": [
+                {"type": "paragraph", "children": [{"value": "Do not proceed!"}]}
+            ]
+        }"#;
+        let block: Block = serde_json::from_str(json).unwrap();
+        assert_eq!(block.block_type(), "admonition");
+        if let Block::Admonition(adm) = block {
+            assert_eq!(adm.variant, AdmonitionVariant::Danger);
+            assert_eq!(adm.title, Some("Warning!".to_string()));
+            assert_eq!(adm.children.len(), 1);
+        } else {
+            panic!("Expected Admonition");
+        }
+    }
+
+    #[test]
+    fn test_admonition_variant_display() {
+        assert_eq!(AdmonitionVariant::Note.to_string(), "Note");
+        assert_eq!(AdmonitionVariant::Warning.to_string(), "Warning");
+        assert_eq!(AdmonitionVariant::Important.to_string(), "Important");
+    }
+
+    #[test]
+    fn test_all_admonition_variants() {
+        let variants = [
+            (AdmonitionVariant::Note, "note"),
+            (AdmonitionVariant::Tip, "tip"),
+            (AdmonitionVariant::Info, "info"),
+            (AdmonitionVariant::Warning, "warning"),
+            (AdmonitionVariant::Caution, "caution"),
+            (AdmonitionVariant::Danger, "danger"),
+            (AdmonitionVariant::Important, "important"),
+            (AdmonitionVariant::Example, "example"),
+        ];
+
+        for (variant, expected_name) in variants {
+            let adm = AdmonitionBlock::new(variant, vec![]);
+            let json = serde_json::to_string(&adm).unwrap();
+            assert!(
+                json.contains(&format!("\"variant\":\"{expected_name}\"")),
+                "Variant {:?} should serialize as {expected_name}",
+                variant
+            );
+        }
     }
 }

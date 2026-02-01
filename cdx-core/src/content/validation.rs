@@ -126,6 +126,7 @@ fn validate_block(
         Block::Barcode(bc) => validate_barcode(bc, path, ctx.errors),
         Block::Figure(fig) => validate_figure(&fig.children, path, &mut ctx),
         Block::FigCaption(fc) => validate_figcaption(&fc.children, path, parent, ctx.errors),
+        Block::Admonition(adm) => validate_container(&adm.children, path, &mut ctx),
     }
 }
 

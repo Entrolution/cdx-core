@@ -51,7 +51,7 @@ pub mod security;
 mod state;
 pub mod validation;
 
-pub use document::{Document, DocumentBuilder, VerificationReport};
+pub use document::{Document, DocumentBuilder, ExtensionValidationReport, VerificationReport};
 pub use error::{Error, Result};
 pub use hash::{DocumentId, HashAlgorithm, Hasher};
 pub use manifest::{

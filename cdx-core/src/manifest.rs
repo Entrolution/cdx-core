@@ -87,6 +87,39 @@ impl Manifest {
         }
     }
 
+    /// Check if an extension is declared in the manifest.
+    ///
+    /// Extension IDs use dot notation like "codex.semantic" or "codex.legal".
+    /// This method checks if the given namespace (e.g., "semantic", "legal")
+    /// matches any declared extension.
+    #[must_use]
+    pub fn has_extension(&self, namespace: &str) -> bool {
+        // Check for exact match or codex.{namespace} format
+        self.extensions.iter().any(|ext| {
+            ext.id == namespace
+                || ext.id == format!("codex.{namespace}")
+                || ext.id.ends_with(&format!(".{namespace}"))
+        })
+    }
+
+    /// Get a declared extension by namespace.
+    ///
+    /// Returns the extension declaration if found.
+    #[must_use]
+    pub fn get_extension(&self, namespace: &str) -> Option<&Extension> {
+        self.extensions.iter().find(|ext| {
+            ext.id == namespace
+                || ext.id == format!("codex.{namespace}")
+                || ext.id.ends_with(&format!(".{namespace}"))
+        })
+    }
+
+    /// Get all declared extension IDs.
+    #[must_use]
+    pub fn declared_extension_ids(&self) -> Vec<&str> {
+        self.extensions.iter().map(|e| e.id.as_str()).collect()
+    }
+
     /// Check if the manifest is valid.
     ///
     /// # Errors
@@ -270,16 +303,52 @@ pub struct SecurityRef {
 }
 
 /// Extension declaration.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Extension {
-    /// Extension identifier.
+    /// Extension identifier (e.g., "codex.semantic", "codex.legal").
     pub id: String,
 
     /// Extension version.
     pub version: String,
 
     /// Whether extension is required for correct rendering.
+    ///
+    /// If `true`, readers that don't support this extension should fail.
+    /// If `false`, readers may render fallback content or skip extension blocks.
     pub required: bool,
+}
+
+impl Extension {
+    /// Create a new extension declaration.
+    #[must_use]
+    pub fn new(id: impl Into<String>, version: impl Into<String>, required: bool) -> Self {
+        Self {
+            id: id.into(),
+            version: version.into(),
+            required,
+        }
+    }
+
+    /// Create a new required extension declaration.
+    #[must_use]
+    pub fn required(id: impl Into<String>, version: impl Into<String>) -> Self {
+        Self::new(id, version, true)
+    }
+
+    /// Create a new optional extension declaration.
+    #[must_use]
+    pub fn optional(id: impl Into<String>, version: impl Into<String>) -> Self {
+        Self::new(id, version, false)
+    }
+
+    /// Extract the namespace from the extension ID.
+    ///
+    /// For "codex.semantic", returns "semantic".
+    /// For "semantic", returns "semantic".
+    #[must_use]
+    pub fn namespace(&self) -> &str {
+        self.id.rsplit('.').next().unwrap_or(&self.id)
+    }
 }
 
 /// Version history and document relationships.
@@ -605,5 +674,148 @@ mod tests {
         assert_eq!(v3_lineage.ancestors[0], root_id);
         assert_eq!(v3_lineage.depth, Some(2));
         assert_eq!(v3_lineage.version, Some(3));
+    }
+
+    // Extension tests
+
+    #[test]
+    fn test_extension_new() {
+        let ext = Extension::new("codex.semantic", "0.1", true);
+        assert_eq!(ext.id, "codex.semantic");
+        assert_eq!(ext.version, "0.1");
+        assert!(ext.required);
+    }
+
+    #[test]
+    fn test_extension_required() {
+        let ext = Extension::required("codex.legal", "0.1");
+        assert!(ext.required);
+    }
+
+    #[test]
+    fn test_extension_optional() {
+        let ext = Extension::optional("codex.forms", "0.1");
+        assert!(!ext.required);
+    }
+
+    #[test]
+    fn test_extension_namespace() {
+        assert_eq!(
+            Extension::new("codex.semantic", "0.1", true).namespace(),
+            "semantic"
+        );
+        assert_eq!(
+            Extension::new("semantic", "0.1", true).namespace(),
+            "semantic"
+        );
+        assert_eq!(
+            Extension::new("org.example.custom", "0.1", true).namespace(),
+            "custom"
+        );
+    }
+
+    #[test]
+    fn test_manifest_has_extension() {
+        let content = ContentRef {
+            path: "content/document.json".to_string(),
+            hash: DocumentId::pending(),
+            compression: None,
+            merkle_root: None,
+            block_count: None,
+        };
+        let metadata = Metadata {
+            dublin_core: "metadata/dublin-core.json".to_string(),
+            custom: None,
+        };
+
+        let mut manifest = Manifest::new(content, metadata);
+        manifest
+            .extensions
+            .push(Extension::required("codex.semantic", "0.1"));
+        manifest
+            .extensions
+            .push(Extension::optional("codex.legal", "0.1"));
+
+        // Check by namespace
+        assert!(manifest.has_extension("semantic"));
+        assert!(manifest.has_extension("legal"));
+        assert!(!manifest.has_extension("forms"));
+
+        // Check by full ID
+        assert!(manifest.has_extension("codex.semantic"));
+        assert!(manifest.has_extension("codex.legal"));
+    }
+
+    #[test]
+    fn test_manifest_get_extension() {
+        let content = ContentRef {
+            path: "content/document.json".to_string(),
+            hash: DocumentId::pending(),
+            compression: None,
+            merkle_root: None,
+            block_count: None,
+        };
+        let metadata = Metadata {
+            dublin_core: "metadata/dublin-core.json".to_string(),
+            custom: None,
+        };
+
+        let mut manifest = Manifest::new(content, metadata);
+        manifest
+            .extensions
+            .push(Extension::required("codex.semantic", "0.1"));
+
+        let ext = manifest.get_extension("semantic");
+        assert!(ext.is_some());
+        assert_eq!(ext.unwrap().id, "codex.semantic");
+        assert!(ext.unwrap().required);
+
+        assert!(manifest.get_extension("forms").is_none());
+    }
+
+    #[test]
+    fn test_manifest_declared_extension_ids() {
+        let content = ContentRef {
+            path: "content/document.json".to_string(),
+            hash: DocumentId::pending(),
+            compression: None,
+            merkle_root: None,
+            block_count: None,
+        };
+        let metadata = Metadata {
+            dublin_core: "metadata/dublin-core.json".to_string(),
+            custom: None,
+        };
+
+        let mut manifest = Manifest::new(content, metadata);
+        manifest
+            .extensions
+            .push(Extension::required("codex.semantic", "0.1"));
+        manifest
+            .extensions
+            .push(Extension::optional("codex.forms", "0.1"));
+
+        let ids = manifest.declared_extension_ids();
+        assert_eq!(ids.len(), 2);
+        assert!(ids.contains(&"codex.semantic"));
+        assert!(ids.contains(&"codex.forms"));
+    }
+
+    #[test]
+    fn test_extension_serialization() {
+        let ext = Extension::required("codex.semantic", "0.1");
+        let json = serde_json::to_string(&ext).unwrap();
+        assert!(json.contains("\"id\":\"codex.semantic\""));
+        assert!(json.contains("\"version\":\"0.1\""));
+        assert!(json.contains("\"required\":true"));
+    }
+
+    #[test]
+    fn test_extension_deserialization() {
+        let json = r#"{"id":"codex.legal","version":"0.1","required":false}"#;
+        let ext: Extension = serde_json::from_str(json).unwrap();
+        assert_eq!(ext.id, "codex.legal");
+        assert_eq!(ext.version, "0.1");
+        assert!(!ext.required);
     }
 }

@@ -66,5 +66,5 @@ pub use block::{
     ImageBlock, MathBlock, MathFormat, MeasurementBlock, SignatureBlock, SignaturePurpose,
     SignerDetails, SvgBlock, TableCellBlock, UncertaintyNotation, WritingMode,
 };
-pub use text::{Mark, MarkType, Text};
+pub use text::{ExtensionMark, Mark, MarkType, Text};
 pub use validation::{validate_content, ValidationError};

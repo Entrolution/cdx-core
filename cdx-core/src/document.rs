@@ -555,6 +555,130 @@ impl Document {
         Ok(report)
     }
 
+    /// Validate extension declarations.
+    ///
+    /// This checks that all extension namespaces used in the document's content
+    /// (blocks and marks) are declared in the manifest's extensions list.
+    ///
+    /// # Returns
+    ///
+    /// An `ExtensionValidationReport` containing:
+    /// - List of used extension namespaces
+    /// - List of declared extension namespaces
+    /// - List of undeclared (used but not declared) namespaces
+    /// - Warnings for any issues found
+    #[must_use]
+    pub fn validate_extensions(&self) -> ExtensionValidationReport {
+        // Collect declared namespaces
+        let declared_namespaces: Vec<String> = self
+            .manifest
+            .extensions
+            .iter()
+            .map(|e| e.namespace().to_string())
+            .collect();
+
+        // Collect used namespaces from content
+        let mut used = std::collections::HashSet::new();
+        Self::collect_extension_namespaces(&self.content.blocks, &mut used);
+
+        let mut used_namespaces: Vec<String> = used.iter().cloned().collect();
+        used_namespaces.sort();
+
+        // Find undeclared namespaces
+        let mut undeclared = Vec::new();
+        let mut warnings = Vec::new();
+        for namespace in &used_namespaces {
+            if !self.manifest.has_extension(namespace) {
+                undeclared.push(namespace.clone());
+                warnings.push(format!(
+                    "Extension namespace '{namespace}' is used but not declared in manifest"
+                ));
+            }
+        }
+
+        ExtensionValidationReport {
+            used_namespaces,
+            declared_namespaces,
+            undeclared,
+            unsupported_required: Vec::new(),
+            warnings,
+        }
+    }
+
+    /// Recursively collect extension namespaces from blocks.
+    fn collect_extension_namespaces(
+        blocks: &[Block],
+        namespaces: &mut std::collections::HashSet<String>,
+    ) {
+        for block in blocks {
+            // Check if this is an extension block
+            if let Some(ext) = block.as_extension() {
+                namespaces.insert(ext.namespace.clone());
+            }
+
+            // Recursively check children and collect marks from text nodes
+            match block {
+                Block::Paragraph { children, .. }
+                | Block::Heading { children, .. }
+                | Block::CodeBlock { children, .. }
+                | Block::DefinitionTerm { children, .. } => {
+                    Self::collect_marks_namespaces(children, namespaces);
+                }
+                Block::List { children, .. }
+                | Block::ListItem { children, .. }
+                | Block::Blockquote { children, .. }
+                | Block::Table { children, .. }
+                | Block::TableRow { children, .. }
+                | Block::DefinitionItem { children, .. }
+                | Block::DefinitionDescription { children, .. } => {
+                    Self::collect_extension_namespaces(children, namespaces);
+                }
+                Block::DefinitionList(dl) => {
+                    Self::collect_extension_namespaces(&dl.children, namespaces);
+                }
+                Block::TableCell(cell) => {
+                    Self::collect_marks_namespaces(&cell.children, namespaces);
+                }
+                Block::Figure(fig) => {
+                    Self::collect_extension_namespaces(&fig.children, namespaces);
+                }
+                Block::FigCaption(fc) => {
+                    Self::collect_marks_namespaces(&fc.children, namespaces);
+                }
+                Block::Admonition(adm) => {
+                    Self::collect_extension_namespaces(&adm.children, namespaces);
+                }
+                Block::Extension(ext) => {
+                    // Already handled above, but also check children
+                    Self::collect_extension_namespaces(&ext.children, namespaces);
+                }
+                // Leaf blocks without children
+                Block::HorizontalRule { .. }
+                | Block::Image(_)
+                | Block::Math(_)
+                | Block::Break { .. }
+                | Block::Measurement(_)
+                | Block::Signature(_)
+                | Block::Svg(_)
+                | Block::Barcode(_) => {}
+            }
+        }
+    }
+
+    /// Collect extension namespaces from text marks.
+    fn collect_marks_namespaces(
+        texts: &[Text],
+        namespaces: &mut std::collections::HashSet<String>,
+    ) {
+        for text in texts {
+            for mark in &text.marks {
+                if let Some(ext) = mark.as_extension() {
+                    namespaces.insert(ext.namespace.clone());
+                }
+            }
+        }
+    }
+
     // ===== Provenance & Proof Methods =====
 
     /// Generate a block index for this document.
@@ -929,6 +1053,39 @@ impl VerificationReport {
     }
 }
 
+/// Report from extension validation.
+///
+/// This report identifies which extension namespaces are used in the document
+/// content but not declared in the manifest's extensions list.
+#[derive(Debug, Clone, Default)]
+pub struct ExtensionValidationReport {
+    /// Extension namespaces used in content (from blocks and marks).
+    pub used_namespaces: Vec<String>,
+    /// Extension namespaces that are declared in the manifest.
+    pub declared_namespaces: Vec<String>,
+    /// Extension namespaces used but not declared.
+    pub undeclared: Vec<String>,
+    /// Extension namespaces declared as required but not supported by this reader.
+    /// (Currently empty since we support all built-in extensions)
+    pub unsupported_required: Vec<String>,
+    /// Warning messages.
+    pub warnings: Vec<String>,
+}
+
+impl ExtensionValidationReport {
+    /// Check if extension validation passed without warnings.
+    #[must_use]
+    pub fn is_valid(&self) -> bool {
+        self.undeclared.is_empty() && self.unsupported_required.is_empty()
+    }
+
+    /// Check if there are any warnings.
+    #[must_use]
+    pub fn has_warnings(&self) -> bool {
+        !self.warnings.is_empty()
+    }
+}
+
 /// Builder for creating Codex documents.
 #[derive(Debug, Clone)]
 pub struct DocumentBuilder {
@@ -1097,6 +1254,7 @@ impl DocumentBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::content::Mark;
 
     #[test]
     fn test_builder_basic() {
@@ -1175,5 +1333,164 @@ mod tests {
         // Fresh documents with pending hashes should verify
         let report = doc.verify().unwrap();
         assert!(report.is_valid());
+    }
+
+    // Extension validation tests
+
+    #[test]
+    fn test_extension_validation_no_extensions() {
+        let doc = Document::builder()
+            .title("Simple Doc")
+            .creator("Author")
+            .add_paragraph("Just plain text")
+            .build()
+            .unwrap();
+
+        let report = doc.validate_extensions();
+        assert!(report.is_valid());
+        assert!(report.used_namespaces.is_empty());
+        assert!(report.undeclared.is_empty());
+    }
+
+    #[test]
+    fn test_extension_validation_with_extension_block() {
+        use crate::extensions::ExtensionBlock;
+
+        let ext_block = Block::Extension(
+            ExtensionBlock::new("forms", "textInput")
+                .with_id("name-field")
+                .with_attributes(serde_json::json!({"label": "Name"})),
+        );
+
+        let content = Content::new(vec![
+            Block::paragraph(vec![Text::plain("Fill out this form:")]),
+            ext_block,
+        ]);
+
+        let doc = Document::builder()
+            .title("Form Doc")
+            .creator("Author")
+            .with_content(content)
+            .build()
+            .unwrap();
+
+        let report = doc.validate_extensions();
+        assert!(!report.is_valid()); // undeclared extension
+        assert_eq!(report.used_namespaces, vec!["forms"]);
+        assert_eq!(report.undeclared, vec!["forms"]);
+        assert!(report.warnings[0].contains("forms"));
+    }
+
+    #[test]
+    fn test_extension_validation_with_declared_extension() {
+        use crate::extensions::ExtensionBlock;
+        use crate::manifest::Extension;
+
+        let ext_block = Block::Extension(
+            ExtensionBlock::new("semantic", "citation")
+                .with_attributes(serde_json::json!({"ref": "smith2023"})),
+        );
+
+        let content = Content::new(vec![
+            Block::paragraph(vec![Text::plain("According to research")]),
+            ext_block,
+        ]);
+
+        let mut doc = Document::builder()
+            .title("Academic Doc")
+            .creator("Author")
+            .with_content(content)
+            .build()
+            .unwrap();
+
+        // Declare the extension
+        doc.manifest_mut()
+            .extensions
+            .push(Extension::required("codex.semantic", "0.1"));
+
+        let report = doc.validate_extensions();
+        assert!(report.is_valid());
+        assert_eq!(report.used_namespaces, vec!["semantic"]);
+        assert!(report.undeclared.is_empty());
+    }
+
+    #[test]
+    fn test_extension_validation_with_extension_marks() {
+        use crate::content::ExtensionMark;
+
+        let citation_mark = Mark::Extension(ExtensionMark::citation("smith2023"));
+        let text_with_citation = Text::with_marks("important finding", vec![citation_mark]);
+
+        let content = Content::new(vec![Block::paragraph(vec![text_with_citation])]);
+
+        let doc = Document::builder()
+            .title("Cited Doc")
+            .creator("Author")
+            .with_content(content)
+            .build()
+            .unwrap();
+
+        let report = doc.validate_extensions();
+        assert!(!report.is_valid()); // undeclared
+        assert_eq!(report.used_namespaces, vec!["semantic"]);
+        assert_eq!(report.undeclared, vec!["semantic"]);
+    }
+
+    #[test]
+    fn test_extension_validation_mixed() {
+        use crate::content::ExtensionMark;
+        use crate::extensions::ExtensionBlock;
+        use crate::manifest::Extension;
+
+        // Create content with multiple extensions
+        let citation_mark = Mark::Extension(ExtensionMark::citation("smith2023"));
+        let entity_mark =
+            Mark::Extension(ExtensionMark::entity("https://wikidata.org/Q937", "person"));
+
+        let form_block = Block::Extension(
+            ExtensionBlock::new("forms", "textInput")
+                .with_id("email")
+                .with_attributes(serde_json::json!({"label": "Email"})),
+        );
+
+        let content = Content::new(vec![
+            Block::paragraph(vec![
+                Text::with_marks("Einstein", vec![entity_mark]),
+                Text::plain(" published his theory "),
+                Text::with_marks("(ref)", vec![citation_mark]),
+            ]),
+            form_block,
+        ]);
+
+        let mut doc = Document::builder()
+            .title("Mixed Extensions")
+            .creator("Author")
+            .with_content(content)
+            .build()
+            .unwrap();
+
+        // Only declare semantic, not forms
+        doc.manifest_mut()
+            .extensions
+            .push(Extension::required("codex.semantic", "0.1"));
+
+        let report = doc.validate_extensions();
+        assert!(!report.is_valid()); // forms not declared
+        assert!(report.used_namespaces.contains(&"semantic".to_string()));
+        assert!(report.used_namespaces.contains(&"forms".to_string()));
+        assert_eq!(report.undeclared, vec!["forms"]);
+        assert!(report.warnings.len() == 1);
+    }
+
+    #[test]
+    fn test_extension_validation_report_methods() {
+        let mut report = ExtensionValidationReport::default();
+        assert!(report.is_valid());
+        assert!(!report.has_warnings());
+
+        report.undeclared.push("test".to_string());
+        report.warnings.push("Test warning".to_string());
+        assert!(!report.is_valid());
+        assert!(report.has_warnings());
     }
 }

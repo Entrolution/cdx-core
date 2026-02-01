@@ -1,7 +1,9 @@
 //! CLI command implementations.
 
 pub mod create;
+pub mod decrypt;
 pub mod diff;
+pub mod encrypt;
 pub mod extract;
 pub mod fork;
 pub mod freeze;

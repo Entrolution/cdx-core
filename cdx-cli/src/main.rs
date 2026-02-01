@@ -388,6 +388,34 @@ enum Commands {
         #[arg(short, long)]
         output: Option<PathBuf>,
     },
+
+    /// Encrypt a document with password-based encryption
+    Encrypt {
+        /// Codex document to encrypt
+        file: PathBuf,
+
+        /// Password (will prompt if not provided)
+        #[arg(short, long)]
+        password: Option<String>,
+
+        /// Output file (default: overwrite input)
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+    },
+
+    /// Decrypt a password-encrypted document
+    Decrypt {
+        /// Codex document to decrypt
+        file: PathBuf,
+
+        /// Password (will prompt if not provided)
+        #[arg(short, long)]
+        password: Option<String>,
+
+        /// Output file (default: overwrite input)
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+    },
 }
 
 fn main() -> Result<()> {
@@ -564,6 +592,18 @@ fn main() -> Result<()> {
         } => {
             commands::timestamp::run_acquire_timestamp(file, method, server, output, &output_config)
         }
+
+        Commands::Encrypt {
+            file,
+            password,
+            output,
+        } => commands::encrypt::run(file, password, output, &output_config),
+
+        Commands::Decrypt {
+            file,
+            password,
+            output,
+        } => commands::decrypt::run(file, password, output, &output_config),
     };
 
     if let Err(e) = result {

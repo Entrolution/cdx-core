@@ -178,6 +178,13 @@ fn print_block(block: &Block, index: usize, depth: usize) {
                 extract_text(&fc.children)
             );
         }
+        Block::Admonition(adm) => {
+            let title = adm.title.as_deref().unwrap_or_default();
+            println!("{indent}[{index}] Admonition ({:?}): {title}", adm.variant);
+            for (j, child) in adm.children.iter().enumerate() {
+                print_block(child, j, depth + 1);
+            }
+        }
     }
 }
 
