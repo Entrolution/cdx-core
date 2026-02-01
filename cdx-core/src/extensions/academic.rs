@@ -746,6 +746,209 @@ pub enum AlgorithmLineType {
 }
 
 // ============================================================================
+// Cross-Reference Marks
+// ============================================================================
+
+/// An equation reference mark for cross-referencing equations.
+///
+/// Used inline to reference equations defined in equation groups.
+///
+/// # Example JSON
+///
+/// ```json
+/// {
+///   "type": "text",
+///   "value": "(2.5)",
+///   "marks": [
+///     {
+///       "type": "academic:equation-ref",
+///       "target": "#eq-fx",
+///       "format": "({number})"
+///     }
+///   ]
+/// }
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EquationRef {
+    /// Content Anchor URI to the equation (e.g., "#eq-fx").
+    pub target: String,
+
+    /// Display format with placeholder (default: "({number})").
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub format: Option<String>,
+}
+
+impl EquationRef {
+    /// Create a new equation reference.
+    #[must_use]
+    pub fn new(target: impl Into<String>) -> Self {
+        Self {
+            target: target.into(),
+            format: None,
+        }
+    }
+
+    /// Set a custom format string.
+    ///
+    /// Use `{number}` as a placeholder for the equation number.
+    #[must_use]
+    pub fn with_format(mut self, format: impl Into<String>) -> Self {
+        self.format = Some(format.into());
+        self
+    }
+
+    /// Convert to an extension mark for use in text.
+    #[must_use]
+    pub fn to_extension_mark(&self) -> crate::content::ExtensionMark {
+        let mut attrs = serde_json::json!({
+            "target": self.target
+        });
+        if let Some(ref fmt) = self.format {
+            attrs["format"] = serde_json::Value::String(fmt.clone());
+        }
+        crate::content::ExtensionMark::new("academic", "equation-ref").with_attributes(attrs)
+    }
+}
+
+/// An algorithm reference mark for cross-referencing algorithms and their lines.
+///
+/// Used inline to reference algorithms or specific lines within algorithms.
+///
+/// # Example JSON
+///
+/// ```json
+/// {
+///   "type": "text",
+///   "value": "Algorithm 1",
+///   "marks": [
+///     {
+///       "type": "academic:algorithm-ref",
+///       "target": "#alg-quicksort",
+///       "format": "Algorithm {number}"
+///     }
+///   ]
+/// }
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AlgorithmRef {
+    /// Content Anchor URI to the algorithm (e.g., "#alg-quicksort").
+    pub target: String,
+
+    /// Optional line label for line-specific references.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub line: Option<String>,
+
+    /// Display format with placeholders (e.g., "Algorithm {number}" or "line {line}").
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub format: Option<String>,
+}
+
+impl AlgorithmRef {
+    /// Create a new algorithm reference.
+    #[must_use]
+    pub fn new(target: impl Into<String>) -> Self {
+        Self {
+            target: target.into(),
+            line: None,
+            format: None,
+        }
+    }
+
+    /// Reference a specific line within the algorithm.
+    #[must_use]
+    pub fn with_line(mut self, line: impl Into<String>) -> Self {
+        self.line = Some(line.into());
+        self
+    }
+
+    /// Set a custom format string.
+    ///
+    /// Use `{number}` for algorithm number, `{line}` for line reference.
+    #[must_use]
+    pub fn with_format(mut self, format: impl Into<String>) -> Self {
+        self.format = Some(format.into());
+        self
+    }
+
+    /// Convert to an extension mark for use in text.
+    #[must_use]
+    pub fn to_extension_mark(&self) -> crate::content::ExtensionMark {
+        let mut attrs = serde_json::json!({
+            "target": self.target
+        });
+        if let Some(ref line) = self.line {
+            attrs["line"] = serde_json::Value::String(line.clone());
+        }
+        if let Some(ref fmt) = self.format {
+            attrs["format"] = serde_json::Value::String(fmt.clone());
+        }
+        crate::content::ExtensionMark::new("academic", "algorithm-ref").with_attributes(attrs)
+    }
+}
+
+/// A theorem reference mark for cross-referencing theorems, lemmas, etc.
+///
+/// # Example JSON
+///
+/// ```json
+/// {
+///   "type": "text",
+///   "value": "Theorem 3.1",
+///   "marks": [
+///     {
+///       "type": "academic:theorem-ref",
+///       "target": "#thm-pythagoras",
+///       "format": "{variant} {number}"
+///     }
+///   ]
+/// }
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TheoremRef {
+    /// Content Anchor URI to the theorem (e.g., "#thm-pythagoras").
+    pub target: String,
+
+    /// Display format with placeholders.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub format: Option<String>,
+}
+
+impl TheoremRef {
+    /// Create a new theorem reference.
+    #[must_use]
+    pub fn new(target: impl Into<String>) -> Self {
+        Self {
+            target: target.into(),
+            format: None,
+        }
+    }
+
+    /// Set a custom format string.
+    ///
+    /// Use `{variant}` for theorem type, `{number}` for theorem number.
+    #[must_use]
+    pub fn with_format(mut self, format: impl Into<String>) -> Self {
+        self.format = Some(format.into());
+        self
+    }
+
+    /// Convert to an extension mark for use in text.
+    #[must_use]
+    pub fn to_extension_mark(&self) -> crate::content::ExtensionMark {
+        let mut attrs = serde_json::json!({
+            "target": self.target
+        });
+        if let Some(ref fmt) = self.format {
+            attrs["format"] = serde_json::Value::String(fmt.clone());
+        }
+        crate::content::ExtensionMark::new("academic", "theorem-ref").with_attributes(attrs)
+    }
+}
+
+// ============================================================================
 // Numbering Configuration
 // ============================================================================
 
@@ -918,5 +1121,104 @@ mod tests {
 
         assert_eq!(abs.keywords.len(), 2);
         assert!(abs.sections.is_empty());
+    }
+
+    #[test]
+    fn test_equation_ref() {
+        let eq_ref = EquationRef::new("#eq-pythagoras");
+        assert_eq!(eq_ref.target, "#eq-pythagoras");
+        assert!(eq_ref.format.is_none());
+
+        let eq_ref_fmt = eq_ref.with_format("Equation ({number})");
+        assert_eq!(eq_ref_fmt.format, Some("Equation ({number})".to_string()));
+    }
+
+    #[test]
+    fn test_equation_ref_to_mark() {
+        let eq_ref = EquationRef::new("#eq-1").with_format("({number})");
+        let mark = eq_ref.to_extension_mark();
+
+        assert_eq!(mark.namespace, "academic");
+        assert_eq!(mark.mark_type, "equation-ref");
+        assert_eq!(mark.get_string_attribute("target"), Some("#eq-1"));
+        assert_eq!(mark.get_string_attribute("format"), Some("({number})"));
+    }
+
+    #[test]
+    fn test_algorithm_ref() {
+        let alg_ref = AlgorithmRef::new("#alg-quicksort");
+        assert_eq!(alg_ref.target, "#alg-quicksort");
+        assert!(alg_ref.line.is_none());
+        assert!(alg_ref.format.is_none());
+    }
+
+    #[test]
+    fn test_algorithm_ref_with_line() {
+        let alg_ref = AlgorithmRef::new("#alg-bisection")
+            .with_line("loop")
+            .with_format("line {line}");
+
+        assert_eq!(alg_ref.target, "#alg-bisection");
+        assert_eq!(alg_ref.line, Some("loop".to_string()));
+        assert_eq!(alg_ref.format, Some("line {line}".to_string()));
+    }
+
+    #[test]
+    fn test_algorithm_ref_to_mark() {
+        let alg_ref = AlgorithmRef::new("#alg-1")
+            .with_line("start")
+            .with_format("Algorithm {number}, line {line}");
+        let mark = alg_ref.to_extension_mark();
+
+        assert_eq!(mark.namespace, "academic");
+        assert_eq!(mark.mark_type, "algorithm-ref");
+        assert_eq!(mark.get_string_attribute("target"), Some("#alg-1"));
+        assert_eq!(mark.get_string_attribute("line"), Some("start"));
+        assert_eq!(
+            mark.get_string_attribute("format"),
+            Some("Algorithm {number}, line {line}")
+        );
+    }
+
+    #[test]
+    fn test_theorem_ref() {
+        let thm_ref = TheoremRef::new("#thm-pythagoras");
+        assert_eq!(thm_ref.target, "#thm-pythagoras");
+        assert!(thm_ref.format.is_none());
+    }
+
+    #[test]
+    fn test_theorem_ref_to_mark() {
+        let thm_ref = TheoremRef::new("#thm-1").with_format("{variant} {number}");
+        let mark = thm_ref.to_extension_mark();
+
+        assert_eq!(mark.namespace, "academic");
+        assert_eq!(mark.mark_type, "theorem-ref");
+        assert_eq!(mark.get_string_attribute("target"), Some("#thm-1"));
+        assert_eq!(mark.get_string_attribute("format"), Some("{variant} {number}"));
+    }
+
+    #[test]
+    fn test_equation_ref_serialization() {
+        let eq_ref = EquationRef::new("#eq-fx").with_format("({number})");
+        let json = serde_json::to_string(&eq_ref).unwrap();
+        assert!(json.contains("\"target\":\"#eq-fx\""));
+        assert!(json.contains("\"format\":\"({number})\""));
+
+        // Deserialize back
+        let parsed: EquationRef = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.target, "#eq-fx");
+        assert_eq!(parsed.format, Some("({number})".to_string()));
+    }
+
+    #[test]
+    fn test_algorithm_ref_serialization() {
+        let alg_ref = AlgorithmRef::new("#alg-sort")
+            .with_line("pivot")
+            .with_format("line {line}");
+        let json = serde_json::to_string(&alg_ref).unwrap();
+        assert!(json.contains("\"target\":\"#alg-sort\""));
+        assert!(json.contains("\"line\":\"pivot\""));
+        assert!(json.contains("\"format\":\"line {line}\""));
     }
 }

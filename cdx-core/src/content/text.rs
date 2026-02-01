@@ -303,6 +303,102 @@ impl ExtensionMark {
             "subterm": subterm.into()
         }))
     }
+
+    // ===== Academic extension marks =====
+
+    /// Create an equation reference mark (academic extension).
+    ///
+    /// References an equation by its ID (e.g., "#eq-pythagoras").
+    #[must_use]
+    pub fn equation_ref(target: impl Into<String>) -> Self {
+        Self::new("academic", "equation-ref").with_attributes(serde_json::json!({
+            "target": target.into()
+        }))
+    }
+
+    /// Create an equation reference mark with custom format.
+    ///
+    /// The format string can use `{number}` as a placeholder for the equation number.
+    #[must_use]
+    pub fn equation_ref_formatted(target: impl Into<String>, format: impl Into<String>) -> Self {
+        Self::new("academic", "equation-ref").with_attributes(serde_json::json!({
+            "target": target.into(),
+            "format": format.into()
+        }))
+    }
+
+    /// Create an algorithm reference mark (academic extension).
+    ///
+    /// References an algorithm by its ID (e.g., "#alg-quicksort").
+    #[must_use]
+    pub fn algorithm_ref(target: impl Into<String>) -> Self {
+        Self::new("academic", "algorithm-ref").with_attributes(serde_json::json!({
+            "target": target.into()
+        }))
+    }
+
+    /// Create an algorithm reference mark with line reference.
+    ///
+    /// References a specific line within an algorithm.
+    #[must_use]
+    pub fn algorithm_ref_line(
+        target: impl Into<String>,
+        line: impl Into<String>,
+    ) -> Self {
+        Self::new("academic", "algorithm-ref").with_attributes(serde_json::json!({
+            "target": target.into(),
+            "line": line.into()
+        }))
+    }
+
+    /// Create an algorithm reference mark with custom format.
+    ///
+    /// The format string can use `{number}` and `{line}` as placeholders.
+    #[must_use]
+    pub fn algorithm_ref_formatted(
+        target: impl Into<String>,
+        format: impl Into<String>,
+    ) -> Self {
+        Self::new("academic", "algorithm-ref").with_attributes(serde_json::json!({
+            "target": target.into(),
+            "format": format.into()
+        }))
+    }
+
+    /// Create an algorithm reference mark with line and custom format.
+    #[must_use]
+    pub fn algorithm_ref_line_formatted(
+        target: impl Into<String>,
+        line: impl Into<String>,
+        format: impl Into<String>,
+    ) -> Self {
+        Self::new("academic", "algorithm-ref").with_attributes(serde_json::json!({
+            "target": target.into(),
+            "line": line.into(),
+            "format": format.into()
+        }))
+    }
+
+    /// Create a theorem reference mark (academic extension).
+    ///
+    /// References a theorem by its ID (e.g., "#thm-pythagoras").
+    #[must_use]
+    pub fn theorem_ref(target: impl Into<String>) -> Self {
+        Self::new("academic", "theorem-ref").with_attributes(serde_json::json!({
+            "target": target.into()
+        }))
+    }
+
+    /// Create a theorem reference mark with custom format.
+    ///
+    /// The format string can use `{number}` and `{variant}` as placeholders.
+    #[must_use]
+    pub fn theorem_ref_formatted(target: impl Into<String>, format: impl Into<String>) -> Self {
+        Self::new("academic", "theorem-ref").with_attributes(serde_json::json!({
+            "target": target.into(),
+            "format": format.into()
+        }))
+    }
 }
 
 impl Mark {
@@ -694,5 +790,78 @@ mod tests {
         let mark = Mark::Bold;
         assert!(!mark.is_extension());
         assert!(mark.as_extension().is_none());
+    }
+
+    #[test]
+    fn test_equation_ref_convenience() {
+        let ext = ExtensionMark::equation_ref("#eq-pythagoras");
+        assert!(ext.is_type("academic", "equation-ref"));
+        assert_eq!(ext.get_string_attribute("target"), Some("#eq-pythagoras"));
+        assert!(ext.get_string_attribute("format").is_none());
+    }
+
+    #[test]
+    fn test_equation_ref_formatted_convenience() {
+        let ext = ExtensionMark::equation_ref_formatted("#eq-1", "Equation ({number})");
+        assert!(ext.is_type("academic", "equation-ref"));
+        assert_eq!(ext.get_string_attribute("target"), Some("#eq-1"));
+        assert_eq!(
+            ext.get_string_attribute("format"),
+            Some("Equation ({number})")
+        );
+    }
+
+    #[test]
+    fn test_algorithm_ref_convenience() {
+        let ext = ExtensionMark::algorithm_ref("#alg-quicksort");
+        assert!(ext.is_type("academic", "algorithm-ref"));
+        assert_eq!(ext.get_string_attribute("target"), Some("#alg-quicksort"));
+        assert!(ext.get_string_attribute("line").is_none());
+    }
+
+    #[test]
+    fn test_algorithm_ref_line_convenience() {
+        let ext = ExtensionMark::algorithm_ref_line("#alg-bisection", "loop");
+        assert!(ext.is_type("academic", "algorithm-ref"));
+        assert_eq!(ext.get_string_attribute("target"), Some("#alg-bisection"));
+        assert_eq!(ext.get_string_attribute("line"), Some("loop"));
+    }
+
+    #[test]
+    fn test_algorithm_ref_formatted_convenience() {
+        let ext = ExtensionMark::algorithm_ref_formatted("#alg-1", "Algorithm {number}");
+        assert!(ext.is_type("academic", "algorithm-ref"));
+        assert_eq!(ext.get_string_attribute("target"), Some("#alg-1"));
+        assert_eq!(
+            ext.get_string_attribute("format"),
+            Some("Algorithm {number}")
+        );
+    }
+
+    #[test]
+    fn test_algorithm_ref_line_formatted_convenience() {
+        let ext = ExtensionMark::algorithm_ref_line_formatted("#alg-1", "pivot", "line {line}");
+        assert!(ext.is_type("academic", "algorithm-ref"));
+        assert_eq!(ext.get_string_attribute("target"), Some("#alg-1"));
+        assert_eq!(ext.get_string_attribute("line"), Some("pivot"));
+        assert_eq!(ext.get_string_attribute("format"), Some("line {line}"));
+    }
+
+    #[test]
+    fn test_theorem_ref_convenience() {
+        let ext = ExtensionMark::theorem_ref("#thm-pythagoras");
+        assert!(ext.is_type("academic", "theorem-ref"));
+        assert_eq!(ext.get_string_attribute("target"), Some("#thm-pythagoras"));
+    }
+
+    #[test]
+    fn test_theorem_ref_formatted_convenience() {
+        let ext = ExtensionMark::theorem_ref_formatted("#thm-1", "{variant} {number}");
+        assert!(ext.is_type("academic", "theorem-ref"));
+        assert_eq!(ext.get_string_attribute("target"), Some("#thm-1"));
+        assert_eq!(
+            ext.get_string_attribute("format"),
+            Some("{variant} {number}")
+        );
     }
 }
