@@ -10,6 +10,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use super::paginated::Margins;
+use super::style::Transform;
 
 /// Precise layout for a specific page format.
 ///
@@ -336,6 +337,10 @@ pub struct PrecisePageElement {
     /// Line-level precision for legal documents.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub lines: Vec<LineInfo>,
+
+    /// 2D transform for rotation, scale, skew.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub transform: Option<Transform>,
 }
 
 #[allow(clippy::trivially_copy_pass_by_ref)] // Required by serde skip_serializing_if
@@ -362,7 +367,15 @@ impl PrecisePageElement {
             continues: false,
             continuation: false,
             lines: Vec::new(),
+            transform: None,
         }
+    }
+
+    /// Set the transform for this element.
+    #[must_use]
+    pub fn with_transform(mut self, transform: Transform) -> Self {
+        self.transform = Some(transform);
+        self
     }
 
     /// Mark this element as continuing to the next page.

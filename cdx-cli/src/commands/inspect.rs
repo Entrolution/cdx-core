@@ -156,6 +156,16 @@ fn format_block_type(block_type: &str) -> String {
         "tableCell" => "Table Cell",
         "math" => "Math",
         "break" => "Break",
+        "definitionList" => "Definition List",
+        "definitionItem" => "Definition Item",
+        "definitionTerm" => "Definition Term",
+        "definitionDescription" => "Definition Description",
+        "measurement" => "Measurement",
+        "signature" => "Signature",
+        "svg" => "SVG",
+        "barcode" => "Barcode",
+        "figure" => "Figure",
+        "figCaption" => "Figure Caption",
         other => other,
     }
     .to_string()

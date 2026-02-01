@@ -61,7 +61,10 @@ mod text;
 mod validation;
 
 pub use block::{
-    Block, BlockAttributes, CellAlign, Content, ImageBlock, MathBlock, MathFormat, TableCellBlock,
+    BarcodeBlock, BarcodeFormat, BarcodeSize, Block, BlockAttributes, BlockSignatureType,
+    CellAlign, Content, DefinitionListBlock, ErrorCorrectionLevel, FigCaptionBlock, FigureBlock,
+    ImageBlock, MathBlock, MathFormat, MeasurementBlock, SignatureBlock, SignaturePurpose,
+    SignerDetails, SvgBlock, TableCellBlock, UncertaintyNotation, WritingMode,
 };
-pub use text::{Mark, Text};
+pub use text::{Mark, MarkType, Text};
 pub use validation::{validate_content, ValidationError};

@@ -6,6 +6,173 @@ use std::collections::HashMap;
 /// A map of style names to style definitions.
 pub type StyleMap = HashMap<String, Style>;
 
+/// Writing mode for text direction.
+///
+/// Controls the direction in which text flows within a block.
+/// This is particularly important for CJK (Chinese, Japanese, Korean)
+/// languages which can be written vertically.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum WritingMode {
+    /// Horizontal text, top-to-bottom block flow (default).
+    /// Used for Latin, Cyrillic, Arabic, Hebrew scripts.
+    #[default]
+    HorizontalTb,
+
+    /// Vertical text, right-to-left block flow.
+    /// Traditional Chinese, Japanese, Korean.
+    VerticalRl,
+
+    /// Vertical text, left-to-right block flow.
+    /// Used for Mongolian script.
+    VerticalLr,
+
+    /// Sideways text, right-to-left (90° clockwise rotation).
+    SidewaysRl,
+
+    /// Sideways text, left-to-right (90° counter-clockwise rotation).
+    SidewaysLr,
+}
+
+/// 2D transform for element positioning.
+///
+/// Transforms allow rotation, scaling, skewing, and translation
+/// of elements in paginated and precise layouts.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Transform {
+    /// Rotation angle (e.g., "90deg", "-45deg", "0.5rad").
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rotate: Option<String>,
+
+    /// Scale factor (uniform or non-uniform).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scale: Option<Scale>,
+
+    /// Skew along X-axis (angle).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub skew_x: Option<String>,
+
+    /// Skew along Y-axis (angle).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub skew_y: Option<String>,
+
+    /// Translation along X-axis (length).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub translate_x: Option<String>,
+
+    /// Translation along Y-axis (length).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub translate_y: Option<String>,
+
+    /// 2D transformation matrix [a, b, c, d, tx, ty].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub matrix: Option<[f64; 6]>,
+
+    /// Transform origin point.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub origin: Option<TransformOrigin>,
+}
+
+impl Transform {
+    /// Create a rotation transform.
+    #[must_use]
+    pub fn rotate(angle: impl Into<String>) -> Self {
+        Self {
+            rotate: Some(angle.into()),
+            ..Default::default()
+        }
+    }
+
+    /// Create a uniform scale transform.
+    #[must_use]
+    pub fn scale_uniform(factor: f64) -> Self {
+        Self {
+            scale: Some(Scale::Uniform(factor)),
+            ..Default::default()
+        }
+    }
+
+    /// Create a non-uniform scale transform.
+    #[must_use]
+    pub fn scale_xy(x: f64, y: f64) -> Self {
+        Self {
+            scale: Some(Scale::NonUniform { x, y }),
+            ..Default::default()
+        }
+    }
+
+    /// Create a translation transform.
+    #[must_use]
+    pub fn translate(x: impl Into<String>, y: impl Into<String>) -> Self {
+        Self {
+            translate_x: Some(x.into()),
+            translate_y: Some(y.into()),
+            ..Default::default()
+        }
+    }
+
+    /// Set the transform origin.
+    #[must_use]
+    pub fn with_origin(mut self, origin: TransformOrigin) -> Self {
+        self.origin = Some(origin);
+        self
+    }
+}
+
+/// Scale factor for transforms.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum Scale {
+    /// Uniform scaling (same factor for X and Y).
+    Uniform(f64),
+    /// Non-uniform scaling (different factors for X and Y).
+    NonUniform {
+        /// X scale factor.
+        x: f64,
+        /// Y scale factor.
+        y: f64,
+    },
+}
+
+/// Transform origin point.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum TransformOrigin {
+    /// Keyword origin (e.g., "center", "top left").
+    Keyword(String),
+    /// Explicit coordinate origin.
+    Point {
+        /// X coordinate.
+        x: String,
+        /// Y coordinate.
+        y: String,
+    },
+}
+
+impl TransformOrigin {
+    /// Center origin.
+    #[must_use]
+    pub fn center() -> Self {
+        Self::Keyword("center".to_string())
+    }
+
+    /// Top-left origin.
+    #[must_use]
+    pub fn top_left() -> Self {
+        Self::Keyword("top left".to_string())
+    }
+
+    /// Custom point origin.
+    #[must_use]
+    pub fn point(x: impl Into<String>, y: impl Into<String>) -> Self {
+        Self::Point {
+            x: x.into(),
+            y: y.into(),
+        }
+    }
+}
+
 /// CSS-like style properties.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -132,6 +299,46 @@ pub struct Style {
     /// Style to inherit from.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub extends: Option<String>,
+
+    // Writing mode
+    /// Writing mode for text direction.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub writing_mode: Option<WritingMode>,
+
+    // Stacking
+    /// Z-index for stacking order.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub z_index: Option<i32>,
+
+    // Background images
+    /// Background image URL.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub background_image: Option<String>,
+
+    /// Background size.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub background_size: Option<String>,
+
+    /// Background position.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub background_position: Option<String>,
+
+    /// Background repeat.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub background_repeat: Option<String>,
+
+    // Visual effects
+    /// Element opacity (0.0 to 1.0).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub opacity: Option<f32>,
+
+    /// Border radius.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub border_radius: Option<CssValue>,
+
+    /// Box shadow.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub box_shadow: Option<String>,
 }
 
 /// CSS value with units.
@@ -313,5 +520,95 @@ mod tests {
         let style: Style = serde_json::from_str(json).unwrap();
         assert_eq!(style.font_family, Some("system-ui, sans-serif".to_string()));
         assert!(matches!(style.line_height, Some(CssValue::Number(n)) if (n - 1.6).abs() < 0.001));
+    }
+
+    #[test]
+    fn test_writing_mode_serialization() {
+        let mode = WritingMode::VerticalRl;
+        let json = serde_json::to_string(&mode).unwrap();
+        assert_eq!(json, "\"vertical-rl\"");
+
+        let mode = WritingMode::HorizontalTb;
+        let json = serde_json::to_string(&mode).unwrap();
+        assert_eq!(json, "\"horizontal-tb\"");
+    }
+
+    #[test]
+    fn test_writing_mode_deserialization() {
+        let mode: WritingMode = serde_json::from_str("\"vertical-lr\"").unwrap();
+        assert_eq!(mode, WritingMode::VerticalLr);
+
+        let mode: WritingMode = serde_json::from_str("\"sideways-rl\"").unwrap();
+        assert_eq!(mode, WritingMode::SidewaysRl);
+    }
+
+    #[test]
+    fn test_transform_rotate() {
+        let t = Transform::rotate("45deg");
+        assert_eq!(t.rotate, Some("45deg".to_string()));
+        assert!(t.scale.is_none());
+    }
+
+    #[test]
+    fn test_transform_scale_uniform() {
+        let t = Transform::scale_uniform(2.0);
+        assert!(matches!(t.scale, Some(Scale::Uniform(s)) if (s - 2.0).abs() < 0.001));
+    }
+
+    #[test]
+    fn test_transform_scale_xy() {
+        let t = Transform::scale_xy(1.5, 2.0);
+        if let Some(Scale::NonUniform { x, y }) = t.scale {
+            assert!((x - 1.5).abs() < 0.001);
+            assert!((y - 2.0).abs() < 0.001);
+        } else {
+            panic!("Expected NonUniform scale");
+        }
+    }
+
+    #[test]
+    fn test_transform_translate() {
+        let t = Transform::translate("10px", "20px");
+        assert_eq!(t.translate_x, Some("10px".to_string()));
+        assert_eq!(t.translate_y, Some("20px".to_string()));
+    }
+
+    #[test]
+    fn test_transform_origin() {
+        let t = Transform::rotate("90deg").with_origin(TransformOrigin::center());
+        assert!(matches!(t.origin, Some(TransformOrigin::Keyword(ref k)) if k == "center"));
+    }
+
+    #[test]
+    fn test_transform_serialization() {
+        let t = Transform {
+            rotate: Some("45deg".to_string()),
+            scale: Some(Scale::Uniform(1.5)),
+            origin: Some(TransformOrigin::center()),
+            ..Default::default()
+        };
+        let json = serde_json::to_string(&t).unwrap();
+        assert!(json.contains("\"rotate\":\"45deg\""));
+        assert!(json.contains("\"scale\":1.5"));
+        assert!(json.contains("\"origin\":\"center\""));
+    }
+
+    #[test]
+    fn test_style_with_new_properties() {
+        let style = Style {
+            writing_mode: Some(WritingMode::VerticalRl),
+            z_index: Some(10),
+            opacity: Some(0.8),
+            border_radius: Some(CssValue::px(8.0)),
+            background_image: Some("url('bg.png')".to_string()),
+            ..Default::default()
+        };
+
+        let json = serde_json::to_string_pretty(&style).unwrap();
+        assert!(json.contains("\"writingMode\": \"vertical-rl\""));
+        assert!(json.contains("\"zIndex\": 10"));
+        assert!(json.contains("\"opacity\": 0.8"));
+        assert!(json.contains("\"borderRadius\": \"8px\""));
+        assert!(json.contains("\"backgroundImage\": \"url('bg.png')\""));
     }
 }
