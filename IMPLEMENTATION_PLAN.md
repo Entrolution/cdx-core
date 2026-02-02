@@ -193,12 +193,12 @@ This document tracks the implementation parity between the Codex File Format Spe
 | Feature | Spec | Implementation | Status | Notes |
 |---------|------|----------------|--------|-------|
 | ECDSA P-256 | ✅ | EcdsaSigner | ✅ | |
-| ECDSA P-384 | ✅ | SignatureAlgorithm::ES384 | ⚠️ | Enum exists, no signer impl |
+| ECDSA P-384 | ✅ | Es384Signer | ✅ | Feature: signatures-es384 |
 | Ed25519 | ✅ | EddsaSigner | ✅ | Feature: eddsa |
-| RSA-PSS | ✅ | SignatureAlgorithm::PS256 | ⚠️ | Enum exists, no signer impl |
+| RSA-PSS | ✅ | Ps256Signer | ✅ | Feature: signatures-rsa |
 | ML-DSA-65 (PQC) | ✅ | MlDsaSigner | ✅ | Feature: ml-dsa |
 | AES-256-GCM | ✅ | Aes256GcmEncryptor | ✅ | Feature: encryption |
-| ChaCha20-Poly1305 | ✅ | Not found | ❌ | |
+| ChaCha20-Poly1305 | ✅ | ChaCha20Poly1305Encryptor | ✅ | Feature: encryption-chacha |
 | Access control | ✅ | AccessControl | ✅ | |
 | Trusted timestamps | ✅ | RFC3161/OTS | ✅ | Feature-gated |
 | WebAuthn/FIDO2 | ✅ | Not found | ❌ | |
@@ -383,12 +383,12 @@ The CLI has comprehensive integration tests in `cdx-cli/tests/integration.rs`:
 
 ### Medium Priority
 
-5. **Signature algorithm implementations** (enum values exist, need signers):
-   - ES384Signer (ECDSA P-384)
-   - Ps256Signer (RSA-PSS)
+5. ~~**Signature algorithm implementations** (enum values exist, need signers):~~ ✅ COMPLETED
+   - ~~ES384Signer (ECDSA P-384)~~ ✅
+   - ~~Ps256Signer (RSA-PSS)~~ ✅
 
-6. **Additional encryption**:
-   - ChaCha20-Poly1305
+6. ~~**Additional encryption**:~~ ✅ COMPLETED
+   - ~~ChaCha20-Poly1305~~ ✅
 
 7. **Presentation features**:
    - Master pages/templates
@@ -424,10 +424,10 @@ The CLI has comprehensive integration tests in `cdx-cli/tests/integration.rs`:
 - [x] Add Document methods for reading/writing forms/data.json
 - [x] Add Document methods for reading/writing semantic/bibliography.json
 
-### Phase 4: Security Enhancements
-- [ ] Implement ES384Signer (ECDSA P-384)
-- [ ] Implement Ps256Signer (RSA-PSS)
-- [ ] Add ChaCha20-Poly1305 encryption
+### Phase 4: Security Enhancements ✅ COMPLETED
+- [x] Implement ES384Signer (ECDSA P-384) - Feature: signatures-es384
+- [x] Implement Ps256Signer (RSA-PSS) - Feature: signatures-rsa
+- [x] Add ChaCha20-Poly1305 encryption - Feature: encryption-chacha
 
 ### Phase 5: Presentation Features
 - [ ] Master pages/templates
@@ -462,13 +462,16 @@ Based on code review, these are confirmed working:
 - ✅ Phantom extension (all types)
 - ✅ Document encryption methods (is_encrypted, set_encryption, etc.)
 - ✅ ECDSA P-256 signatures
+- ✅ ECDSA P-384 signatures (ES384)
+- ✅ RSA-PSS signatures (PS256)
 - ✅ EdDSA (Ed25519) signatures
 - ✅ ML-DSA-65 post-quantum signatures
 - ✅ AES-256-GCM encryption
+- ✅ ChaCha20-Poly1305 encryption
 - ✅ Merkle tree proofs
 - ✅ RFC 3161 timestamps
 - ✅ OpenTimestamps support
 
 ---
 
-**Last Updated:** 2026-02-01
+**Last Updated:** 2026-02-02

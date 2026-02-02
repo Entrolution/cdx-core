@@ -4,8 +4,8 @@
 //!
 //! This module provides cryptographic capabilities for Codex documents:
 //!
-//! - **Signatures**: ECDSA (ES256), EdDSA (Ed25519), and ML-DSA-65 (post-quantum) digital signatures
-//! - **Encryption**: AES-256-GCM authenticated encryption
+//! - **Signatures**: ECDSA (ES256, ES384), EdDSA (Ed25519), RSA-PSS (PS256), and ML-DSA-65 (post-quantum) digital signatures
+//! - **Encryption**: AES-256-GCM and ChaCha20-Poly1305 authenticated encryption
 //! - **Certificate Validation**: X.509 certificate chain validation
 //! - **Revocation Checking**: OCSP and CRL certificate revocation (feature: `ocsp`)
 //! - **Access Control**: Permission management for document operations
@@ -48,10 +48,14 @@ mod certificate;
 mod eddsa;
 #[cfg(feature = "encryption")]
 mod encryption;
+#[cfg(feature = "signatures-es384")]
+mod es384;
 #[cfg(feature = "ml-dsa")]
 mod ml_dsa;
 #[cfg(feature = "ocsp")]
 mod revocation;
+#[cfg(feature = "signatures-rsa")]
+mod rsa_pss;
 mod signature;
 mod signer;
 
@@ -66,6 +70,14 @@ pub use signer::{EcdsaSigner, EcdsaVerifier, Signer, Verifier};
 #[cfg(feature = "eddsa")]
 pub use eddsa::{EddsaSigner, EddsaVerifier};
 
+#[cfg(feature = "signatures-es384")]
+#[cfg_attr(docsrs, doc(cfg(feature = "signatures-es384")))]
+pub use es384::{Es384Signer, Es384Verifier};
+
+#[cfg(feature = "signatures-rsa")]
+#[cfg_attr(docsrs, doc(cfg(feature = "signatures-rsa")))]
+pub use rsa_pss::{Ps256Signer, Ps256Verifier};
+
 #[cfg(feature = "ml-dsa")]
 #[cfg_attr(docsrs, doc(cfg(feature = "ml-dsa")))]
 pub use ml_dsa::{MlDsaSigner, MlDsaVerifier};
@@ -75,6 +87,10 @@ pub use encryption::{
     Aes256GcmEncryptor, EncryptedData, EncryptionAlgorithm, EncryptionMetadata, KdfAlgorithm,
     KeyDerivation, Recipient,
 };
+
+#[cfg(feature = "encryption-chacha")]
+#[cfg_attr(docsrs, doc(cfg(feature = "encryption-chacha")))]
+pub use encryption::ChaCha20Poly1305Encryptor;
 
 #[cfg(feature = "ocsp")]
 #[cfg_attr(docsrs, doc(cfg(feature = "ocsp")))]

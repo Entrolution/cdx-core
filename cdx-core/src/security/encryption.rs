@@ -1,7 +1,7 @@
-//! Encryption support using AES-256-GCM.
+//! Encryption support using AES-256-GCM and ChaCha20-Poly1305.
 //!
 //! This module provides encryption and decryption capabilities for Codex documents
-//! using the AES-256-GCM authenticated encryption algorithm.
+//! using authenticated encryption algorithms (AEAD).
 
 use serde::{Deserialize, Serialize};
 
@@ -13,6 +13,9 @@ pub enum EncryptionAlgorithm {
     /// AES-256-GCM (required).
     #[serde(rename = "AES-256-GCM")]
     Aes256Gcm,
+    /// ChaCha20-Poly1305 (optional).
+    #[serde(rename = "ChaCha20-Poly1305")]
+    ChaCha20Poly1305,
 }
 
 impl EncryptionAlgorithm {
@@ -21,6 +24,7 @@ impl EncryptionAlgorithm {
     pub const fn as_str(&self) -> &'static str {
         match self {
             Self::Aes256Gcm => "AES-256-GCM",
+            Self::ChaCha20Poly1305 => "ChaCha20-Poly1305",
         }
     }
 
@@ -28,7 +32,8 @@ impl EncryptionAlgorithm {
     #[must_use]
     pub const fn key_size(&self) -> usize {
         match self {
-            Self::Aes256Gcm => 32, // 256 bits
+            // Both algorithms use 256-bit keys
+            Self::Aes256Gcm | Self::ChaCha20Poly1305 => 32,
         }
     }
 
@@ -36,7 +41,8 @@ impl EncryptionAlgorithm {
     #[must_use]
     pub const fn nonce_size(&self) -> usize {
         match self {
-            Self::Aes256Gcm => 12, // 96 bits
+            // Both algorithms use 96-bit nonces
+            Self::Aes256Gcm | Self::ChaCha20Poly1305 => 12,
         }
     }
 }
@@ -246,6 +252,126 @@ impl Aes256GcmEncryptor {
     }
 }
 
+/// ChaCha20-Poly1305 encryptor.
+#[cfg(feature = "encryption-chacha")]
+pub struct ChaCha20Poly1305Encryptor {
+    key: [u8; 32],
+}
+
+#[cfg(feature = "encryption-chacha")]
+impl ChaCha20Poly1305Encryptor {
+    /// Create a new encryptor with the given key.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the key is not 32 bytes.
+    pub fn new(key: &[u8]) -> Result<Self> {
+        let key: [u8; 32] = key.try_into().map_err(|_| crate::Error::InvalidManifest {
+            reason: format!("Invalid key length: expected 32 bytes, got {}", key.len()),
+        })?;
+        Ok(Self { key })
+    }
+
+    /// Generate a new random encryption key.
+    #[must_use]
+    pub fn generate_key() -> [u8; 32] {
+        use rand_core::RngCore;
+        let mut key = [0u8; 32];
+        rand_core::OsRng.fill_bytes(&mut key);
+        key
+    }
+
+    /// Generate a random nonce.
+    #[must_use]
+    pub fn generate_nonce() -> [u8; 12] {
+        use rand_core::RngCore;
+        let mut nonce = [0u8; 12];
+        rand_core::OsRng.fill_bytes(&mut nonce);
+        nonce
+    }
+
+    /// Encrypt data with a random nonce.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if encryption fails.
+    pub fn encrypt(&self, plaintext: &[u8]) -> Result<EncryptedData> {
+        self.encrypt_with_nonce(plaintext, &Self::generate_nonce())
+    }
+
+    /// Encrypt data with a specific nonce.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if encryption fails.
+    pub fn encrypt_with_nonce(&self, plaintext: &[u8], nonce: &[u8; 12]) -> Result<EncryptedData> {
+        use chacha20poly1305::{
+            aead::{Aead, KeyInit},
+            ChaCha20Poly1305, Nonce,
+        };
+
+        let cipher = ChaCha20Poly1305::new_from_slice(&self.key).map_err(|e| {
+            crate::Error::InvalidManifest {
+                reason: format!("Failed to create cipher: {e}"),
+            }
+        })?;
+
+        #[allow(deprecated)] // generic-array 1.x transition
+        let nonce_obj = Nonce::from_slice(nonce);
+        let ciphertext =
+            cipher
+                .encrypt(nonce_obj, plaintext)
+                .map_err(|e| crate::Error::InvalidManifest {
+                    reason: format!("Encryption failed: {e}"),
+                })?;
+
+        // Poly1305 appends the tag to the ciphertext (16 bytes)
+        let tag_start = ciphertext.len().saturating_sub(16);
+        let tag = ciphertext[tag_start..].to_vec();
+
+        Ok(EncryptedData {
+            ciphertext,
+            nonce: nonce.to_vec(),
+            tag,
+        })
+    }
+
+    /// Decrypt data.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if decryption fails (wrong key or tampered data).
+    pub fn decrypt(&self, ciphertext: &[u8], nonce: &[u8]) -> Result<Vec<u8>> {
+        use chacha20poly1305::{
+            aead::{Aead, KeyInit},
+            ChaCha20Poly1305, Nonce,
+        };
+
+        let nonce: [u8; 12] = nonce
+            .try_into()
+            .map_err(|_| crate::Error::InvalidManifest {
+                reason: format!(
+                    "Invalid nonce length: expected 12 bytes, got {}",
+                    nonce.len()
+                ),
+            })?;
+
+        let cipher = ChaCha20Poly1305::new_from_slice(&self.key).map_err(|e| {
+            crate::Error::InvalidManifest {
+                reason: format!("Failed to create cipher: {e}"),
+            }
+        })?;
+
+        #[allow(deprecated)] // generic-array 1.x transition
+        let nonce_obj = Nonce::from_slice(&nonce);
+        cipher
+            .decrypt(nonce_obj, ciphertext)
+            .map_err(|e| crate::Error::InvalidManifest {
+                reason: format!("Decryption failed: {e}"),
+            })
+    }
+}
+
 #[cfg(all(test, feature = "encryption"))]
 mod tests {
     use super::*;
@@ -349,5 +475,86 @@ mod tests {
 
         let deserialized: EncryptionMetadata = serde_json::from_str(&json).unwrap();
         assert_eq!(deserialized.algorithm, metadata.algorithm);
+    }
+}
+
+#[cfg(all(test, feature = "encryption-chacha"))]
+mod chacha_tests {
+    use super::*;
+
+    #[test]
+    fn test_chacha_encrypt_decrypt() {
+        let key = ChaCha20Poly1305Encryptor::generate_key();
+        let encryptor = ChaCha20Poly1305Encryptor::new(&key).unwrap();
+
+        let plaintext = b"Hello, World! This is a test message.";
+        let encrypted = encryptor.encrypt(plaintext).unwrap();
+
+        assert_ne!(&encrypted.ciphertext[..plaintext.len()], plaintext);
+
+        let decrypted = encryptor
+            .decrypt(&encrypted.ciphertext, &encrypted.nonce)
+            .unwrap();
+        assert_eq!(decrypted, plaintext);
+    }
+
+    #[test]
+    fn test_chacha_wrong_key_fails() {
+        let key1 = ChaCha20Poly1305Encryptor::generate_key();
+        let key2 = ChaCha20Poly1305Encryptor::generate_key();
+
+        let encryptor1 = ChaCha20Poly1305Encryptor::new(&key1).unwrap();
+        let encryptor2 = ChaCha20Poly1305Encryptor::new(&key2).unwrap();
+
+        let plaintext = b"Secret message";
+        let encrypted = encryptor1.encrypt(plaintext).unwrap();
+
+        let result = encryptor2.decrypt(&encrypted.ciphertext, &encrypted.nonce);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_chacha_tampered_data_fails() {
+        let key = ChaCha20Poly1305Encryptor::generate_key();
+        let encryptor = ChaCha20Poly1305Encryptor::new(&key).unwrap();
+
+        let plaintext = b"Original message";
+        let mut encrypted = encryptor.encrypt(plaintext).unwrap();
+
+        // Tamper with the ciphertext
+        if !encrypted.ciphertext.is_empty() {
+            encrypted.ciphertext[0] ^= 0xFF;
+        }
+
+        let result = encryptor.decrypt(&encrypted.ciphertext, &encrypted.nonce);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_chacha_empty_plaintext() {
+        let key = ChaCha20Poly1305Encryptor::generate_key();
+        let encryptor = ChaCha20Poly1305Encryptor::new(&key).unwrap();
+
+        let plaintext = b"";
+        let encrypted = encryptor.encrypt(plaintext).unwrap();
+        let decrypted = encryptor
+            .decrypt(&encrypted.ciphertext, &encrypted.nonce)
+            .unwrap();
+
+        assert_eq!(decrypted, plaintext);
+    }
+
+    #[test]
+    fn test_chacha_encryption_algorithm_enum() {
+        let algo = EncryptionAlgorithm::ChaCha20Poly1305;
+        assert_eq!(algo.as_str(), "ChaCha20-Poly1305");
+        assert_eq!(algo.key_size(), 32);
+        assert_eq!(algo.nonce_size(), 12);
+
+        let json = serde_json::to_string(&algo).unwrap();
+        assert_eq!(json, "\"ChaCha20-Poly1305\"");
+
+        let deserialized: EncryptionAlgorithm = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized, algo);
     }
 }
