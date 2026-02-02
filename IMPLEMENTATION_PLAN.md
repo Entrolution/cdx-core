@@ -322,15 +322,15 @@ The CLI has comprehensive integration tests in `cdx-cli/tests/integration.rs`:
 | security/encryption.json | ✅ | ⚠️ | ⚠️ | Types exist, file I/O unclear |
 | security/annotations.json | ✅ | ✅ | ✅ |
 | provenance/record.json | ✅ | ✅ | ✅ |
-| collaboration/comments.json | ✅ | ⚠️ | ⚠️ | Types exist, file I/O unclear |
+| collaboration/comments.json | ✅ | ✅ | ✅ | Full read/write support |
 | collaboration/changes.json | ✅ | ⚠️ | ⚠️ | Types exist, file I/O unclear |
-| phantoms/clusters.json | ✅ | ⚠️ | ⚠️ | Types exist, file I/O unclear |
-| forms/data.json | ✅ | ⚠️ | ⚠️ | Types exist, file I/O unclear |
+| phantoms/clusters.json | ✅ | ✅ | ✅ | Full read/write support |
+| forms/data.json | ✅ | ✅ | ✅ | Full read/write support |
 | metadata/dublin-core.json | ✅ | ✅ | ✅ |
 | metadata/custom.json | ✅ | ✅ | ✅ |
 | metadata/jsonld.json | ✅ | ⚠️ | ⚠️ | Types exist |
-| semantic/bibliography.json | ✅ | ⚠️ | ⚠️ | Types exist |
-| academic/numbering.json | ✅ | ⚠️ | ⚠️ | Types exist |
+| semantic/bibliography.json | ✅ | ✅ | ✅ | Full read/write support |
+| academic/numbering.json | ✅ | ✅ | ✅ | Full read/write support |
 
 ---
 
@@ -418,11 +418,11 @@ The CLI has comprehensive integration tests in `cdx-cli/tests/integration.rs`:
 - [x] Add theorem-ref mark type (ExtensionMark::theorem_ref, TheoremRef struct)
 - [x] Implement numbering.json file I/O in Document (academic_numbering field, read/write)
 
-### Phase 3: Extension File I/O
-- [ ] Add Document methods for reading/writing collaboration/comments.json
-- [ ] Add Document methods for reading/writing phantoms/clusters.json
-- [ ] Add Document methods for reading/writing forms/data.json
-- [ ] Add Document methods for reading/writing semantic/bibliography.json
+### Phase 3: Extension File I/O ✅ COMPLETED
+- [x] Add Document methods for reading/writing collaboration/comments.json
+- [x] Add Document methods for reading/writing phantoms/clusters.json
+- [x] Add Document methods for reading/writing forms/data.json
+- [x] Add Document methods for reading/writing semantic/bibliography.json
 
 ### Phase 4: Security Enhancements
 - [ ] Implement ES384Signer (ECDSA P-384)
