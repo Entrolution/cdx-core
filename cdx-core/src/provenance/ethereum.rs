@@ -456,11 +456,11 @@ mod tests {
     fn test_ethereum_timestamp_builder() {
         let timestamp =
             EthereumTimestamp::new(test_tx_hash(), test_hash(), EthereumNetwork::Mainnet)
-                .with_block_number(12345678)
+                .with_block_number(12_345_678)
                 .with_confirmations(100)
-                .with_block_timestamp(1700000000);
+                .with_block_timestamp(1_700_000_000);
 
-        assert_eq!(timestamp.block_number, Some(12345678));
+        assert_eq!(timestamp.block_number, Some(12_345_678));
         assert_eq!(timestamp.confirmations, Some(100));
         assert!(timestamp.is_confirmed(50));
     }
@@ -498,7 +498,7 @@ mod tests {
 
     #[test]
     fn test_ethereum_verification_success() {
-        let result = EthereumVerification::success(12345678, 100, 1700000000);
+        let result = EthereumVerification::success(12_345_678, 100, 1_700_000_000);
         assert!(result.verified);
         assert!(result.hash_matches);
         assert_eq!(result.confirmations, 100);
@@ -515,9 +515,9 @@ mod tests {
     fn test_verify_offline_valid() {
         let timestamp =
             EthereumTimestamp::new(test_tx_hash(), test_hash(), EthereumNetwork::Mainnet)
-                .with_block_number(12345678)
+                .with_block_number(12_345_678)
                 .with_confirmations(100)
-                .with_block_timestamp(1700000000);
+                .with_block_timestamp(1_700_000_000);
 
         let config = EthereumConfig::new().with_min_confirmations(12);
         let result = verify_offline(&timestamp, &config);
@@ -578,13 +578,13 @@ mod tests {
     fn test_ethereum_timestamp_serialization() {
         let timestamp =
             EthereumTimestamp::new(test_tx_hash(), test_hash(), EthereumNetwork::Mainnet)
-                .with_block_number(12345678);
+                .with_block_number(12_345_678);
 
         let json = serde_json::to_string(&timestamp).unwrap();
         assert!(json.contains("\"network\":\"mainnet\""));
-        assert!(json.contains("\"blockNumber\":12345678"));
+        assert!(json.contains("\"blockNumber\":12345678")); // JSON doesn't use underscores
 
         let deserialized: EthereumTimestamp = serde_json::from_str(&json).unwrap();
-        assert_eq!(deserialized.block_number, Some(12345678));
+        assert_eq!(deserialized.block_number, Some(12_345_678));
     }
 }

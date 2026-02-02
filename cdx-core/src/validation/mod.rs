@@ -433,7 +433,7 @@ mod tests {
         }"#;
 
         let errors = validate_manifest(json).unwrap();
-        assert!(errors.is_empty(), "Expected no errors: {:?}", errors);
+        assert!(errors.is_empty(), "Expected no errors: {errors:?}");
     }
 
     #[test]

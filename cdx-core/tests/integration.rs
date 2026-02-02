@@ -1551,7 +1551,7 @@ mod ots_tests {
     /// Test OTS client creation.
     #[test]
     fn test_ots_client_creation() {
-        let client = OtsClient::new();
+        let _client = OtsClient::new();
         // Client should have default calendars
         let custom_client =
             OtsClient::with_calendars(vec!["https://custom.example.com".to_string()]);

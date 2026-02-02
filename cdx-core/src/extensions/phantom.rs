@@ -624,7 +624,7 @@ mod tests {
             .with_phantom(phantom2);
 
         let errors = cluster.validate_connections(DocumentState::Draft);
-        assert!(errors.is_empty(), "Valid connections: {:?}", errors);
+        assert!(errors.is_empty(), "Valid connections: {errors:?}");
     }
 
     #[test]

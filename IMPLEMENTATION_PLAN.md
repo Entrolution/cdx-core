@@ -97,10 +97,10 @@ This document tracks the implementation parity between the Codex File Format Spe
 | exercise-set | ✅ | academic::ExerciseSet | ✅ | |
 | equation-group | ✅ | academic::EquationGroup | ✅ | align, gather, etc. |
 | algorithm | ✅ | academic::Algorithm | ✅ | With line numbering |
-| theorem-ref mark | ✅ | Proof.theorem_ref field | ⚠️ | Field on Proof, not standalone mark |
-| equation-ref mark | ✅ | Not found | ❌ | Cross-reference mark |
-| algorithm-ref mark | ✅ | Not found | ❌ | Cross-reference mark |
-| numbering.json | ✅ | academic::NumberingConfig | ⚠️ | Types exist, no file I/O |
+| theorem-ref mark | ✅ | ExtensionMark::theorem_ref, TheoremRef | ✅ | Standalone mark + struct |
+| equation-ref mark | ✅ | ExtensionMark::equation_ref, EquationRef | ✅ | Cross-reference mark |
+| algorithm-ref mark | ✅ | ExtensionMark::algorithm_ref, AlgorithmRef | ✅ | Cross-reference mark |
+| numbering.json | ✅ | Document::academic_numbering() | ✅ | Full file I/O |
 
 ### 3.2 Legal Extension (`codex.legal`)
 
@@ -412,10 +412,11 @@ The CLI has comprehensive integration tests in `cdx-cli/tests/integration.rs`:
 - [x] Run full test suite - all 461 unit tests + 58 integration tests pass
 - [x] Verify encrypt/decrypt commands compile with `--features encryption`
 
-### Phase 2: Academic Extension Completion
-- [ ] Add equation-ref mark type
-- [ ] Add algorithm-ref mark type
-- [ ] Implement numbering.json file I/O in Document
+### Phase 2: Academic Extension Completion ✅ COMPLETED
+- [x] Add equation-ref mark type (ExtensionMark::equation_ref, EquationRef struct)
+- [x] Add algorithm-ref mark type (ExtensionMark::algorithm_ref, AlgorithmRef struct)
+- [x] Add theorem-ref mark type (ExtensionMark::theorem_ref, TheoremRef struct)
+- [x] Implement numbering.json file I/O in Document (academic_numbering field, read/write)
 
 ### Phase 3: Extension File I/O
 - [ ] Add Document methods for reading/writing collaboration/comments.json

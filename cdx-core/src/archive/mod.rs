@@ -48,6 +48,9 @@ pub const ENCRYPTION_PATH: &str = "security/encryption.json";
 /// Path to the phantom clusters file within the archive.
 pub const PHANTOMS_PATH: &str = "phantoms/clusters.json";
 
+/// Path to the academic numbering configuration file within the archive.
+pub const ACADEMIC_NUMBERING_PATH: &str = "academic/numbering.json";
+
 /// ZIP comment for Codex documents.
 pub const ZIP_COMMENT: &str = "Codex Document Format v0.1";
 

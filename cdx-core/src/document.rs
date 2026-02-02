@@ -37,8 +37,12 @@ use chrono::Utc;
 use crate::archive::ENCRYPTION_PATH;
 #[cfg(feature = "signatures")]
 use crate::archive::SIGNATURES_PATH;
-use crate::archive::{CdxReader, CdxWriter, CompressionMethod, CONTENT_PATH, DUBLIN_CORE_PATH};
+use crate::archive::{
+    CdxReader, CdxWriter, CompressionMethod, ACADEMIC_NUMBERING_PATH, CONTENT_PATH,
+    DUBLIN_CORE_PATH,
+};
 use crate::content::{Block, Content, Text};
+use crate::extensions::academic::NumberingConfig;
 use crate::manifest::Lineage;
 #[cfg(any(feature = "signatures", feature = "encryption"))]
 use crate::manifest::SecurityRef;
@@ -62,6 +66,8 @@ pub struct Document {
     signature_file: Option<SignatureFile>,
     #[cfg(feature = "encryption")]
     encryption_metadata: Option<EncryptionMetadata>,
+    /// Academic extension numbering configuration.
+    academic_numbering: Option<NumberingConfig>,
 }
 
 impl Document {
@@ -148,6 +154,14 @@ impl Document {
             None
         };
 
+        // Read academic numbering configuration if present
+        let academic_numbering = if reader.file_exists(ACADEMIC_NUMBERING_PATH)? {
+            let numbering_data = reader.read_file(ACADEMIC_NUMBERING_PATH)?;
+            Some(serde_json::from_slice(&numbering_data)?)
+        } else {
+            None
+        };
+
         Ok(Self {
             manifest,
             content,
@@ -156,6 +170,7 @@ impl Document {
             signature_file,
             #[cfg(feature = "encryption")]
             encryption_metadata,
+            academic_numbering,
         })
     }
 
@@ -262,6 +277,16 @@ impl Document {
         if let Some(ref enc_meta) = self.encryption_metadata {
             let enc_json = serde_json::to_vec_pretty(enc_meta)?;
             cdx_writer.write_file(ENCRYPTION_PATH, &enc_json, CompressionMethod::Deflate)?;
+        }
+
+        // Write academic numbering configuration if present
+        if let Some(ref numbering) = self.academic_numbering {
+            let numbering_json = serde_json::to_vec_pretty(numbering)?;
+            cdx_writer.write_file(
+                ACADEMIC_NUMBERING_PATH,
+                &numbering_json,
+                CompressionMethod::Deflate,
+            )?;
         }
 
         cdx_writer.finish()?;
@@ -485,6 +510,61 @@ impl Document {
         }
 
         self.encryption_metadata = None;
+        Ok(())
+    }
+
+    // ===== Academic Extension Methods =====
+
+    /// Get the academic numbering configuration, if present.
+    #[must_use]
+    pub fn academic_numbering(&self) -> Option<&NumberingConfig> {
+        self.academic_numbering.as_ref()
+    }
+
+    /// Check if the document has academic numbering configuration.
+    #[must_use]
+    pub fn has_academic_numbering(&self) -> bool {
+        self.academic_numbering.is_some()
+    }
+
+    /// Set the academic numbering configuration.
+    ///
+    /// This configures how equations, theorems, algorithms, figures, and tables
+    /// are numbered within the document.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the document is in an immutable state.
+    pub fn set_academic_numbering(&mut self, config: NumberingConfig) -> Result<()> {
+        if self.manifest.state.is_immutable() {
+            return Err(crate::Error::InvalidManifest {
+                reason: format!(
+                    "Cannot set academic numbering in {} state",
+                    self.manifest.state
+                ),
+            });
+        }
+
+        self.academic_numbering = Some(config);
+        Ok(())
+    }
+
+    /// Remove the academic numbering configuration.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the document is in an immutable state.
+    pub fn clear_academic_numbering(&mut self) -> Result<()> {
+        if self.manifest.state.is_immutable() {
+            return Err(crate::Error::InvalidManifest {
+                reason: format!(
+                    "Cannot remove academic numbering in {} state",
+                    self.manifest.state
+                ),
+            });
+        }
+
+        self.academic_numbering = None;
         Ok(())
     }
 
@@ -1247,6 +1327,7 @@ impl DocumentBuilder {
             signature_file: None,
             #[cfg(feature = "encryption")]
             encryption_metadata: None,
+            academic_numbering: None,
         })
     }
 }
