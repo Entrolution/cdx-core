@@ -1661,11 +1661,11 @@ mod tests {
 
     #[test]
     fn test_measurement_serialization() {
-        let m = MeasurementBlock::new(299792458.0, "299,792,458 m/s")
+        let m = MeasurementBlock::new(299_792_458.0, "299,792,458 m/s")
             .with_unit("m/s")
             .with_exponent(8);
         let json = serde_json::to_string(&m).unwrap();
-        assert!(json.contains("\"value\":299792458"));
+        assert!(json.contains("\"value\":299792458")); // JSON doesn't use underscores
         assert!(json.contains("\"unit\":\"m/s\""));
         assert!(json.contains("\"exponent\":8"));
     }
@@ -1800,8 +1800,7 @@ mod tests {
             let json = serde_json::to_string(&adm).unwrap();
             assert!(
                 json.contains(&format!("\"variant\":\"{expected_name}\"")),
-                "Variant {:?} should serialize as {expected_name}",
-                variant
+                "Variant {variant:?} should serialize as {expected_name}",
             );
         }
     }
