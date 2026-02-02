@@ -1195,7 +1195,10 @@ mod tests {
         assert_eq!(mark.namespace, "academic");
         assert_eq!(mark.mark_type, "theorem-ref");
         assert_eq!(mark.get_string_attribute("target"), Some("#thm-1"));
-        assert_eq!(mark.get_string_attribute("format"), Some("{variant} {number}"));
+        assert_eq!(
+            mark.get_string_attribute("format"),
+            Some("{variant} {number}")
+        );
     }
 
     #[test]

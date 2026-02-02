@@ -341,10 +341,7 @@ impl ExtensionMark {
     ///
     /// References a specific line within an algorithm.
     #[must_use]
-    pub fn algorithm_ref_line(
-        target: impl Into<String>,
-        line: impl Into<String>,
-    ) -> Self {
+    pub fn algorithm_ref_line(target: impl Into<String>, line: impl Into<String>) -> Self {
         Self::new("academic", "algorithm-ref").with_attributes(serde_json::json!({
             "target": target.into(),
             "line": line.into()
@@ -355,10 +352,7 @@ impl ExtensionMark {
     ///
     /// The format string can use `{number}` and `{line}` as placeholders.
     #[must_use]
-    pub fn algorithm_ref_formatted(
-        target: impl Into<String>,
-        format: impl Into<String>,
-    ) -> Self {
+    pub fn algorithm_ref_formatted(target: impl Into<String>, format: impl Into<String>) -> Self {
         Self::new("academic", "algorithm-ref").with_attributes(serde_json::json!({
             "target": target.into(),
             "format": format.into()
