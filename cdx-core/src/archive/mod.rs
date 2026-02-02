@@ -51,6 +51,15 @@ pub const PHANTOMS_PATH: &str = "phantoms/clusters.json";
 /// Path to the academic numbering configuration file within the archive.
 pub const ACADEMIC_NUMBERING_PATH: &str = "academic/numbering.json";
 
+/// Path to the collaboration comments file within the archive.
+pub const COMMENTS_PATH: &str = "collaboration/comments.json";
+
+/// Path to the form data file within the archive.
+pub const FORMS_DATA_PATH: &str = "forms/data.json";
+
+/// Path to the bibliography file within the archive.
+pub const BIBLIOGRAPHY_PATH: &str = "semantic/bibliography.json";
+
 /// ZIP comment for Codex documents.
 pub const ZIP_COMMENT: &str = "Codex Document Format v0.1";
 

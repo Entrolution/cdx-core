@@ -38,11 +38,12 @@ use crate::archive::ENCRYPTION_PATH;
 #[cfg(feature = "signatures")]
 use crate::archive::SIGNATURES_PATH;
 use crate::archive::{
-    CdxReader, CdxWriter, CompressionMethod, ACADEMIC_NUMBERING_PATH, CONTENT_PATH,
-    DUBLIN_CORE_PATH,
+    CdxReader, CdxWriter, CompressionMethod, ACADEMIC_NUMBERING_PATH, BIBLIOGRAPHY_PATH,
+    COMMENTS_PATH, CONTENT_PATH, DUBLIN_CORE_PATH, FORMS_DATA_PATH, PHANTOMS_PATH,
 };
 use crate::content::{Block, Content, Text};
 use crate::extensions::academic::NumberingConfig;
+use crate::extensions::{Bibliography, CommentThread, FormData, PhantomClusters};
 use crate::manifest::Lineage;
 #[cfg(any(feature = "signatures", feature = "encryption"))]
 use crate::manifest::SecurityRef;
@@ -68,6 +69,14 @@ pub struct Document {
     encryption_metadata: Option<EncryptionMetadata>,
     /// Academic extension numbering configuration.
     academic_numbering: Option<NumberingConfig>,
+    /// Collaboration extension comments.
+    comments: Option<CommentThread>,
+    /// Phantom extension clusters.
+    phantom_clusters: Option<PhantomClusters>,
+    /// Forms extension data.
+    form_data: Option<FormData>,
+    /// Semantic extension bibliography.
+    bibliography: Option<Bibliography>,
 }
 
 impl Document {
@@ -162,6 +171,38 @@ impl Document {
             None
         };
 
+        // Read collaboration comments if present
+        let comments = if reader.file_exists(COMMENTS_PATH)? {
+            let comments_data = reader.read_file(COMMENTS_PATH)?;
+            Some(serde_json::from_slice(&comments_data)?)
+        } else {
+            None
+        };
+
+        // Read phantom clusters if present
+        let phantom_clusters = if reader.file_exists(PHANTOMS_PATH)? {
+            let phantoms_data = reader.read_file(PHANTOMS_PATH)?;
+            Some(serde_json::from_slice(&phantoms_data)?)
+        } else {
+            None
+        };
+
+        // Read form data if present
+        let form_data = if reader.file_exists(FORMS_DATA_PATH)? {
+            let forms_data = reader.read_file(FORMS_DATA_PATH)?;
+            Some(serde_json::from_slice(&forms_data)?)
+        } else {
+            None
+        };
+
+        // Read bibliography if present
+        let bibliography = if reader.file_exists(BIBLIOGRAPHY_PATH)? {
+            let bib_data = reader.read_file(BIBLIOGRAPHY_PATH)?;
+            Some(serde_json::from_slice(&bib_data)?)
+        } else {
+            None
+        };
+
         Ok(Self {
             manifest,
             content,
@@ -171,6 +212,10 @@ impl Document {
             #[cfg(feature = "encryption")]
             encryption_metadata,
             academic_numbering,
+            comments,
+            phantom_clusters,
+            form_data,
+            bibliography,
         })
     }
 
@@ -287,6 +332,30 @@ impl Document {
                 &numbering_json,
                 CompressionMethod::Deflate,
             )?;
+        }
+
+        // Write collaboration comments if present
+        if let Some(ref comments) = self.comments {
+            let comments_json = serde_json::to_vec_pretty(comments)?;
+            cdx_writer.write_file(COMMENTS_PATH, &comments_json, CompressionMethod::Deflate)?;
+        }
+
+        // Write phantom clusters if present
+        if let Some(ref phantoms) = self.phantom_clusters {
+            let phantoms_json = serde_json::to_vec_pretty(phantoms)?;
+            cdx_writer.write_file(PHANTOMS_PATH, &phantoms_json, CompressionMethod::Deflate)?;
+        }
+
+        // Write form data if present
+        if let Some(ref form_data) = self.form_data {
+            let forms_json = serde_json::to_vec_pretty(form_data)?;
+            cdx_writer.write_file(FORMS_DATA_PATH, &forms_json, CompressionMethod::Deflate)?;
+        }
+
+        // Write bibliography if present
+        if let Some(ref bibliography) = self.bibliography {
+            let bib_json = serde_json::to_vec_pretty(bibliography)?;
+            cdx_writer.write_file(BIBLIOGRAPHY_PATH, &bib_json, CompressionMethod::Deflate)?;
         }
 
         cdx_writer.finish()?;
@@ -565,6 +634,261 @@ impl Document {
         }
 
         self.academic_numbering = None;
+        Ok(())
+    }
+
+    // ===== Collaboration Extension Methods =====
+
+    /// Get the collaboration comments, if present.
+    #[must_use]
+    pub fn comments(&self) -> Option<&CommentThread> {
+        self.comments.as_ref()
+    }
+
+    /// Get a mutable reference to the comments.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the document is in an immutable state.
+    pub fn comments_mut(&mut self) -> Result<Option<&mut CommentThread>> {
+        if self.manifest.state.is_immutable() {
+            return Err(crate::Error::InvalidManifest {
+                reason: format!("Cannot modify comments in {} state", self.manifest.state),
+            });
+        }
+        Ok(self.comments.as_mut())
+    }
+
+    /// Check if the document has collaboration comments.
+    #[must_use]
+    pub fn has_comments(&self) -> bool {
+        self.comments.is_some()
+    }
+
+    /// Set the collaboration comments.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the document is in an immutable state.
+    pub fn set_comments(&mut self, comments: CommentThread) -> Result<()> {
+        if self.manifest.state.is_immutable() {
+            return Err(crate::Error::InvalidManifest {
+                reason: format!("Cannot set comments in {} state", self.manifest.state),
+            });
+        }
+
+        self.comments = Some(comments);
+        Ok(())
+    }
+
+    /// Remove the collaboration comments.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the document is in an immutable state.
+    pub fn clear_comments(&mut self) -> Result<()> {
+        if self.manifest.state.is_immutable() {
+            return Err(crate::Error::InvalidManifest {
+                reason: format!("Cannot remove comments in {} state", self.manifest.state),
+            });
+        }
+
+        self.comments = None;
+        Ok(())
+    }
+
+    // ===== Phantom Extension Methods =====
+
+    /// Get the phantom clusters, if present.
+    #[must_use]
+    pub fn phantom_clusters(&self) -> Option<&PhantomClusters> {
+        self.phantom_clusters.as_ref()
+    }
+
+    /// Get a mutable reference to phantom clusters.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the document is in an immutable state.
+    pub fn phantom_clusters_mut(&mut self) -> Result<Option<&mut PhantomClusters>> {
+        if self.manifest.state.is_immutable() {
+            return Err(crate::Error::InvalidManifest {
+                reason: format!(
+                    "Cannot modify phantom clusters in {} state",
+                    self.manifest.state
+                ),
+            });
+        }
+        Ok(self.phantom_clusters.as_mut())
+    }
+
+    /// Check if the document has phantom clusters.
+    #[must_use]
+    pub fn has_phantom_clusters(&self) -> bool {
+        self.phantom_clusters.is_some()
+    }
+
+    /// Set the phantom clusters.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the document is in an immutable state.
+    pub fn set_phantom_clusters(&mut self, clusters: PhantomClusters) -> Result<()> {
+        if self.manifest.state.is_immutable() {
+            return Err(crate::Error::InvalidManifest {
+                reason: format!(
+                    "Cannot set phantom clusters in {} state",
+                    self.manifest.state
+                ),
+            });
+        }
+
+        self.phantom_clusters = Some(clusters);
+        Ok(())
+    }
+
+    /// Remove the phantom clusters.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the document is in an immutable state.
+    pub fn clear_phantom_clusters(&mut self) -> Result<()> {
+        if self.manifest.state.is_immutable() {
+            return Err(crate::Error::InvalidManifest {
+                reason: format!(
+                    "Cannot remove phantom clusters in {} state",
+                    self.manifest.state
+                ),
+            });
+        }
+
+        self.phantom_clusters = None;
+        Ok(())
+    }
+
+    // ===== Forms Extension Methods =====
+
+    /// Get the form data, if present.
+    #[must_use]
+    pub fn form_data(&self) -> Option<&FormData> {
+        self.form_data.as_ref()
+    }
+
+    /// Get a mutable reference to the form data.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the document is in an immutable state.
+    pub fn form_data_mut(&mut self) -> Result<Option<&mut FormData>> {
+        if self.manifest.state.is_immutable() {
+            return Err(crate::Error::InvalidManifest {
+                reason: format!("Cannot modify form data in {} state", self.manifest.state),
+            });
+        }
+        Ok(self.form_data.as_mut())
+    }
+
+    /// Check if the document has form data.
+    #[must_use]
+    pub fn has_form_data(&self) -> bool {
+        self.form_data.is_some()
+    }
+
+    /// Set the form data.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the document is in an immutable state.
+    pub fn set_form_data(&mut self, form_data: FormData) -> Result<()> {
+        if self.manifest.state.is_immutable() {
+            return Err(crate::Error::InvalidManifest {
+                reason: format!("Cannot set form data in {} state", self.manifest.state),
+            });
+        }
+
+        self.form_data = Some(form_data);
+        Ok(())
+    }
+
+    /// Remove the form data.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the document is in an immutable state.
+    pub fn clear_form_data(&mut self) -> Result<()> {
+        if self.manifest.state.is_immutable() {
+            return Err(crate::Error::InvalidManifest {
+                reason: format!("Cannot remove form data in {} state", self.manifest.state),
+            });
+        }
+
+        self.form_data = None;
+        Ok(())
+    }
+
+    // ===== Semantic Extension Methods =====
+
+    /// Get the bibliography, if present.
+    #[must_use]
+    pub fn bibliography(&self) -> Option<&Bibliography> {
+        self.bibliography.as_ref()
+    }
+
+    /// Get a mutable reference to the bibliography.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the document is in an immutable state.
+    pub fn bibliography_mut(&mut self) -> Result<Option<&mut Bibliography>> {
+        if self.manifest.state.is_immutable() {
+            return Err(crate::Error::InvalidManifest {
+                reason: format!(
+                    "Cannot modify bibliography in {} state",
+                    self.manifest.state
+                ),
+            });
+        }
+        Ok(self.bibliography.as_mut())
+    }
+
+    /// Check if the document has a bibliography.
+    #[must_use]
+    pub fn has_bibliography(&self) -> bool {
+        self.bibliography.is_some()
+    }
+
+    /// Set the bibliography.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the document is in an immutable state.
+    pub fn set_bibliography(&mut self, bibliography: Bibliography) -> Result<()> {
+        if self.manifest.state.is_immutable() {
+            return Err(crate::Error::InvalidManifest {
+                reason: format!("Cannot set bibliography in {} state", self.manifest.state),
+            });
+        }
+
+        self.bibliography = Some(bibliography);
+        Ok(())
+    }
+
+    /// Remove the bibliography.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the document is in an immutable state.
+    pub fn clear_bibliography(&mut self) -> Result<()> {
+        if self.manifest.state.is_immutable() {
+            return Err(crate::Error::InvalidManifest {
+                reason: format!(
+                    "Cannot remove bibliography in {} state",
+                    self.manifest.state
+                ),
+            });
+        }
+
+        self.bibliography = None;
         Ok(())
     }
 
@@ -1328,6 +1652,10 @@ impl DocumentBuilder {
             #[cfg(feature = "encryption")]
             encryption_metadata: None,
             academic_numbering: None,
+            comments: None,
+            phantom_clusters: None,
+            form_data: None,
+            bibliography: None,
         })
     }
 }
@@ -1573,5 +1901,203 @@ mod tests {
         report.warnings.push("Test warning".to_string());
         assert!(!report.is_valid());
         assert!(report.has_warnings());
+    }
+
+    // ===== Extension File I/O Tests =====
+
+    #[test]
+    fn test_comments_round_trip() {
+        use crate::extensions::{Collaborator, Comment, CommentThread};
+
+        let mut doc = Document::builder()
+            .title("Comments Test")
+            .creator("Author")
+            .add_paragraph("Content to comment on")
+            .build()
+            .unwrap();
+
+        // Create a comment thread
+        let mut thread = CommentThread::new();
+        let author = Collaborator::new("Alice");
+        let comment = Comment::new("c1", "block-1", author, "This is a test comment");
+        thread.add(comment);
+
+        // Set comments
+        doc.set_comments(thread).unwrap();
+        assert!(doc.has_comments());
+
+        // Round-trip through bytes
+        let bytes = doc.to_bytes().unwrap();
+        let loaded = Document::from_bytes(bytes).unwrap();
+
+        assert!(loaded.has_comments());
+        let loaded_thread = loaded.comments().unwrap();
+        assert_eq!(loaded_thread.comments.len(), 1);
+        assert_eq!(loaded_thread.comments[0].id, "c1");
+        assert_eq!(loaded_thread.comments[0].content, "This is a test comment");
+    }
+
+    #[test]
+    fn test_phantom_clusters_round_trip() {
+        use crate::anchor::ContentAnchor;
+        use crate::extensions::{
+            Phantom, PhantomCluster, PhantomClusters, PhantomContent, PhantomPosition, PhantomScope,
+        };
+
+        let mut doc = Document::builder()
+            .title("Phantoms Test")
+            .creator("Author")
+            .add_paragraph("Content with phantoms")
+            .build()
+            .unwrap();
+
+        // Create phantom clusters
+        let mut clusters = PhantomClusters::new();
+        let position = PhantomPosition::new(100.0, 200.0);
+        let content = PhantomContent::paragraph("Alternative text");
+        let phantom = Phantom::new("phantom-1", position, content);
+        let cluster =
+            PhantomCluster::new("cluster-1", ContentAnchor::block("block-1"), "Test cluster")
+                .with_phantom(phantom)
+                .with_scope(PhantomScope::Shared);
+        clusters.add_cluster(cluster);
+
+        // Set phantom clusters
+        doc.set_phantom_clusters(clusters).unwrap();
+        assert!(doc.has_phantom_clusters());
+
+        // Round-trip through bytes
+        let bytes = doc.to_bytes().unwrap();
+        let loaded = Document::from_bytes(bytes).unwrap();
+
+        assert!(loaded.has_phantom_clusters());
+        let loaded_clusters = loaded.phantom_clusters().unwrap();
+        assert_eq!(loaded_clusters.len(), 1);
+        assert_eq!(loaded_clusters.clusters[0].id, "cluster-1");
+    }
+
+    #[test]
+    fn test_form_data_round_trip() {
+        use crate::extensions::FormData;
+
+        let mut doc = Document::builder()
+            .title("Form Data Test")
+            .creator("Author")
+            .add_paragraph("Form content")
+            .build()
+            .unwrap();
+
+        // Create form data
+        let mut form_data = FormData::new();
+        form_data.set("name", serde_json::json!("John Doe"));
+        form_data.set("email", serde_json::json!("john@example.com"));
+        form_data.set("age", serde_json::json!(30));
+
+        // Set form data
+        doc.set_form_data(form_data).unwrap();
+        assert!(doc.has_form_data());
+
+        // Round-trip through bytes
+        let bytes = doc.to_bytes().unwrap();
+        let loaded = Document::from_bytes(bytes).unwrap();
+
+        assert!(loaded.has_form_data());
+        let loaded_form = loaded.form_data().unwrap();
+        assert_eq!(
+            loaded_form.get("name"),
+            Some(&serde_json::json!("John Doe"))
+        );
+        assert_eq!(
+            loaded_form.get("email"),
+            Some(&serde_json::json!("john@example.com"))
+        );
+        assert_eq!(loaded_form.get("age"), Some(&serde_json::json!(30)));
+    }
+
+    #[test]
+    fn test_bibliography_round_trip() {
+        use crate::extensions::{Bibliography, BibliographyEntry, CitationStyle, EntryType};
+
+        let mut doc = Document::builder()
+            .title("Bibliography Test")
+            .creator("Author")
+            .add_paragraph("Content with citations")
+            .build()
+            .unwrap();
+
+        // Create bibliography
+        let mut bibliography = Bibliography::new(CitationStyle::Apa);
+        let entry = BibliographyEntry::new("smith2023", EntryType::Article, "Test Article");
+        bibliography.add_entry(entry);
+
+        // Set bibliography
+        doc.set_bibliography(bibliography).unwrap();
+        assert!(doc.has_bibliography());
+
+        // Round-trip through bytes
+        let bytes = doc.to_bytes().unwrap();
+        let loaded = Document::from_bytes(bytes).unwrap();
+
+        assert!(loaded.has_bibliography());
+        let loaded_bib = loaded.bibliography().unwrap();
+        assert_eq!(loaded_bib.len(), 1);
+        assert_eq!(loaded_bib.style, CitationStyle::Apa);
+        assert!(loaded_bib.contains("smith2023"));
+    }
+
+    #[test]
+    fn test_clear_extension_data() {
+        use crate::extensions::{Bibliography, CitationStyle, CommentThread, FormData};
+
+        let mut doc = Document::builder()
+            .title("Clear Test")
+            .creator("Author")
+            .add_paragraph("Content")
+            .build()
+            .unwrap();
+
+        // Set all extension data
+        doc.set_comments(CommentThread::new()).unwrap();
+        doc.set_form_data(FormData::new()).unwrap();
+        doc.set_bibliography(Bibliography::new(CitationStyle::Chicago))
+            .unwrap();
+
+        assert!(doc.has_comments());
+        assert!(doc.has_form_data());
+        assert!(doc.has_bibliography());
+
+        // Clear each
+        doc.clear_comments().unwrap();
+        doc.clear_form_data().unwrap();
+        doc.clear_bibliography().unwrap();
+
+        assert!(!doc.has_comments());
+        assert!(!doc.has_form_data());
+        assert!(!doc.has_bibliography());
+    }
+
+    #[test]
+    fn test_extension_data_mutable_access() {
+        use crate::extensions::{Collaborator, Comment, CommentThread};
+
+        let mut doc = Document::builder()
+            .title("Mutable Test")
+            .creator("Author")
+            .add_paragraph("Content")
+            .build()
+            .unwrap();
+
+        // Set initial comments
+        let mut thread = CommentThread::new();
+        let author = Collaborator::new("Alice");
+        thread.add(Comment::new("c1", "block-1", author.clone(), "First"));
+        doc.set_comments(thread).unwrap();
+
+        // Modify through mutable reference
+        if let Some(comments) = doc.comments_mut().unwrap() {
+            comments.add(Comment::new("c2", "block-2", author, "Second"));
+        }
+
+        assert_eq!(doc.comments().unwrap().comments.len(), 2);
     }
 }
