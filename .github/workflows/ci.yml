@@ -138,6 +138,29 @@ jobs:
           files: cobertura.xml
           fail_ci_if_error: false
 
+  swift-bridge:
+    name: Swift Bridge
+    runs-on: [self-hosted, macos]
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: cdx-swift-bridge -> cdx-swift-bridge/target
+
+      - name: Build Swift bridge
+        run: cargo build --manifest-path cdx-swift-bridge/Cargo.toml
+
+      - name: Test Swift bridge
+        run: cargo test --manifest-path cdx-swift-bridge/Cargo.toml
+
+      - name: Clippy Swift bridge
+        run: cargo clippy --manifest-path cdx-swift-bridge/Cargo.toml -- -D warnings
+
   benchmark:
     name: Benchmark
     runs-on: [self-hosted, macos]

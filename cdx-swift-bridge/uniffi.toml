@@ -1,0 +1,11 @@
+[bindings.swift]
+# Swift-specific configuration
+module_name = "CdxSwiftBridge"
+ffi_module_name = "CdxSwiftBridgeFFI"
+
+# Generate async wrapper for potentially long-running operations
+generate_immutable_records = true
+
+# Custom type mappings
+[bindings.swift.custom_types]
+# Map Rust DateTime to Swift Date (handled via string serialization)
