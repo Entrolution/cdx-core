@@ -615,12 +615,60 @@ impl Document {
     //   - `set_${field}(&mut self, value: $type) -> Result<()>`
     //   - `clear_${field}(&mut self) -> Result<()>`
 
-    define_extension_accessors!(academic_numbering, academic_numbering_mut, has_academic_numbering, set_academic_numbering, clear_academic_numbering, NumberingConfig, "academic numbering");
-    define_extension_accessors!(comments, comments_mut, has_comments, set_comments, clear_comments, CommentThread, "comments");
-    define_extension_accessors!(phantom_clusters, phantom_clusters_mut, has_phantom_clusters, set_phantom_clusters, clear_phantom_clusters, PhantomClusters, "phantom clusters");
-    define_extension_accessors!(form_data, form_data_mut, has_form_data, set_form_data, clear_form_data, FormData, "form data");
-    define_extension_accessors!(bibliography, bibliography_mut, has_bibliography, set_bibliography, clear_bibliography, Bibliography, "bibliography");
-    define_extension_accessors!(jsonld_metadata, jsonld_metadata_mut, has_jsonld_metadata, set_jsonld_metadata, clear_jsonld_metadata, JsonLdMetadata, "JSON-LD metadata");
+    define_extension_accessors!(
+        academic_numbering,
+        academic_numbering_mut,
+        has_academic_numbering,
+        set_academic_numbering,
+        clear_academic_numbering,
+        NumberingConfig,
+        "academic numbering"
+    );
+    define_extension_accessors!(
+        comments,
+        comments_mut,
+        has_comments,
+        set_comments,
+        clear_comments,
+        CommentThread,
+        "comments"
+    );
+    define_extension_accessors!(
+        phantom_clusters,
+        phantom_clusters_mut,
+        has_phantom_clusters,
+        set_phantom_clusters,
+        clear_phantom_clusters,
+        PhantomClusters,
+        "phantom clusters"
+    );
+    define_extension_accessors!(
+        form_data,
+        form_data_mut,
+        has_form_data,
+        set_form_data,
+        clear_form_data,
+        FormData,
+        "form data"
+    );
+    define_extension_accessors!(
+        bibliography,
+        bibliography_mut,
+        has_bibliography,
+        set_bibliography,
+        clear_bibliography,
+        Bibliography,
+        "bibliography"
+    );
+    define_extension_accessors!(
+        jsonld_metadata,
+        jsonld_metadata_mut,
+        has_jsonld_metadata,
+        set_jsonld_metadata,
+        clear_jsonld_metadata,
+        JsonLdMetadata,
+        "JSON-LD metadata"
+    );
 
     /// Compute the document ID from content.
     ///
