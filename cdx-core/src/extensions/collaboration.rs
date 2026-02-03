@@ -1122,6 +1122,523 @@ pub enum SessionStatus {
     Ended,
 }
 
+// ============================================================================
+// CRDT Integration
+// ============================================================================
+
+/// CRDT format identifier.
+///
+/// Specifies which CRDT library/format is used for real-time collaboration.
+/// Documents using CRDT-based collaboration MUST declare the format to enable
+/// correct interpretation of CRDT state.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum CrdtFormat {
+    /// [Yjs](https://yjs.dev/) CRDT library.
+    Yjs,
+    /// [Automerge](https://automerge.org/) JSON CRDT.
+    Automerge,
+    /// [Diamond Types](https://github.com/josephg/diamond-types) text CRDT.
+    DiamondTypes,
+}
+
+impl std::fmt::Display for CrdtFormat {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Yjs => write!(f, "yjs"),
+            Self::Automerge => write!(f, "automerge"),
+            Self::DiamondTypes => write!(f, "diamond-types"),
+        }
+    }
+}
+
+/// CRDT metadata for a content block.
+///
+/// Each content block can carry CRDT metadata for tracking distributed state.
+/// This enables conflict-free merging of concurrent edits.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CrdtMetadata {
+    /// Vector clock mapping site IDs to logical timestamps.
+    pub clock: std::collections::HashMap<String, u64>,
+
+    /// Site ID where this version originated.
+    pub origin: String,
+
+    /// Sequence number within the origin site.
+    pub seq: u64,
+}
+
+impl CrdtMetadata {
+    /// Create new CRDT metadata.
+    #[must_use]
+    pub fn new(origin: impl Into<String>, seq: u64) -> Self {
+        let origin = origin.into();
+        let mut clock = std::collections::HashMap::new();
+        clock.insert(origin.clone(), seq);
+        Self { clock, origin, seq }
+    }
+
+    /// Increment the sequence number for a site.
+    pub fn increment(&mut self, site_id: &str) {
+        let count = self.clock.entry(site_id.to_string()).or_insert(0);
+        *count += 1;
+        if site_id == self.origin {
+            self.seq = *count;
+        }
+    }
+
+    /// Merge with another CRDT metadata (takes maximum of each clock entry).
+    pub fn merge(&mut self, other: &Self) {
+        for (site, &count) in &other.clock {
+            let entry = self.clock.entry(site.clone()).or_insert(0);
+            *entry = (*entry).max(count);
+        }
+    }
+
+    /// Check if this metadata happened before another (causally).
+    #[must_use]
+    pub fn happened_before(&self, other: &Self) -> bool {
+        let mut dominated = false;
+        for (site, &self_count) in &self.clock {
+            let other_count = other.clock.get(site).copied().unwrap_or(0);
+            if self_count > other_count {
+                return false;
+            }
+            if self_count < other_count {
+                dominated = true;
+            }
+        }
+        // Check sites only in other
+        for (site, &other_count) in &other.clock {
+            if !self.clock.contains_key(site) && other_count > 0 {
+                dominated = true;
+            }
+        }
+        dominated
+    }
+}
+
+/// CRDT metadata for text content within a block.
+///
+/// For rich text editing, each character can have a unique position ID
+/// enabling character-level conflict resolution.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TextCrdtMetadata {
+    /// Character positions with unique IDs.
+    pub positions: Vec<TextCrdtPosition>,
+}
+
+impl TextCrdtMetadata {
+    /// Create new text CRDT metadata.
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
+            positions: Vec::new(),
+        }
+    }
+
+    /// Create metadata from text with a site ID prefix.
+    #[must_use]
+    pub fn from_text(text: &str, site_id: &str) -> Self {
+        let positions = text
+            .chars()
+            .enumerate()
+            .map(|(i, c)| TextCrdtPosition {
+                id: format!("{site_id}:{}", i + 1),
+                char: c,
+            })
+            .collect();
+        Self { positions }
+    }
+
+    /// Get the text content.
+    #[must_use]
+    pub fn text(&self) -> String {
+        self.positions.iter().map(|p| p.char).collect()
+    }
+
+    /// Get the number of characters.
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.positions.len()
+    }
+
+    /// Check if empty.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.positions.is_empty()
+    }
+}
+
+impl Default for TextCrdtMetadata {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// A single character position in text CRDT.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TextCrdtPosition {
+    /// Unique position identifier (e.g., "site1:42").
+    pub id: String,
+
+    /// The character at this position.
+    pub char: char,
+}
+
+/// Synchronization state for CRDT-based collaboration.
+///
+/// Tracks the current sync state of a document for real-time collaboration.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SyncState {
+    /// CRDT format being used.
+    pub crdt_format: CrdtFormat,
+
+    /// Version of the CRDT library.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub crdt_version: Option<String>,
+
+    /// Logical clock or sequence number for sync state.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sync_version: Option<u64>,
+
+    /// Timestamp of last synchronization.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_sync: Option<DateTime<Utc>>,
+
+    /// Known collaboration peers.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub peers: Vec<Peer>,
+}
+
+impl SyncState {
+    /// Create new sync state with the specified CRDT format.
+    #[must_use]
+    pub fn new(crdt_format: CrdtFormat) -> Self {
+        Self {
+            crdt_format,
+            crdt_version: None,
+            sync_version: None,
+            last_sync: None,
+            peers: Vec::new(),
+        }
+    }
+
+    /// Create sync state for Yjs.
+    #[must_use]
+    pub fn yjs() -> Self {
+        Self::new(CrdtFormat::Yjs)
+    }
+
+    /// Create sync state for Automerge.
+    #[must_use]
+    pub fn automerge() -> Self {
+        Self::new(CrdtFormat::Automerge)
+    }
+
+    /// Create sync state for Diamond Types.
+    #[must_use]
+    pub fn diamond_types() -> Self {
+        Self::new(CrdtFormat::DiamondTypes)
+    }
+
+    /// Set the CRDT library version.
+    #[must_use]
+    pub fn with_version(mut self, version: impl Into<String>) -> Self {
+        self.crdt_version = Some(version.into());
+        self
+    }
+
+    /// Set the sync version.
+    #[must_use]
+    pub fn with_sync_version(mut self, version: u64) -> Self {
+        self.sync_version = Some(version);
+        self
+    }
+
+    /// Update the last sync timestamp to now.
+    pub fn mark_synced(&mut self) {
+        self.last_sync = Some(Utc::now());
+    }
+
+    /// Add a peer.
+    pub fn add_peer(&mut self, peer: Peer) {
+        // Update existing peer or add new one
+        if let Some(existing) = self.peers.iter_mut().find(|p| p.id == peer.id) {
+            existing.last_seen = peer.last_seen;
+        } else {
+            self.peers.push(peer);
+        }
+    }
+
+    /// Remove a peer by ID.
+    pub fn remove_peer(&mut self, peer_id: &str) {
+        self.peers.retain(|p| p.id != peer_id);
+    }
+
+    /// Get active peers (seen within the given duration).
+    #[must_use]
+    pub fn active_peers(&self, within: chrono::Duration) -> Vec<&Peer> {
+        let cutoff = Utc::now() - within;
+        self.peers.iter().filter(|p| p.last_seen > cutoff).collect()
+    }
+}
+
+/// A collaboration peer.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Peer {
+    /// Unique peer identifier.
+    pub id: String,
+
+    /// When the peer was last seen.
+    pub last_seen: DateTime<Utc>,
+
+    /// Optional display name.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+}
+
+impl Peer {
+    /// Create a new peer.
+    #[must_use]
+    pub fn new(id: impl Into<String>) -> Self {
+        Self {
+            id: id.into(),
+            last_seen: Utc::now(),
+            name: None,
+        }
+    }
+
+    /// Set the display name.
+    #[must_use]
+    pub fn with_name(mut self, name: impl Into<String>) -> Self {
+        self.name = Some(name.into());
+        self
+    }
+
+    /// Update the last seen timestamp.
+    pub fn touch(&mut self) {
+        self.last_seen = Utc::now();
+    }
+}
+
+// ============================================================================
+// Revision History
+// ============================================================================
+
+/// Revision history for tracking document evolution.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RevisionHistory {
+    /// List of revisions in chronological order.
+    pub revisions: Vec<Revision>,
+}
+
+impl RevisionHistory {
+    /// Create new empty revision history.
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
+            revisions: Vec::new(),
+        }
+    }
+
+    /// Add a revision.
+    pub fn add(&mut self, revision: Revision) {
+        self.revisions.push(revision);
+    }
+
+    /// Get the latest revision.
+    #[must_use]
+    pub fn latest(&self) -> Option<&Revision> {
+        self.revisions.last()
+    }
+
+    /// Get a revision by version number.
+    #[must_use]
+    pub fn get_version(&self, version: u32) -> Option<&Revision> {
+        self.revisions.iter().find(|r| r.version == version)
+    }
+
+    /// Get the next version number.
+    #[must_use]
+    pub fn next_version(&self) -> u32 {
+        self.revisions
+            .iter()
+            .map(|r| r.version)
+            .max()
+            .map_or(1, |v| v + 1)
+    }
+
+    /// Get the number of revisions.
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.revisions.len()
+    }
+
+    /// Check if empty.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.revisions.is_empty()
+    }
+}
+
+impl Default for RevisionHistory {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// A single revision in the document history.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Revision {
+    /// Version number (1-indexed).
+    pub version: u32,
+
+    /// Document ID (hash) of this revision.
+    pub document_id: DocumentId,
+
+    /// When this revision was created.
+    pub created: DateTime<Utc>,
+
+    /// Author of this revision.
+    pub author: Collaborator,
+
+    /// Optional note describing the revision.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
+
+    /// Tags or labels for this revision.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tags: Vec<String>,
+}
+
+impl Revision {
+    /// Create a new revision.
+    #[must_use]
+    pub fn new(version: u32, document_id: DocumentId, author: Collaborator) -> Self {
+        Self {
+            version,
+            document_id,
+            created: Utc::now(),
+            author,
+            note: None,
+            tags: Vec::new(),
+        }
+    }
+
+    /// Set the note.
+    #[must_use]
+    pub fn with_note(mut self, note: impl Into<String>) -> Self {
+        self.note = Some(note.into());
+        self
+    }
+
+    /// Add a tag.
+    #[must_use]
+    pub fn with_tag(mut self, tag: impl Into<String>) -> Self {
+        self.tags.push(tag.into());
+        self
+    }
+}
+
+/// Materialization event for CRDT documents.
+///
+/// When a document with CRDT state is exported or exchanged between
+/// different CRDT implementations, it must be materialized to static content.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MaterializationEvent {
+    /// Timestamp of the materialization.
+    pub timestamp: DateTime<Utc>,
+
+    /// Tool that performed the materialization.
+    pub agent: String,
+
+    /// Original CRDT format (if applicable).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub from_crdt_format: Option<CrdtFormat>,
+
+    /// Target CRDT format (if applicable).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub to_crdt_format: Option<CrdtFormat>,
+
+    /// Reason for materialization.
+    pub reason: MaterializationReason,
+}
+
+impl MaterializationEvent {
+    /// Create a new materialization event.
+    #[must_use]
+    pub fn new(agent: impl Into<String>, reason: MaterializationReason) -> Self {
+        Self {
+            timestamp: Utc::now(),
+            agent: agent.into(),
+            from_crdt_format: None,
+            to_crdt_format: None,
+            reason,
+        }
+    }
+
+    /// Set the source CRDT format.
+    #[must_use]
+    pub fn with_source_format(mut self, format: CrdtFormat) -> Self {
+        self.from_crdt_format = Some(format);
+        self
+    }
+
+    /// Set the target CRDT format.
+    #[must_use]
+    pub fn with_target_format(mut self, format: CrdtFormat) -> Self {
+        self.to_crdt_format = Some(format);
+        self
+    }
+
+    /// Create an event for cross-tool exchange.
+    #[must_use]
+    pub fn cross_tool_exchange(agent: impl Into<String>, from: CrdtFormat, to: CrdtFormat) -> Self {
+        Self::new(agent, MaterializationReason::CrossToolExchange)
+            .with_source_format(from)
+            .with_target_format(to)
+    }
+
+    /// Create an event for export to static format.
+    #[must_use]
+    pub fn export(agent: impl Into<String>, from: CrdtFormat) -> Self {
+        Self::new(agent, MaterializationReason::Export).with_source_format(from)
+    }
+}
+
+/// Reason for materializing CRDT state.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum MaterializationReason {
+    /// Exchanging between tools using different CRDT formats.
+    CrossToolExchange,
+    /// Exporting to a non-CRDT format.
+    Export,
+    /// Archiving for long-term storage.
+    Archive,
+    /// Manual user request.
+    UserRequest,
+}
+
+impl std::fmt::Display for MaterializationReason {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::CrossToolExchange => write!(f, "cross-tool-exchange"),
+            Self::Export => write!(f, "export"),
+            Self::Archive => write!(f, "archive"),
+            Self::UserRequest => write!(f, "user-request"),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1362,5 +1879,193 @@ mod tests {
         let json = serde_json::to_string(&tracking).unwrap();
         assert!(json.contains("\"baseVersion\""));
         assert!(json.contains("\"enabled\":true"));
+    }
+
+    // CRDT Tests
+
+    #[test]
+    fn test_crdt_format() {
+        assert_eq!(CrdtFormat::Yjs.to_string(), "yjs");
+        assert_eq!(CrdtFormat::Automerge.to_string(), "automerge");
+        assert_eq!(CrdtFormat::DiamondTypes.to_string(), "diamond-types");
+
+        let json = serde_json::to_string(&CrdtFormat::Yjs).unwrap();
+        assert_eq!(json, "\"yjs\"");
+
+        let deserialized: CrdtFormat = serde_json::from_str("\"automerge\"").unwrap();
+        assert_eq!(deserialized, CrdtFormat::Automerge);
+    }
+
+    #[test]
+    fn test_crdt_metadata() {
+        let mut meta = CrdtMetadata::new("site1", 1);
+        assert_eq!(meta.origin, "site1");
+        assert_eq!(meta.seq, 1);
+        assert_eq!(meta.clock.get("site1"), Some(&1));
+
+        meta.increment("site1");
+        assert_eq!(meta.seq, 2);
+        assert_eq!(meta.clock.get("site1"), Some(&2));
+
+        meta.increment("site2");
+        assert_eq!(meta.clock.get("site2"), Some(&1));
+    }
+
+    #[test]
+    fn test_crdt_metadata_merge() {
+        let mut meta1 = CrdtMetadata::new("site1", 5);
+        let mut meta2 = CrdtMetadata::new("site2", 3);
+        meta2.clock.insert("site1".to_string(), 2);
+
+        meta1.merge(&meta2);
+
+        assert_eq!(meta1.clock.get("site1"), Some(&5)); // max(5, 2)
+        assert_eq!(meta1.clock.get("site2"), Some(&3)); // from meta2
+    }
+
+    #[test]
+    fn test_crdt_metadata_happened_before() {
+        let meta1 = CrdtMetadata::new("site1", 1);
+        let mut meta2 = CrdtMetadata::new("site1", 2);
+        meta2.clock.insert("site1".to_string(), 2);
+
+        assert!(meta1.happened_before(&meta2));
+        assert!(!meta2.happened_before(&meta1));
+    }
+
+    #[test]
+    fn test_text_crdt_metadata() {
+        let meta = TextCrdtMetadata::from_text("Hello", "s1");
+
+        assert_eq!(meta.len(), 5);
+        assert!(!meta.is_empty());
+        assert_eq!(meta.text(), "Hello");
+        assert_eq!(meta.positions[0].id, "s1:1");
+        assert_eq!(meta.positions[0].char, 'H');
+    }
+
+    #[test]
+    fn test_sync_state() {
+        let mut sync = SyncState::yjs()
+            .with_version("13.6")
+            .with_sync_version(1234);
+
+        assert_eq!(sync.crdt_format, CrdtFormat::Yjs);
+        assert_eq!(sync.crdt_version, Some("13.6".to_string()));
+        assert_eq!(sync.sync_version, Some(1234));
+
+        let peer = Peer::new("peer1").with_name("Alice");
+        sync.add_peer(peer);
+
+        assert_eq!(sync.peers.len(), 1);
+        assert_eq!(sync.peers[0].name, Some("Alice".to_string()));
+
+        sync.mark_synced();
+        assert!(sync.last_sync.is_some());
+    }
+
+    #[test]
+    fn test_sync_state_presets() {
+        let yjs = SyncState::yjs();
+        assert_eq!(yjs.crdt_format, CrdtFormat::Yjs);
+
+        let automerge = SyncState::automerge();
+        assert_eq!(automerge.crdt_format, CrdtFormat::Automerge);
+
+        let diamond = SyncState::diamond_types();
+        assert_eq!(diamond.crdt_format, CrdtFormat::DiamondTypes);
+    }
+
+    #[test]
+    fn test_peer() {
+        let mut peer = Peer::new("peer1").with_name("Alice");
+
+        assert_eq!(peer.id, "peer1");
+        assert_eq!(peer.name, Some("Alice".to_string()));
+
+        let before = peer.last_seen;
+        std::thread::sleep(std::time::Duration::from_millis(10));
+        peer.touch();
+        assert!(peer.last_seen > before);
+    }
+
+    #[test]
+    fn test_revision_history() {
+        let mut history = RevisionHistory::new();
+        assert!(history.is_empty());
+        assert_eq!(history.next_version(), 1);
+
+        let doc_id: DocumentId =
+            "sha256:abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234"
+                .parse()
+                .unwrap();
+        let author = Collaborator::new("Alice");
+
+        let rev1 = Revision::new(1, doc_id.clone(), author.clone()).with_note("Initial draft");
+        history.add(rev1);
+
+        assert_eq!(history.len(), 1);
+        assert_eq!(history.next_version(), 2);
+        assert!(history.latest().is_some());
+        assert_eq!(history.latest().unwrap().version, 1);
+        assert!(history.get_version(1).is_some());
+        assert!(history.get_version(2).is_none());
+    }
+
+    #[test]
+    fn test_revision() {
+        let doc_id: DocumentId =
+            "sha256:abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234"
+                .parse()
+                .unwrap();
+        let author = Collaborator::new("Alice");
+
+        let rev = Revision::new(1, doc_id, author)
+            .with_note("Initial draft")
+            .with_tag("draft");
+
+        assert_eq!(rev.version, 1);
+        assert_eq!(rev.note, Some("Initial draft".to_string()));
+        assert_eq!(rev.tags, vec!["draft".to_string()]);
+    }
+
+    #[test]
+    fn test_materialization_event() {
+        let event = MaterializationEvent::cross_tool_exchange(
+            "codex-tool/2.0",
+            CrdtFormat::Yjs,
+            CrdtFormat::Automerge,
+        );
+
+        assert_eq!(event.agent, "codex-tool/2.0");
+        assert_eq!(event.from_crdt_format, Some(CrdtFormat::Yjs));
+        assert_eq!(event.to_crdt_format, Some(CrdtFormat::Automerge));
+        assert_eq!(event.reason, MaterializationReason::CrossToolExchange);
+    }
+
+    #[test]
+    fn test_materialization_reason_display() {
+        assert_eq!(
+            MaterializationReason::CrossToolExchange.to_string(),
+            "cross-tool-exchange"
+        );
+        assert_eq!(MaterializationReason::Export.to_string(), "export");
+        assert_eq!(MaterializationReason::Archive.to_string(), "archive");
+        assert_eq!(
+            MaterializationReason::UserRequest.to_string(),
+            "user-request"
+        );
+    }
+
+    #[test]
+    fn test_sync_state_serialization() {
+        let sync = SyncState::yjs().with_version("13.6");
+        let json = serde_json::to_string_pretty(&sync).unwrap();
+
+        assert!(json.contains("\"crdtFormat\": \"yjs\""));
+        assert!(json.contains("\"crdtVersion\": \"13.6\""));
+
+        let deserialized: SyncState = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.crdt_format, CrdtFormat::Yjs);
     }
 }
