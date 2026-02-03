@@ -4,7 +4,7 @@
 //!
 //! This module provides cryptographic capabilities for Codex documents:
 //!
-//! - **Signatures**: ECDSA (ES256, ES384), EdDSA (Ed25519), RSA-PSS (PS256), and ML-DSA-65 (post-quantum) digital signatures
+//! - **Signatures**: ECDSA (ES256, ES384), EdDSA (Ed25519), RSA-PSS (PS256), ML-DSA-65 (post-quantum), and WebAuthn/FIDO2 digital signatures
 //! - **Encryption**: AES-256-GCM and ChaCha20-Poly1305 authenticated encryption
 //! - **Certificate Validation**: X.509 certificate chain validation
 //! - **Revocation Checking**: OCSP and CRL certificate revocation (feature: `ocsp`)
@@ -58,12 +58,15 @@ mod revocation;
 mod rsa_pss;
 mod signature;
 mod signer;
+#[cfg(feature = "webauthn")]
+mod webauthn;
 
 pub use access_control::{AccessControl, Operation, PermissionGrant, Permissions, Principal};
 pub use annotations::{Annotation, AnnotationType, AnnotationsFile};
 pub use certificate::{eku, CertificateChain, CertificateInfo, CertificateValidation, KeyUsage};
 pub use signature::{
-    Signature, SignatureAlgorithm, SignatureFile, SignatureScope, SignatureVerification, SignerInfo,
+    Signature, SignatureAlgorithm, SignatureFile, SignatureScope, SignatureVerification,
+    SignerInfo, WebAuthnSignature,
 };
 pub use signer::{EcdsaSigner, EcdsaVerifier, Signer, Verifier};
 
@@ -98,3 +101,7 @@ pub use revocation::{
     RevocationChecker, RevocationConfig, RevocationMethod, RevocationReason, RevocationResult,
     RevocationStatus,
 };
+
+#[cfg(feature = "webauthn")]
+#[cfg_attr(docsrs, doc(cfg(feature = "webauthn")))]
+pub use webauthn::WebAuthnVerifier;
