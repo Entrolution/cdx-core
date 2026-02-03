@@ -908,3 +908,164 @@ mod tests {
         assert_eq!(ext.get_string_attribute("color"), Some("green"));
     }
 }
+
+#[cfg(test)]
+mod proptests {
+    use super::*;
+    use proptest::prelude::*;
+
+    /// Generate arbitrary text content.
+    fn arb_text_value() -> impl Strategy<Value = String> {
+        "[a-zA-Z0-9 .,!?]{0,100}".prop_map(|s| s)
+    }
+
+    /// Generate arbitrary URL for links.
+    fn arb_url() -> impl Strategy<Value = String> {
+        "(https?://[a-z]{3,10}\\.[a-z]{2,4}(/[a-z0-9]{0,10})?)".prop_map(|s| s)
+    }
+
+    /// Generate arbitrary basic mark (no associated data).
+    fn arb_simple_mark() -> impl Strategy<Value = Mark> {
+        prop_oneof![
+            Just(Mark::Bold),
+            Just(Mark::Italic),
+            Just(Mark::Underline),
+            Just(Mark::Strikethrough),
+            Just(Mark::Code),
+            Just(Mark::Superscript),
+            Just(Mark::Subscript),
+        ]
+    }
+
+    /// Generate arbitrary link mark.
+    fn arb_link_mark() -> impl Strategy<Value = Mark> {
+        (arb_url(), prop::option::of("[a-zA-Z ]{0,20}")).prop_map(|(href, title)| Mark::Link {
+            href,
+            title,
+        })
+    }
+
+    /// Generate arbitrary footnote mark.
+    fn arb_footnote_mark() -> impl Strategy<Value = Mark> {
+        (1u32..1000u32, prop::option::of("[a-z]{2,10}")).prop_map(|(number, id)| Mark::Footnote {
+            number,
+            id,
+        })
+    }
+
+    /// Generate arbitrary mark.
+    fn arb_mark() -> impl Strategy<Value = Mark> {
+        prop_oneof![
+            arb_simple_mark(),
+            arb_link_mark(),
+            arb_footnote_mark(),
+        ]
+    }
+
+    /// Generate arbitrary text node.
+    fn arb_text() -> impl Strategy<Value = Text> {
+        (arb_text_value(), prop::collection::vec(arb_mark(), 0..3)).prop_map(|(value, marks)| {
+            Text { value, marks }
+        })
+    }
+
+    proptest! {
+        /// Plain text has no marks.
+        #[test]
+        fn plain_text_no_marks(value in arb_text_value()) {
+            let text = Text::plain(&value);
+            prop_assert_eq!(&text.value, &value);
+            prop_assert!(text.marks.is_empty());
+            prop_assert!(!text.has_marks());
+        }
+
+        /// Bold text has exactly one bold mark.
+        #[test]
+        fn bold_text_has_bold_mark(value in arb_text_value()) {
+            let text = Text::bold(&value);
+            prop_assert_eq!(&text.value, &value);
+            prop_assert_eq!(text.marks.len(), 1);
+            prop_assert!(text.has_mark(MarkType::Bold));
+        }
+
+        /// Italic text has exactly one italic mark.
+        #[test]
+        fn italic_text_has_italic_mark(value in arb_text_value()) {
+            let text = Text::italic(&value);
+            prop_assert_eq!(&text.value, &value);
+            prop_assert_eq!(text.marks.len(), 1);
+            prop_assert!(text.has_mark(MarkType::Italic));
+        }
+
+        /// Code text has exactly one code mark.
+        #[test]
+        fn code_text_has_code_mark(value in arb_text_value()) {
+            let text = Text::code(&value);
+            prop_assert_eq!(&text.value, &value);
+            prop_assert_eq!(text.marks.len(), 1);
+            prop_assert!(text.has_mark(MarkType::Code));
+        }
+
+        /// Link text has exactly one link mark with correct href.
+        #[test]
+        fn link_text_has_link_mark(value in arb_text_value(), href in arb_url()) {
+            let text = Text::link(&value, &href);
+            prop_assert_eq!(&text.value, &value);
+            prop_assert_eq!(text.marks.len(), 1);
+            prop_assert!(text.has_mark(MarkType::Link));
+            if let Mark::Link { href: actual_href, .. } = &text.marks[0] {
+                prop_assert_eq!(actual_href, &href);
+            }
+        }
+
+        /// Text JSON roundtrip - serialize and deserialize should preserve data.
+        #[test]
+        fn text_json_roundtrip(text in arb_text()) {
+            let json = serde_json::to_string(&text).unwrap();
+            let parsed: Text = serde_json::from_str(&json).unwrap();
+            prop_assert_eq!(text, parsed);
+        }
+
+        /// Mark JSON roundtrip - serialize and deserialize should preserve data.
+        #[test]
+        fn mark_json_roundtrip(mark in arb_mark()) {
+            let json = serde_json::to_string(&mark).unwrap();
+            let parsed: Mark = serde_json::from_str(&json).unwrap();
+            prop_assert_eq!(mark, parsed);
+        }
+
+        /// Simple mark types are identified correctly.
+        #[test]
+        fn simple_mark_types(mark in arb_simple_mark()) {
+            let expected = match mark {
+                Mark::Bold => MarkType::Bold,
+                Mark::Italic => MarkType::Italic,
+                Mark::Underline => MarkType::Underline,
+                Mark::Strikethrough => MarkType::Strikethrough,
+                Mark::Code => MarkType::Code,
+                Mark::Superscript => MarkType::Superscript,
+                Mark::Subscript => MarkType::Subscript,
+                _ => unreachable!(),
+            };
+            prop_assert_eq!(mark.mark_type(), expected);
+        }
+
+        /// Link marks return Link type.
+        #[test]
+        fn link_mark_type(mark in arb_link_mark()) {
+            prop_assert_eq!(mark.mark_type(), MarkType::Link);
+        }
+
+        /// Footnote marks return Footnote type.
+        #[test]
+        fn footnote_mark_type(mark in arb_footnote_mark()) {
+            prop_assert_eq!(mark.mark_type(), MarkType::Footnote);
+        }
+
+        /// has_marks is consistent with marks vector.
+        #[test]
+        fn has_marks_consistent(text in arb_text()) {
+            prop_assert_eq!(text.has_marks(), !text.marks.is_empty());
+        }
+    }
+}

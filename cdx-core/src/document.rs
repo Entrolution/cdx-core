@@ -54,6 +54,36 @@ use crate::security::EncryptionMetadata;
 use crate::security::{Signature, SignatureFile};
 use crate::{DocumentId, DocumentState, HashAlgorithm, Hasher, Manifest, Result};
 
+/// Trait for resources that can be in mutable or immutable states.
+///
+/// This trait provides a common pattern for checking if a resource
+/// can be modified and returning an appropriate error if not.
+trait MutableResource {
+    /// Get the current document state.
+    fn state(&self) -> DocumentState;
+
+    /// Check if the resource can be modified, returning an error if not.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::ImmutableDocument`] if the resource is in an immutable state.
+    fn require_mutable(&self, action: &str) -> Result<()> {
+        if self.state().is_immutable() {
+            return Err(crate::Error::ImmutableDocument {
+                action: action.to_string(),
+                state: self.state(),
+            });
+        }
+        Ok(())
+    }
+}
+
+impl MutableResource for Document {
+    fn state(&self) -> DocumentState {
+        self.manifest.state
+    }
+}
+
 /// A Codex document.
 ///
 /// `Document` provides a high-level interface for working with Codex documents,
@@ -129,17 +159,23 @@ impl Document {
         let dc_data = reader.read_dublin_core()?;
         let dublin_core: DublinCore = serde_json::from_slice(&dc_data)?;
 
+        // Helper closure to read and parse optional JSON extension files
+        let mut read_optional_json =
+            |path: &str| -> Result<Option<Vec<u8>>> {
+                if reader.file_exists(path)? {
+                    Ok(Some(reader.read_file(path)?))
+                } else {
+                    Ok(None)
+                }
+            };
+
         // Read signatures if present (only when signatures feature is enabled)
         #[cfg(feature = "signatures")]
         let signature_file = if let Some(ref security) = manifest.security {
             if let Some(ref sig_path) = security.signatures {
-                if reader.file_exists(sig_path)? {
-                    let sig_data = reader.read_file(sig_path)?;
-                    let sig_file: SignatureFile = serde_json::from_slice(&sig_data)?;
-                    Some(sig_file)
-                } else {
-                    None
-                }
+                read_optional_json(sig_path)?
+                    .map(|data| serde_json::from_slice(&data))
+                    .transpose()?
             } else {
                 None
             }
@@ -151,13 +187,9 @@ impl Document {
         #[cfg(feature = "encryption")]
         let encryption_metadata = if let Some(ref security) = manifest.security {
             if let Some(ref enc_path) = security.encryption {
-                if reader.file_exists(enc_path)? {
-                    let enc_data = reader.read_file(enc_path)?;
-                    let enc_meta: EncryptionMetadata = serde_json::from_slice(&enc_data)?;
-                    Some(enc_meta)
-                } else {
-                    None
-                }
+                read_optional_json(enc_path)?
+                    .map(|data| serde_json::from_slice(&data))
+                    .transpose()?
             } else {
                 None
             }
@@ -165,53 +197,30 @@ impl Document {
             None
         };
 
-        // Read academic numbering configuration if present
-        let academic_numbering = if reader.file_exists(ACADEMIC_NUMBERING_PATH)? {
-            let numbering_data = reader.read_file(ACADEMIC_NUMBERING_PATH)?;
-            Some(serde_json::from_slice(&numbering_data)?)
-        } else {
-            None
-        };
+        // Read extension files using the helper closure
+        let academic_numbering = read_optional_json(ACADEMIC_NUMBERING_PATH)?
+            .map(|data| serde_json::from_slice(&data))
+            .transpose()?;
 
-        // Read collaboration comments if present
-        let comments = if reader.file_exists(COMMENTS_PATH)? {
-            let comments_data = reader.read_file(COMMENTS_PATH)?;
-            Some(serde_json::from_slice(&comments_data)?)
-        } else {
-            None
-        };
+        let comments = read_optional_json(COMMENTS_PATH)?
+            .map(|data| serde_json::from_slice(&data))
+            .transpose()?;
 
-        // Read phantom clusters if present
-        let phantom_clusters = if reader.file_exists(PHANTOMS_PATH)? {
-            let phantoms_data = reader.read_file(PHANTOMS_PATH)?;
-            Some(serde_json::from_slice(&phantoms_data)?)
-        } else {
-            None
-        };
+        let phantom_clusters = read_optional_json(PHANTOMS_PATH)?
+            .map(|data| serde_json::from_slice(&data))
+            .transpose()?;
 
-        // Read form data if present
-        let form_data = if reader.file_exists(FORMS_DATA_PATH)? {
-            let forms_data = reader.read_file(FORMS_DATA_PATH)?;
-            Some(serde_json::from_slice(&forms_data)?)
-        } else {
-            None
-        };
+        let form_data = read_optional_json(FORMS_DATA_PATH)?
+            .map(|data| serde_json::from_slice(&data))
+            .transpose()?;
 
-        // Read bibliography if present
-        let bibliography = if reader.file_exists(BIBLIOGRAPHY_PATH)? {
-            let bib_data = reader.read_file(BIBLIOGRAPHY_PATH)?;
-            Some(serde_json::from_slice(&bib_data)?)
-        } else {
-            None
-        };
+        let bibliography = read_optional_json(BIBLIOGRAPHY_PATH)?
+            .map(|data| serde_json::from_slice(&data))
+            .transpose()?;
 
-        // Read JSON-LD metadata if present
-        let jsonld_metadata = if reader.file_exists(JSONLD_PATH)? {
-            let jsonld_data = reader.read_file(JSONLD_PATH)?;
-            Some(serde_json::from_slice(&jsonld_data)?)
-        } else {
-            None
-        };
+        let jsonld_metadata = read_optional_json(JSONLD_PATH)?
+            .map(|data| serde_json::from_slice(&data))
+            .transpose()?;
 
         Ok(Self {
             manifest,
@@ -335,45 +344,23 @@ impl Document {
             cdx_writer.write_file(ENCRYPTION_PATH, &enc_json, CompressionMethod::Deflate)?;
         }
 
-        // Write academic numbering configuration if present
-        if let Some(ref numbering) = self.academic_numbering {
-            let numbering_json = serde_json::to_vec_pretty(numbering)?;
-            cdx_writer.write_file(
-                ACADEMIC_NUMBERING_PATH,
-                &numbering_json,
-                CompressionMethod::Deflate,
-            )?;
+        // Write optional extension files
+        // Using a local macro to avoid repetition while maintaining type safety
+        macro_rules! write_optional_json {
+            ($path:expr, $value:expr) => {
+                if let Some(ref v) = $value {
+                    let json = serde_json::to_vec_pretty(v)?;
+                    cdx_writer.write_file($path, &json, CompressionMethod::Deflate)?;
+                }
+            };
         }
 
-        // Write collaboration comments if present
-        if let Some(ref comments) = self.comments {
-            let comments_json = serde_json::to_vec_pretty(comments)?;
-            cdx_writer.write_file(COMMENTS_PATH, &comments_json, CompressionMethod::Deflate)?;
-        }
-
-        // Write phantom clusters if present
-        if let Some(ref phantoms) = self.phantom_clusters {
-            let phantoms_json = serde_json::to_vec_pretty(phantoms)?;
-            cdx_writer.write_file(PHANTOMS_PATH, &phantoms_json, CompressionMethod::Deflate)?;
-        }
-
-        // Write form data if present
-        if let Some(ref form_data) = self.form_data {
-            let forms_json = serde_json::to_vec_pretty(form_data)?;
-            cdx_writer.write_file(FORMS_DATA_PATH, &forms_json, CompressionMethod::Deflate)?;
-        }
-
-        // Write bibliography if present
-        if let Some(ref bibliography) = self.bibliography {
-            let bib_json = serde_json::to_vec_pretty(bibliography)?;
-            cdx_writer.write_file(BIBLIOGRAPHY_PATH, &bib_json, CompressionMethod::Deflate)?;
-        }
-
-        // Write JSON-LD metadata if present
-        if let Some(ref jsonld) = self.jsonld_metadata {
-            let jsonld_json = serde_json::to_vec_pretty(jsonld)?;
-            cdx_writer.write_file(JSONLD_PATH, &jsonld_json, CompressionMethod::Deflate)?;
-        }
+        write_optional_json!(ACADEMIC_NUMBERING_PATH, self.academic_numbering);
+        write_optional_json!(COMMENTS_PATH, self.comments);
+        write_optional_json!(PHANTOMS_PATH, self.phantom_clusters);
+        write_optional_json!(FORMS_DATA_PATH, self.form_data);
+        write_optional_json!(BIBLIOGRAPHY_PATH, self.bibliography);
+        write_optional_json!(JSONLD_PATH, self.jsonld_metadata);
 
         cdx_writer.finish()?;
         Ok(())
@@ -409,11 +396,7 @@ impl Document {
     ///
     /// Returns an error if the document is in an immutable state.
     pub fn content_mut(&mut self) -> Result<&mut Content> {
-        if self.manifest.state.is_immutable() {
-            return Err(crate::Error::InvalidManifest {
-                reason: format!("Cannot modify content in {} state", self.manifest.state),
-            });
-        }
+        self.require_mutable("modify content")?;
         self.manifest.modified = Utc::now();
         Ok(&mut self.content)
     }
@@ -430,14 +413,7 @@ impl Document {
     ///
     /// Returns an error if the document is in an immutable state.
     pub fn dublin_core_mut(&mut self) -> Result<&mut DublinCore> {
-        if self.manifest.state.is_immutable() {
-            return Err(crate::Error::InvalidManifest {
-                reason: format!(
-                    "Cannot modify Dublin Core metadata in {} state",
-                    self.manifest.state
-                ),
-            });
-        }
+        self.require_mutable("modify Dublin Core metadata")?;
         self.manifest.modified = Utc::now();
         Ok(&mut self.dublin_core)
     }
@@ -572,12 +548,7 @@ impl Document {
     /// Returns an error if the document is in an immutable state.
     #[cfg(feature = "encryption")]
     pub fn set_encryption(&mut self, metadata: EncryptionMetadata) -> Result<()> {
-        if self.manifest.state.is_immutable() {
-            return Err(crate::Error::InvalidManifest {
-                reason: format!("Cannot set encryption in {} state", self.manifest.state),
-            });
-        }
-
+        self.require_mutable("set encryption")?;
         self.encryption_metadata = Some(metadata);
         Ok(())
     }
@@ -589,12 +560,7 @@ impl Document {
     /// Returns an error if the document is in an immutable state.
     #[cfg(feature = "encryption")]
     pub fn clear_encryption(&mut self) -> Result<()> {
-        if self.manifest.state.is_immutable() {
-            return Err(crate::Error::InvalidManifest {
-                reason: format!("Cannot remove encryption in {} state", self.manifest.state),
-            });
-        }
-
+        self.require_mutable("remove encryption")?;
         self.encryption_metadata = None;
         Ok(())
     }
@@ -622,15 +588,7 @@ impl Document {
     ///
     /// Returns an error if the document is in an immutable state.
     pub fn set_academic_numbering(&mut self, config: NumberingConfig) -> Result<()> {
-        if self.manifest.state.is_immutable() {
-            return Err(crate::Error::InvalidManifest {
-                reason: format!(
-                    "Cannot set academic numbering in {} state",
-                    self.manifest.state
-                ),
-            });
-        }
-
+        self.require_mutable("set academic numbering")?;
         self.academic_numbering = Some(config);
         Ok(())
     }
@@ -641,15 +599,7 @@ impl Document {
     ///
     /// Returns an error if the document is in an immutable state.
     pub fn clear_academic_numbering(&mut self) -> Result<()> {
-        if self.manifest.state.is_immutable() {
-            return Err(crate::Error::InvalidManifest {
-                reason: format!(
-                    "Cannot remove academic numbering in {} state",
-                    self.manifest.state
-                ),
-            });
-        }
-
+        self.require_mutable("remove academic numbering")?;
         self.academic_numbering = None;
         Ok(())
     }
@@ -668,11 +618,7 @@ impl Document {
     ///
     /// Returns an error if the document is in an immutable state.
     pub fn comments_mut(&mut self) -> Result<Option<&mut CommentThread>> {
-        if self.manifest.state.is_immutable() {
-            return Err(crate::Error::InvalidManifest {
-                reason: format!("Cannot modify comments in {} state", self.manifest.state),
-            });
-        }
+        self.require_mutable("modify comments")?;
         Ok(self.comments.as_mut())
     }
 
@@ -688,12 +634,7 @@ impl Document {
     ///
     /// Returns an error if the document is in an immutable state.
     pub fn set_comments(&mut self, comments: CommentThread) -> Result<()> {
-        if self.manifest.state.is_immutable() {
-            return Err(crate::Error::InvalidManifest {
-                reason: format!("Cannot set comments in {} state", self.manifest.state),
-            });
-        }
-
+        self.require_mutable("set comments")?;
         self.comments = Some(comments);
         Ok(())
     }
@@ -704,12 +645,7 @@ impl Document {
     ///
     /// Returns an error if the document is in an immutable state.
     pub fn clear_comments(&mut self) -> Result<()> {
-        if self.manifest.state.is_immutable() {
-            return Err(crate::Error::InvalidManifest {
-                reason: format!("Cannot remove comments in {} state", self.manifest.state),
-            });
-        }
-
+        self.require_mutable("remove comments")?;
         self.comments = None;
         Ok(())
     }
@@ -728,14 +664,7 @@ impl Document {
     ///
     /// Returns an error if the document is in an immutable state.
     pub fn phantom_clusters_mut(&mut self) -> Result<Option<&mut PhantomClusters>> {
-        if self.manifest.state.is_immutable() {
-            return Err(crate::Error::InvalidManifest {
-                reason: format!(
-                    "Cannot modify phantom clusters in {} state",
-                    self.manifest.state
-                ),
-            });
-        }
+        self.require_mutable("modify phantom clusters")?;
         Ok(self.phantom_clusters.as_mut())
     }
 
@@ -751,15 +680,7 @@ impl Document {
     ///
     /// Returns an error if the document is in an immutable state.
     pub fn set_phantom_clusters(&mut self, clusters: PhantomClusters) -> Result<()> {
-        if self.manifest.state.is_immutable() {
-            return Err(crate::Error::InvalidManifest {
-                reason: format!(
-                    "Cannot set phantom clusters in {} state",
-                    self.manifest.state
-                ),
-            });
-        }
-
+        self.require_mutable("set phantom clusters")?;
         self.phantom_clusters = Some(clusters);
         Ok(())
     }
@@ -770,15 +691,7 @@ impl Document {
     ///
     /// Returns an error if the document is in an immutable state.
     pub fn clear_phantom_clusters(&mut self) -> Result<()> {
-        if self.manifest.state.is_immutable() {
-            return Err(crate::Error::InvalidManifest {
-                reason: format!(
-                    "Cannot remove phantom clusters in {} state",
-                    self.manifest.state
-                ),
-            });
-        }
-
+        self.require_mutable("remove phantom clusters")?;
         self.phantom_clusters = None;
         Ok(())
     }
@@ -797,11 +710,7 @@ impl Document {
     ///
     /// Returns an error if the document is in an immutable state.
     pub fn form_data_mut(&mut self) -> Result<Option<&mut FormData>> {
-        if self.manifest.state.is_immutable() {
-            return Err(crate::Error::InvalidManifest {
-                reason: format!("Cannot modify form data in {} state", self.manifest.state),
-            });
-        }
+        self.require_mutable("modify form data")?;
         Ok(self.form_data.as_mut())
     }
 
@@ -817,12 +726,7 @@ impl Document {
     ///
     /// Returns an error if the document is in an immutable state.
     pub fn set_form_data(&mut self, form_data: FormData) -> Result<()> {
-        if self.manifest.state.is_immutable() {
-            return Err(crate::Error::InvalidManifest {
-                reason: format!("Cannot set form data in {} state", self.manifest.state),
-            });
-        }
-
+        self.require_mutable("set form data")?;
         self.form_data = Some(form_data);
         Ok(())
     }
@@ -833,12 +737,7 @@ impl Document {
     ///
     /// Returns an error if the document is in an immutable state.
     pub fn clear_form_data(&mut self) -> Result<()> {
-        if self.manifest.state.is_immutable() {
-            return Err(crate::Error::InvalidManifest {
-                reason: format!("Cannot remove form data in {} state", self.manifest.state),
-            });
-        }
-
+        self.require_mutable("remove form data")?;
         self.form_data = None;
         Ok(())
     }
@@ -857,14 +756,7 @@ impl Document {
     ///
     /// Returns an error if the document is in an immutable state.
     pub fn bibliography_mut(&mut self) -> Result<Option<&mut Bibliography>> {
-        if self.manifest.state.is_immutable() {
-            return Err(crate::Error::InvalidManifest {
-                reason: format!(
-                    "Cannot modify bibliography in {} state",
-                    self.manifest.state
-                ),
-            });
-        }
+        self.require_mutable("modify bibliography")?;
         Ok(self.bibliography.as_mut())
     }
 
@@ -880,12 +772,7 @@ impl Document {
     ///
     /// Returns an error if the document is in an immutable state.
     pub fn set_bibliography(&mut self, bibliography: Bibliography) -> Result<()> {
-        if self.manifest.state.is_immutable() {
-            return Err(crate::Error::InvalidManifest {
-                reason: format!("Cannot set bibliography in {} state", self.manifest.state),
-            });
-        }
-
+        self.require_mutable("set bibliography")?;
         self.bibliography = Some(bibliography);
         Ok(())
     }
@@ -896,15 +783,7 @@ impl Document {
     ///
     /// Returns an error if the document is in an immutable state.
     pub fn clear_bibliography(&mut self) -> Result<()> {
-        if self.manifest.state.is_immutable() {
-            return Err(crate::Error::InvalidManifest {
-                reason: format!(
-                    "Cannot remove bibliography in {} state",
-                    self.manifest.state
-                ),
-            });
-        }
-
+        self.require_mutable("remove bibliography")?;
         self.bibliography = None;
         Ok(())
     }
@@ -921,14 +800,7 @@ impl Document {
     ///
     /// Returns an error if the document is in an immutable state.
     pub fn jsonld_metadata_mut(&mut self) -> Result<Option<&mut JsonLdMetadata>> {
-        if self.manifest.state.is_immutable() {
-            return Err(crate::Error::InvalidManifest {
-                reason: format!(
-                    "Cannot modify JSON-LD metadata in {} state",
-                    self.manifest.state
-                ),
-            });
-        }
+        self.require_mutable("modify JSON-LD metadata")?;
         Ok(self.jsonld_metadata.as_mut())
     }
 
@@ -944,15 +816,7 @@ impl Document {
     ///
     /// Returns an error if the document is in an immutable state.
     pub fn set_jsonld_metadata(&mut self, metadata: JsonLdMetadata) -> Result<()> {
-        if self.manifest.state.is_immutable() {
-            return Err(crate::Error::InvalidManifest {
-                reason: format!(
-                    "Cannot set JSON-LD metadata in {} state",
-                    self.manifest.state
-                ),
-            });
-        }
-
+        self.require_mutable("set JSON-LD metadata")?;
         self.jsonld_metadata = Some(metadata);
         Ok(())
     }
@@ -963,15 +827,7 @@ impl Document {
     ///
     /// Returns an error if the document is in an immutable state.
     pub fn clear_jsonld_metadata(&mut self) -> Result<()> {
-        if self.manifest.state.is_immutable() {
-            return Err(crate::Error::InvalidManifest {
-                reason: format!(
-                    "Cannot remove JSON-LD metadata in {} state",
-                    self.manifest.state
-                ),
-            });
-        }
-
+        self.require_mutable("remove JSON-LD metadata")?;
         self.jsonld_metadata = None;
         Ok(())
     }
@@ -1218,8 +1074,8 @@ impl Document {
         let index = self.block_index()?;
         let entry = index
             .find_block(block_id)
-            .ok_or_else(|| crate::Error::InvalidManifest {
-                reason: format!("Block with ID '{block_id}' not found"),
+            .ok_or_else(|| crate::Error::ValidationFailed {
+                reason: format!("block with ID '{block_id}' not found"),
             })?;
         self.prove_block(entry.index)
     }
@@ -1417,8 +1273,8 @@ impl Document {
         }
 
         if self.has_signatures() {
-            return Err(crate::Error::InvalidManifest {
-                reason: "Cannot revert to draft: document has signatures".to_string(),
+            return Err(crate::Error::ValidationFailed {
+                reason: "cannot revert to draft: document has signatures".to_string(),
             });
         }
 
@@ -1490,11 +1346,7 @@ impl Document {
         version: u32,
         note: Option<String>,
     ) -> Result<()> {
-        if self.manifest.state.is_immutable() {
-            return Err(crate::Error::InvalidManifest {
-                reason: format!("Cannot modify lineage in {} state", self.manifest.state),
-            });
-        }
+        self.require_mutable("modify lineage")?;
 
         let lineage = if let Some(parent_id) = parent {
             Lineage::from_parent(parent_id, None).with_note(note.unwrap_or_default())

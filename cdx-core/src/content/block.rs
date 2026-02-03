@@ -1805,3 +1805,147 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+mod proptests {
+    use super::*;
+    use proptest::prelude::*;
+
+    /// Generate arbitrary text content for testing.
+    fn arb_text_content() -> impl Strategy<Value = String> {
+        "[a-zA-Z0-9 .,!?]{0,100}".prop_map(|s| s)
+    }
+
+    /// Generate arbitrary optional string.
+    fn arb_optional_string() -> impl Strategy<Value = Option<String>> {
+        prop_oneof![
+            Just(None),
+            "[a-zA-Z0-9_-]{1,20}".prop_map(Some),
+        ]
+    }
+
+    /// Generate arbitrary heading level.
+    fn arb_heading_level() -> impl Strategy<Value = u8> {
+        1u8..=6u8
+    }
+
+    /// Generate arbitrary paragraph block.
+    fn arb_paragraph() -> impl Strategy<Value = Block> {
+        (arb_optional_string(), arb_text_content()).prop_map(|(id, text)| {
+            let mut block = Block::paragraph(vec![Text::plain(text)]);
+            if let Block::Paragraph { id: ref mut block_id, .. } = block {
+                *block_id = id;
+            }
+            block
+        })
+    }
+
+    /// Generate arbitrary heading block.
+    fn arb_heading() -> impl Strategy<Value = Block> {
+        (arb_optional_string(), arb_heading_level(), arb_text_content()).prop_map(
+            |(id, level, text)| {
+                let mut block = Block::heading(level, vec![Text::plain(text)]);
+                if let Block::Heading { id: ref mut block_id, .. } = block {
+                    *block_id = id;
+                }
+                block
+            },
+        )
+    }
+
+    /// Generate arbitrary code block.
+    fn arb_code_block() -> impl Strategy<Value = Block> {
+        (arb_optional_string(), arb_text_content(), arb_optional_string()).prop_map(
+            |(id, code, language)| {
+                let mut block = Block::code_block(code, language);
+                if let Block::CodeBlock { id: ref mut block_id, .. } = block {
+                    *block_id = id;
+                }
+                block
+            },
+        )
+    }
+
+    /// Generate arbitrary math block.
+    fn arb_math_block() -> impl Strategy<Value = Block> {
+        (
+            arb_optional_string(),
+            arb_text_content(),
+            prop_oneof![Just(MathFormat::Latex), Just(MathFormat::Mathml)],
+            any::<bool>(),
+        )
+            .prop_map(|(id, value, format, display)| {
+                let mut block = Block::math(value, format, display);
+                if let Block::Math(ref mut math) = block {
+                    math.id = id;
+                }
+                block
+            })
+    }
+
+    proptest! {
+        /// Paragraph JSON roundtrip - serialize and deserialize should preserve data.
+        #[test]
+        fn paragraph_json_roundtrip(para in arb_paragraph()) {
+            let json = serde_json::to_string(&para).unwrap();
+            let parsed: Block = serde_json::from_str(&json).unwrap();
+            prop_assert_eq!(para, parsed);
+        }
+
+        /// Heading JSON roundtrip - serialize and deserialize should preserve data.
+        #[test]
+        fn heading_json_roundtrip(heading in arb_heading()) {
+            let json = serde_json::to_string(&heading).unwrap();
+            let parsed: Block = serde_json::from_str(&json).unwrap();
+            prop_assert_eq!(heading, parsed);
+        }
+
+        /// Code block JSON roundtrip - serialize and deserialize should preserve data.
+        #[test]
+        fn code_block_json_roundtrip(code in arb_code_block()) {
+            let json = serde_json::to_string(&code).unwrap();
+            let parsed: Block = serde_json::from_str(&json).unwrap();
+            prop_assert_eq!(code, parsed);
+        }
+
+        /// Math block JSON roundtrip - serialize and deserialize should preserve data.
+        #[test]
+        fn math_block_json_roundtrip(math in arb_math_block()) {
+            let json = serde_json::to_string(&math).unwrap();
+            let parsed: Block = serde_json::from_str(&json).unwrap();
+            prop_assert_eq!(math, parsed);
+        }
+
+        /// Heading level is always clamped to valid range 1-6.
+        #[test]
+        fn heading_level_clamped(level in any::<u8>()) {
+            let block = Block::heading(level, vec![Text::plain("Test")]);
+            if let Block::Heading { level: actual, .. } = block {
+                prop_assert!(actual >= 1 && actual <= 6);
+            } else {
+                prop_assert!(false, "Expected Heading block");
+            }
+        }
+
+        /// Content version is always set correctly.
+        #[test]
+        fn content_version_is_spec_version(blocks in prop::collection::vec(arb_paragraph(), 0..5)) {
+            let blocks_len = blocks.len();
+            let content = Content::new(blocks);
+            prop_assert_eq!(&content.version, crate::SPEC_VERSION);
+            prop_assert_eq!(content.len(), blocks_len);
+        }
+
+        /// Block type returns correct string for paragraphs.
+        #[test]
+        fn paragraph_block_type(para in arb_paragraph()) {
+            prop_assert_eq!(para.block_type(), "paragraph");
+        }
+
+        /// Block type returns correct string for headings.
+        #[test]
+        fn heading_block_type(heading in arb_heading()) {
+            prop_assert_eq!(heading.block_type(), "heading");
+        }
+    }
+}
