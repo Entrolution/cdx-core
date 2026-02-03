@@ -1,5 +1,6 @@
 [workspace]
 members = ["cdx-core", "cdx-cli"]
+exclude = ["cdx-swift-bridge"]
 resolver = "2"
 
 [workspace.package]
