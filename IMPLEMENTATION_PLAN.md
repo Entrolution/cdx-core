@@ -180,11 +180,11 @@ This document tracks the implementation parity between the Codex File Format Spe
 | Continuous layout | ✅ | presentation::Continuous | ✅ | |
 | Responsive layout | ✅ | presentation::Responsive | ✅ | |
 | Precise layout | ✅ | presentation::Precise | ✅ | |
-| Multi-column | ✅ | Not verified | ⚠️ | Need to check |
-| Flow regions | ✅ | Not verified | ⚠️ | Need to check |
-| Master pages | ✅ | Not found | ❌ | Templates |
-| Print features | ✅ | Not found | ❌ | Bleed, crop marks, spot colors |
-| PDF/X compliance | ✅ | Not found | ❌ | |
+| Multi-column | ✅ | FlowElement.columns | ✅ | In paginated.rs |
+| Flow regions | ✅ | FlowElement, FlowRegion | ✅ | In paginated.rs |
+| Master pages | ✅ | MasterPage | ✅ | In print.rs |
+| Print features | ✅ | PrintSpecification | ✅ | Bleed, crop marks, spot colors |
+| PDF/X compliance | ✅ | PdfXCompliance | ✅ | All levels supported |
 
 ---
 
@@ -390,10 +390,10 @@ The CLI has comprehensive integration tests in `cdx-cli/tests/integration.rs`:
 6. ~~**Additional encryption**:~~ ✅ COMPLETED
    - ~~ChaCha20-Poly1305~~ ✅
 
-7. **Presentation features**:
-   - Master pages/templates
-   - Print features (bleed, crop marks)
-   - PDF/X compliance metadata
+7. ~~**Presentation features**:~~ ✅ COMPLETED
+   - ~~Master pages/templates~~ ✅
+   - ~~Print features (bleed, crop marks)~~ ✅
+   - ~~PDF/X compliance metadata~~ ✅
 
 8. **CRDT collaboration support** - Types for Yjs/Automerge integration
 
@@ -429,10 +429,10 @@ The CLI has comprehensive integration tests in `cdx-cli/tests/integration.rs`:
 - [x] Implement Ps256Signer (RSA-PSS) - Feature: signatures-rsa
 - [x] Add ChaCha20-Poly1305 encryption - Feature: encryption-chacha
 
-### Phase 5: Presentation Features
-- [ ] Master pages/templates
-- [ ] Print features (bleed, crop marks, spot colors)
-- [ ] PDF/X compliance metadata
+### Phase 5: Presentation Features ✅ COMPLETED
+- [x] Master pages/templates - MasterPage, MasterPageRegion, MasterPageElement
+- [x] Print features (bleed, crop marks, spot colors) - PrintSpecification, BleedBox, SpotColor
+- [x] PDF/X compliance metadata - PdfXCompliance, PdfXLevel, OutputIntent
 
 ### Phase 6: Collaboration Enhancements
 - [ ] CRDT integration types (Yjs/Automerge compatibility)
@@ -441,13 +441,11 @@ The CLI has comprehensive integration tests in `cdx-cli/tests/integration.rs`:
 
 ## 10. NOTES
 
-- **The core implementation is ~95% complete** - all core blocks, marks, and most extensions done
-- **Critical issue**: cdx-cli encrypt/decrypt commands have no `encryption` feature flag
-- **Most gaps are in**:
-  - Extension file I/O (types exist, reading/writing to archive missing)
-  - Additional signature algorithm implementations (enum values exist)
-  - Advanced presentation features (print, master pages)
-- **Working well**: All core blocks, marks, Document API, signatures, timestamps, verification
+- **The core implementation is ~98% complete** - all core blocks, marks, extensions, and presentation features done
+- **Remaining work**:
+  - CRDT integration types (Phase 6)
+  - WebAuthn/FIDO2 hardware key support
+- **Working well**: All core blocks, marks, Document API, signatures, timestamps, verification, presentation
 
 ## 11. VERIFIED WORKING FEATURES
 
@@ -471,7 +469,10 @@ Based on code review, these are confirmed working:
 - ✅ Merkle tree proofs
 - ✅ RFC 3161 timestamps
 - ✅ OpenTimestamps support
+- ✅ Master pages/templates
+- ✅ Print specifications (bleed, crop marks, spot colors)
+- ✅ PDF/X compliance metadata
 
 ---
 
-**Last Updated:** 2026-02-02
+**Last Updated:** 2026-02-03

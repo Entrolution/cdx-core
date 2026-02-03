@@ -11,10 +11,19 @@
 //!
 //! Content is authoritative; presentation is derived. The same content
 //! can have multiple presentation layers for different contexts.
+//!
+//! # Print Features
+//!
+//! For professional print workflows, see the [`print`] module which provides:
+//!
+//! - [`MasterPage`] - Reusable page templates with headers, footers, and backgrounds
+//! - [`PrintSpecification`] - Bleed, crop marks, spot colors, and color space settings
+//! - [`PdfXCompliance`] - PDF/X conformance metadata for prepress workflows
 
 mod continuous;
 mod paginated;
 mod precise;
+mod print;
 mod responsive;
 mod style;
 
@@ -23,6 +32,12 @@ pub use paginated::{FlowElement, Margins, PageElement, PageSize, Paginated, Posi
 pub use precise::{
     FontMetrics, LineInfo, PageRegion, PageTemplate, PreciseLayout, PrecisePage,
     PrecisePageElement, PrecisePageSize,
+};
+pub use print::{
+    AlternateColor, BleedBox, ColorSpace, CropMarkStyle, MasterElementType, MasterPage,
+    MasterPageElement, MasterPageRegion, OutputIntent, PageBox, PdfXCompliance, PdfXLevel,
+    PlaceholderDefinition, PlaceholderType, PrintSpecification, RegionAlignment, SpotColor,
+    SpotColorType,
 };
 pub use responsive::{Breakpoint, Responsive, ResponsiveDefaults, ResponsiveStyle};
 pub use style::{
