@@ -174,13 +174,13 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Install cargo-audit
-        run: cargo install cargo-audit
+        run: cargo install cargo-audit --locked || true
 
       - name: Audit dependencies
         run: cargo audit --ignore RUSTSEC-2023-0071
 
       - name: Install cargo-deny
-        run: cargo install cargo-deny
+        run: cargo install cargo-deny --locked || true
 
       - name: Check dependency policies
         run: cargo deny check
