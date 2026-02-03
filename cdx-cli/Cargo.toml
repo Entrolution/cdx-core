@@ -41,7 +41,7 @@ pbkdf2 = { version = "0.12", optional = true }
 hmac = { version = "0.12", optional = true }
 sha2 = { version = "0.10", optional = true }
 base64 = { version = "0.22", optional = true }
-rand_core = { version = "0.6", features = ["getrandom"], optional = true }
+rand_core = { version = "0.10", features = ["getrandom"], optional = true }
 rpassword = { version = "7", optional = true }
 
 [dev-dependencies]
