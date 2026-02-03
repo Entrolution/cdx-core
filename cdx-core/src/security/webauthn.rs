@@ -60,7 +60,7 @@ struct ClientData {
 /// Verifies WebAuthn assertion responses using the credential's public key.
 /// The document ID is used as the challenge for verification.
 pub struct WebAuthnVerifier {
-    /// Expected origin (e.g., "https://example.com").
+    /// Expected origin (e.g., `https://example.com`).
     expected_origin: String,
 
     /// The credential's public key for signature verification.
@@ -75,7 +75,7 @@ impl WebAuthnVerifier {
     ///
     /// # Arguments
     ///
-    /// * `expected_origin` - The expected origin (e.g., "https://example.com")
+    /// * `expected_origin` - The expected origin (e.g., `https://example.com`)
     /// * `public_key` - The credential's public key in uncompressed SEC1 format (65 bytes)
     ///   or compressed format (33 bytes)
     ///
