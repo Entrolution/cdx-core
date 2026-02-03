@@ -452,6 +452,118 @@ impl CdxDocument {
             false
         }
     }
+
+    /// Get encryption information, if the document is encrypted.
+    pub fn get_encryption_info(&self) -> Option<CdxEncryptionInfo> {
+        #[cfg(feature = "encryption")]
+        {
+            let inner = self.inner.read().unwrap();
+            inner
+                .document
+                .encryption_metadata()
+                .map(|meta| CdxEncryptionInfo {
+                    algorithm: meta.algorithm.as_str().to_string(),
+                    kdf_algorithm: meta.kdf.as_ref().map(|kdf| format!("{:?}", kdf.algorithm)),
+                    has_recipients: !meta.recipients.is_empty(),
+                })
+        }
+        #[cfg(not(feature = "encryption"))]
+        {
+            None
+        }
+    }
+
+    /// Set password-based encryption on the document.
+    ///
+    /// Generates a random salt and stores Argon2id KDF parameters as encryption
+    /// metadata. The document must be in a mutable state (Draft or Review).
+    pub fn set_encryption(&self, password: String) -> Result<(), CdxError> {
+        #[cfg(feature = "encryption")]
+        {
+            use cdx_core::security::{
+                EncryptionAlgorithm, EncryptionMetadata, KdfAlgorithm, KeyDerivation,
+            };
+
+            if password.is_empty() {
+                return Err(CdxError::EncryptionError(
+                    "Password cannot be empty".to_string(),
+                ));
+            }
+
+            let mut inner = self.inner.write().unwrap();
+
+            if inner.document.is_encrypted() {
+                return Err(CdxError::EncryptionError(
+                    "Document is already encrypted".to_string(),
+                ));
+            }
+
+            // Generate random 16-byte salt
+            let salt = {
+                use rand_core::RngCore;
+                let mut buf = [0u8; 16];
+                rand_core::OsRng.fill_bytes(&mut buf);
+                buf
+            };
+            let salt_b64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, salt);
+
+            // Derive key to validate parameters work (key is not stored)
+            let mut key = [0u8; 32];
+            let argon2 = argon2::Argon2::new(
+                argon2::Algorithm::Argon2id,
+                argon2::Version::V0x13,
+                argon2::Params::new(65536, 3, 4, Some(32)).map_err(|e| {
+                    CdxError::EncryptionError(format!("Failed to configure Argon2: {e}"))
+                })?,
+            );
+            argon2
+                .hash_password_into(password.as_bytes(), &salt, &mut key)
+                .map_err(|e| CdxError::EncryptionError(format!("Failed to derive key: {e}")))?;
+
+            let metadata = EncryptionMetadata {
+                algorithm: EncryptionAlgorithm::Aes256Gcm,
+                kdf: Some(KeyDerivation {
+                    algorithm: KdfAlgorithm::Argon2id,
+                    salt: salt_b64,
+                    iterations: None,
+                    memory: Some(65536),
+                    parallelism: Some(4),
+                }),
+                wrapped_key: None,
+                recipients: vec![],
+            };
+
+            inner.document.set_encryption(metadata)?;
+            inner.modified = true;
+            Ok(())
+        }
+        #[cfg(not(feature = "encryption"))]
+        {
+            let _ = password;
+            Err(CdxError::EncryptionError(
+                "Encryption feature not enabled".to_string(),
+            ))
+        }
+    }
+
+    /// Remove encryption metadata from the document.
+    ///
+    /// The document must be in a mutable state (Draft or Review).
+    pub fn clear_encryption(&self) -> Result<(), CdxError> {
+        #[cfg(feature = "encryption")]
+        {
+            let mut inner = self.inner.write().unwrap();
+            inner.document.clear_encryption()?;
+            inner.modified = true;
+            Ok(())
+        }
+        #[cfg(not(feature = "encryption"))]
+        {
+            Err(CdxError::EncryptionError(
+                "Encryption feature not enabled".to_string(),
+            ))
+        }
+    }
 }
 
 // Helper functions for converting Swift types back to core types
