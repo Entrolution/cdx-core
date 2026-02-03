@@ -329,6 +329,14 @@ pub struct CdxSigningResult {
     pub signed_at: String,
 }
 
+/// Encryption information.
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct CdxEncryptionInfo {
+    pub algorithm: String,
+    pub kdf_algorithm: Option<String>,
+    pub has_recipients: bool,
+}
+
 // --- Conversion functions from cdx-core types ---
 
 impl From<&cdx_core::content::Mark> for CdxTextMark {

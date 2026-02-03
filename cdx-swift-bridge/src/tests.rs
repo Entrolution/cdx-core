@@ -338,3 +338,69 @@ fn test_bytes_roundtrip_with_content() {
     );
     assert_eq!(content2.blocks[0].text_children[0].marks.len(), 2);
 }
+
+#[cfg(feature = "encryption")]
+#[test]
+fn test_set_and_clear_encryption() {
+    let doc = create_document_with_title("Encrypted".to_string()).unwrap();
+    assert!(!doc.is_encrypted());
+    assert!(doc.get_encryption_info().is_none());
+
+    doc.set_encryption("test-password-123".to_string()).unwrap();
+    assert!(doc.is_encrypted());
+
+    let info = doc.get_encryption_info().unwrap();
+    assert_eq!(info.algorithm, "AES-256-GCM");
+    assert_eq!(info.kdf_algorithm.as_deref(), Some("Argon2id"));
+    assert!(!info.has_recipients);
+
+    doc.clear_encryption().unwrap();
+    assert!(!doc.is_encrypted());
+    assert!(doc.get_encryption_info().is_none());
+}
+
+#[cfg(feature = "encryption")]
+#[test]
+fn test_encryption_empty_password_rejected() {
+    let doc = create_document_with_title("Empty".to_string()).unwrap();
+    let result = doc.set_encryption(String::new());
+    assert!(result.is_err());
+}
+
+#[cfg(feature = "encryption")]
+#[test]
+fn test_encryption_double_encrypt_rejected() {
+    let doc = create_document_with_title("Double".to_string()).unwrap();
+    doc.set_encryption("password1".to_string()).unwrap();
+    let result = doc.set_encryption("password2".to_string());
+    assert!(result.is_err());
+}
+
+#[cfg(feature = "encryption")]
+#[test]
+fn test_encryption_roundtrip_through_bytes() {
+    let doc = create_document_with_title("EncRoundtrip".to_string()).unwrap();
+    doc.set_encryption("my-password".to_string()).unwrap();
+
+    let bytes = doc.to_bytes().unwrap();
+    let doc2 = open_document_from_bytes(bytes).unwrap();
+
+    assert!(doc2.is_encrypted());
+    let info = doc2.get_encryption_info().unwrap();
+    assert_eq!(info.algorithm, "AES-256-GCM");
+}
+
+#[cfg(feature = "encryption")]
+#[test]
+fn test_encryption_marks_modified() {
+    let doc = create_document_with_title("Modified".to_string()).unwrap();
+    doc.mark_saved();
+    assert!(!doc.is_modified());
+
+    doc.set_encryption("pass".to_string()).unwrap();
+    assert!(doc.is_modified());
+
+    doc.mark_saved();
+    doc.clear_encryption().unwrap();
+    assert!(doc.is_modified());
+}
