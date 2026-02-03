@@ -1818,10 +1818,7 @@ mod proptests {
 
     /// Generate arbitrary optional string.
     fn arb_optional_string() -> impl Strategy<Value = Option<String>> {
-        prop_oneof![
-            Just(None),
-            "[a-zA-Z0-9_-]{1,20}".prop_map(Some),
-        ]
+        prop_oneof![Just(None), "[a-zA-Z0-9_-]{1,20}".prop_map(Some),]
     }
 
     /// Generate arbitrary heading level.
@@ -1833,7 +1830,11 @@ mod proptests {
     fn arb_paragraph() -> impl Strategy<Value = Block> {
         (arb_optional_string(), arb_text_content()).prop_map(|(id, text)| {
             let mut block = Block::paragraph(vec![Text::plain(text)]);
-            if let Block::Paragraph { id: ref mut block_id, .. } = block {
+            if let Block::Paragraph {
+                id: ref mut block_id,
+                ..
+            } = block
+            {
                 *block_id = id;
             }
             block
@@ -1842,28 +1843,42 @@ mod proptests {
 
     /// Generate arbitrary heading block.
     fn arb_heading() -> impl Strategy<Value = Block> {
-        (arb_optional_string(), arb_heading_level(), arb_text_content()).prop_map(
-            |(id, level, text)| {
+        (
+            arb_optional_string(),
+            arb_heading_level(),
+            arb_text_content(),
+        )
+            .prop_map(|(id, level, text)| {
                 let mut block = Block::heading(level, vec![Text::plain(text)]);
-                if let Block::Heading { id: ref mut block_id, .. } = block {
+                if let Block::Heading {
+                    id: ref mut block_id,
+                    ..
+                } = block
+                {
                     *block_id = id;
                 }
                 block
-            },
-        )
+            })
     }
 
     /// Generate arbitrary code block.
     fn arb_code_block() -> impl Strategy<Value = Block> {
-        (arb_optional_string(), arb_text_content(), arb_optional_string()).prop_map(
-            |(id, code, language)| {
+        (
+            arb_optional_string(),
+            arb_text_content(),
+            arb_optional_string(),
+        )
+            .prop_map(|(id, code, language)| {
                 let mut block = Block::code_block(code, language);
-                if let Block::CodeBlock { id: ref mut block_id, .. } = block {
+                if let Block::CodeBlock {
+                    id: ref mut block_id,
+                    ..
+                } = block
+                {
                     *block_id = id;
                 }
                 block
-            },
-        )
+            })
     }
 
     /// Generate arbitrary math block.

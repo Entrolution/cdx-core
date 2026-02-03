@@ -160,14 +160,13 @@ impl Document {
         let dublin_core: DublinCore = serde_json::from_slice(&dc_data)?;
 
         // Helper closure to read and parse optional JSON extension files
-        let mut read_optional_json =
-            |path: &str| -> Result<Option<Vec<u8>>> {
-                if reader.file_exists(path)? {
-                    Ok(Some(reader.read_file(path)?))
-                } else {
-                    Ok(None)
-                }
-            };
+        let mut read_optional_json = |path: &str| -> Result<Option<Vec<u8>>> {
+            if reader.file_exists(path)? {
+                Ok(Some(reader.read_file(path)?))
+            } else {
+                Ok(None)
+            }
+        };
 
         // Read signatures if present (only when signatures feature is enabled)
         #[cfg(feature = "signatures")]

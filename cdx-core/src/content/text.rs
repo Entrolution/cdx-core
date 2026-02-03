@@ -939,34 +939,25 @@ mod proptests {
 
     /// Generate arbitrary link mark.
     fn arb_link_mark() -> impl Strategy<Value = Mark> {
-        (arb_url(), prop::option::of("[a-zA-Z ]{0,20}")).prop_map(|(href, title)| Mark::Link {
-            href,
-            title,
-        })
+        (arb_url(), prop::option::of("[a-zA-Z ]{0,20}"))
+            .prop_map(|(href, title)| Mark::Link { href, title })
     }
 
     /// Generate arbitrary footnote mark.
     fn arb_footnote_mark() -> impl Strategy<Value = Mark> {
-        (1u32..1000u32, prop::option::of("[a-z]{2,10}")).prop_map(|(number, id)| Mark::Footnote {
-            number,
-            id,
-        })
+        (1u32..1000u32, prop::option::of("[a-z]{2,10}"))
+            .prop_map(|(number, id)| Mark::Footnote { number, id })
     }
 
     /// Generate arbitrary mark.
     fn arb_mark() -> impl Strategy<Value = Mark> {
-        prop_oneof![
-            arb_simple_mark(),
-            arb_link_mark(),
-            arb_footnote_mark(),
-        ]
+        prop_oneof![arb_simple_mark(), arb_link_mark(), arb_footnote_mark(),]
     }
 
     /// Generate arbitrary text node.
     fn arb_text() -> impl Strategy<Value = Text> {
-        (arb_text_value(), prop::collection::vec(arb_mark(), 0..3)).prop_map(|(value, marks)| {
-            Text { value, marks }
-        })
+        (arb_text_value(), prop::collection::vec(arb_mark(), 0..3))
+            .prop_map(|(value, marks)| Text { value, marks })
     }
 
     proptest! {
