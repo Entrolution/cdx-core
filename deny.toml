@@ -5,6 +5,8 @@ all-features = true
 [advisories]
 db-path = "~/.cargo/advisory-db"
 db-urls = ["https://github.com/rustsec/advisory-db"]
+# rsa 0.9.x has a timing side-channel (Marvin Attack) with no fixed version available
+ignore = ["RUSTSEC-2023-0071"]
 
 [licenses]
 allow = [

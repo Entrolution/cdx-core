@@ -80,44 +80,42 @@ trait MutableResource {
 
 /// Generates the five standard accessor methods for an optional extension field:
 /// - `$field(&self) -> Option<&$type>` — immutable access
-/// - `${field}_mut(&mut self) -> Result<Option<&mut $type>>` — mutable access
-/// - `has_${field}(&self) -> bool` — presence check
-/// - `set_${field}(&mut self, value: $type) -> Result<()>` — set value
-/// - `clear_${field}(&mut self) -> Result<()>` — remove value
+/// - `$field_mut(&mut self) -> Result<Option<&mut $type>>` — mutable access
+/// - `has_$field(&self) -> bool` — presence check
+/// - `set_$field(&mut self, value: $type) -> Result<()>` — set value
+/// - `clear_$field(&mut self) -> Result<()>` — remove value
 macro_rules! define_extension_accessors {
-    ($field:ident, $type:ty, $label:expr) => {
+    ($field:ident, $field_mut:ident, $has:ident, $set:ident, $clear:ident, $type:ty, $label:expr) => {
         #[doc = concat!("Get the ", $label, ", if present.")]
         #[must_use]
         pub fn $field(&self) -> Option<&$type> {
             self.$field.as_ref()
         }
 
-        paste::paste! {
-            #[doc = concat!("Get a mutable reference to the ", $label, ".\n\n# Errors\n\nReturns an error if the document is in an immutable state.")]
-            pub fn [<$field _mut>](&mut self) -> Result<Option<&mut $type>> {
-                self.require_mutable(concat!("modify ", $label))?;
-                Ok(self.$field.as_mut())
-            }
+        #[doc = concat!("Get a mutable reference to the ", $label, ".\n\n# Errors\n\nReturns an error if the document is in an immutable state.")]
+        pub fn $field_mut(&mut self) -> Result<Option<&mut $type>> {
+            self.require_mutable(concat!("modify ", $label))?;
+            Ok(self.$field.as_mut())
+        }
 
-            #[doc = concat!("Check if the document has ", $label, ".")]
-            #[must_use]
-            pub fn [<has_ $field>](&self) -> bool {
-                self.$field.is_some()
-            }
+        #[doc = concat!("Check if the document has ", $label, ".")]
+        #[must_use]
+        pub fn $has(&self) -> bool {
+            self.$field.is_some()
+        }
 
-            #[doc = concat!("Set the ", $label, ".\n\n# Errors\n\nReturns an error if the document is in an immutable state.")]
-            pub fn [<set_ $field>](&mut self, value: $type) -> Result<()> {
-                self.require_mutable(concat!("set ", $label))?;
-                self.$field = Some(value);
-                Ok(())
-            }
+        #[doc = concat!("Set the ", $label, ".\n\n# Errors\n\nReturns an error if the document is in an immutable state.")]
+        pub fn $set(&mut self, value: $type) -> Result<()> {
+            self.require_mutable(concat!("set ", $label))?;
+            self.$field = Some(value);
+            Ok(())
+        }
 
-            #[doc = concat!("Remove the ", $label, ".\n\n# Errors\n\nReturns an error if the document is in an immutable state.")]
-            pub fn [<clear_ $field>](&mut self) -> Result<()> {
-                self.require_mutable(concat!("remove ", $label))?;
-                self.$field = None;
-                Ok(())
-            }
+        #[doc = concat!("Remove the ", $label, ".\n\n# Errors\n\nReturns an error if the document is in an immutable state.")]
+        pub fn $clear(&mut self) -> Result<()> {
+            self.require_mutable(concat!("remove ", $label))?;
+            self.$field = None;
+            Ok(())
         }
     };
 }
@@ -617,12 +615,12 @@ impl Document {
     //   - `set_${field}(&mut self, value: $type) -> Result<()>`
     //   - `clear_${field}(&mut self) -> Result<()>`
 
-    define_extension_accessors!(academic_numbering, NumberingConfig, "academic numbering");
-    define_extension_accessors!(comments, CommentThread, "comments");
-    define_extension_accessors!(phantom_clusters, PhantomClusters, "phantom clusters");
-    define_extension_accessors!(form_data, FormData, "form data");
-    define_extension_accessors!(bibliography, Bibliography, "bibliography");
-    define_extension_accessors!(jsonld_metadata, JsonLdMetadata, "JSON-LD metadata");
+    define_extension_accessors!(academic_numbering, academic_numbering_mut, has_academic_numbering, set_academic_numbering, clear_academic_numbering, NumberingConfig, "academic numbering");
+    define_extension_accessors!(comments, comments_mut, has_comments, set_comments, clear_comments, CommentThread, "comments");
+    define_extension_accessors!(phantom_clusters, phantom_clusters_mut, has_phantom_clusters, set_phantom_clusters, clear_phantom_clusters, PhantomClusters, "phantom clusters");
+    define_extension_accessors!(form_data, form_data_mut, has_form_data, set_form_data, clear_form_data, FormData, "form data");
+    define_extension_accessors!(bibliography, bibliography_mut, has_bibliography, set_bibliography, clear_bibliography, Bibliography, "bibliography");
+    define_extension_accessors!(jsonld_metadata, jsonld_metadata_mut, has_jsonld_metadata, set_jsonld_metadata, clear_jsonld_metadata, JsonLdMetadata, "JSON-LD metadata");
 
     /// Compute the document ID from content.
     ///
