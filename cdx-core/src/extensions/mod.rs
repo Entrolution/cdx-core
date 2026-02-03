@@ -33,8 +33,10 @@ mod semantic;
 
 pub use collaboration::{
     ChangeStatus, ChangeTracking, ChangeType, CollaborationSession, Collaborator, Comment,
-    CommentThread, CommentType, CursorPosition, HighlightColor, Participant, Priority, Selection,
-    SessionStatus, SuggestionStatus, TextRange, TrackedChange,
+    CommentThread, CommentType, CrdtFormat, CrdtMetadata, CursorPosition, HighlightColor,
+    MaterializationEvent, MaterializationReason, Participant, Peer, Priority, Revision,
+    RevisionHistory, Selection, SessionStatus, SuggestionStatus, SyncState, TextCrdtMetadata,
+    TextCrdtPosition, TextRange, TrackedChange,
 };
 pub use forms::{
     CheckboxField, DatePickerField, DropdownField, DropdownOption, FormData, FormField,

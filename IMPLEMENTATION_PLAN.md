@@ -156,7 +156,7 @@ This document tracks the implementation parity between the Codex File Format Spe
 | participants | ✅ | collaboration::Participant | ✅ | |
 | session | ✅ | collaboration::CollaborationSession | ✅ | |
 | reactions | ✅ | CommentType::Reaction | ✅ | Comment::reaction() constructor |
-| CRDT support | ✅ | Not found | ❌ | Yjs/Automerge/Diamond Types |
+| CRDT support | ✅ | CrdtFormat, CrdtMetadata, SyncState, Peer, RevisionHistory, Revision, MaterializationEvent | ✅ | Yjs/Automerge/Diamond Types |
 | highlight marks | ✅ | collaboration::HighlightColor | ⚠️ | Color exists, mark unclear |
 
 ### 3.6 Phantom Extension (`codex.phantoms`)
@@ -395,7 +395,7 @@ The CLI has comprehensive integration tests in `cdx-cli/tests/integration.rs`:
    - ~~Print features (bleed, crop marks)~~ ✅
    - ~~PDF/X compliance metadata~~ ✅
 
-8. **CRDT collaboration support** - Types for Yjs/Automerge integration
+8. ~~**CRDT collaboration support**~~ ✅ COMPLETED - Types for Yjs/Automerge/Diamond Types integration
 
 ### Low Priority
 
@@ -434,16 +434,18 @@ The CLI has comprehensive integration tests in `cdx-cli/tests/integration.rs`:
 - [x] Print features (bleed, crop marks, spot colors) - PrintSpecification, BleedBox, SpotColor
 - [x] PDF/X compliance metadata - PdfXCompliance, PdfXLevel, OutputIntent
 
-### Phase 6: Collaboration Enhancements
-- [ ] CRDT integration types (Yjs/Automerge compatibility)
+### Phase 6: Collaboration Enhancements ✅ COMPLETED
+- [x] CRDT integration types (CrdtFormat, CrdtMetadata, TextCrdtMetadata, TextCrdtPosition)
+- [x] Sync state management (SyncState, Peer)
+- [x] Revision history tracking (RevisionHistory, Revision)
+- [x] Materialization events (MaterializationEvent, MaterializationReason)
 
 ---
 
 ## 10. NOTES
 
-- **The core implementation is ~98% complete** - all core blocks, marks, extensions, and presentation features done
+- **The core implementation is ~99% complete** - all core blocks, marks, extensions, presentation, and CRDT features done
 - **Remaining work**:
-  - CRDT integration types (Phase 6)
   - WebAuthn/FIDO2 hardware key support
 - **Working well**: All core blocks, marks, Document API, signatures, timestamps, verification, presentation
 
@@ -472,6 +474,10 @@ Based on code review, these are confirmed working:
 - ✅ Master pages/templates
 - ✅ Print specifications (bleed, crop marks, spot colors)
 - ✅ PDF/X compliance metadata
+- ✅ CRDT integration types (Yjs, Automerge, Diamond Types)
+- ✅ Sync state and peer management
+- ✅ Revision history tracking
+- ✅ Materialization events for document export
 
 ---
 
