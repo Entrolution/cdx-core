@@ -128,4 +128,41 @@ pub enum Error {
         /// Description of the unimplemented feature.
         feature: String,
     },
+
+    /// Cannot modify document in immutable state.
+    #[error("cannot {action} in {state:?} state")]
+    ImmutableDocument {
+        /// The action that was attempted.
+        action: String,
+        /// Current document state.
+        state: crate::DocumentState,
+    },
+
+    /// Extension not found or not loaded.
+    #[error("extension not available: {extension}")]
+    ExtensionNotAvailable {
+        /// Name of the missing extension.
+        extension: String,
+    },
+
+    /// Content validation failed.
+    #[error("content validation failed: {reason}")]
+    ValidationFailed {
+        /// Description of the validation failure.
+        reason: String,
+    },
+
+    /// Signature operation failed.
+    #[error("signature error: {reason}")]
+    SignatureError {
+        /// Description of the signature issue.
+        reason: String,
+    },
+
+    /// Encryption operation failed.
+    #[error("encryption error: {reason}")]
+    EncryptionError {
+        /// Description of the encryption issue.
+        reason: String,
+    },
 }

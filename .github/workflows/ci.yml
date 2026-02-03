@@ -137,3 +137,42 @@ jobs:
         with:
           files: cobertura.xml
           fail_ci_if_error: false
+
+  benchmark:
+    name: Benchmark
+    runs-on: [self-hosted, macos]
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Restore baseline
+        uses: actions/cache@v4
+        with:
+          path: target/criterion
+          key: benchmark-baseline-${{ github.base_ref || 'main' }}
+          restore-keys: benchmark-baseline-main
+
+      - name: Run benchmarks
+        run: cargo bench -p cdx-core --bench document -- --save-baseline pr
+
+      - name: Compare benchmarks
+        run: |
+          if [ -d "target/criterion" ] && [ -f "target/criterion/main/estimates.json" ]; then
+            echo "Comparing against baseline..."
+            cargo bench -p cdx-core --bench document -- --baseline main --noplot 2>&1 | tee benchmark_results.txt || true
+          else
+            echo "No baseline found, skipping comparison"
+          fi
+        continue-on-error: true
+
+      - name: Save baseline
+        if: github.ref == 'refs/heads/main'
+        uses: actions/cache@v4
+        with:
+          path: target/criterion
+          key: benchmark-baseline-main
