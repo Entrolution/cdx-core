@@ -34,11 +34,14 @@ timestamps-rfc3161 = ["dep:reqwest", "dep:base64", "dep:const-oid", "dep:rand_co
 # Certificate revocation checking (OCSP/CRL)
 ocsp = ["dep:reqwest", "dep:x509-cert", "dep:der"]
 
+# WebAuthn/FIDO2 signature verification
+webauthn = ["signatures"]
+
 # These are stubs for future implementation
 # timestamps-bitcoin = []               # Bitcoin anchoring
 # timestamps-ethereum = []              # Ethereum anchoring
 
-full = ["zstd", "signatures", "signatures-es384", "signatures-rsa", "encryption", "encryption-chacha", "eddsa", "ml-dsa"]
+full = ["zstd", "signatures", "signatures-es384", "signatures-rsa", "encryption", "encryption-chacha", "eddsa", "ml-dsa", "webauthn"]
 
 [dependencies]
 # Serialization

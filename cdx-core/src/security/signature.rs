@@ -93,6 +93,10 @@ pub struct Signature {
     pub signer: SignerInfo,
 
     /// Base64-encoded signature value.
+    ///
+    /// For standard signatures, this contains the signature bytes.
+    /// For WebAuthn signatures, this may be empty if `webauthn` is present.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
     pub value: String,
 
     /// Optional certificate chain.
@@ -106,6 +110,69 @@ pub struct Signature {
     /// specific layout renditions in addition to the semantic content.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scope: Option<SignatureScope>,
+
+    /// Optional WebAuthn/FIDO2 signature data.
+    ///
+    /// When present, this contains the full WebAuthn assertion data
+    /// instead of using the `value` field. The document ID is used
+    /// as the challenge for WebAuthn verification.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub webauthn: Option<WebAuthnSignature>,
+}
+
+/// WebAuthn/FIDO2 signature data.
+///
+/// Contains the assertion response from a WebAuthn authenticator.
+/// All fields are base64-encoded as per the Codex specification.
+///
+/// # Verification
+///
+/// To verify a WebAuthn signature:
+/// 1. Decode all base64 fields
+/// 2. Parse `client_data_json` and verify the challenge matches the document ID
+/// 3. Verify the authenticator data flags and counter
+/// 4. Verify the signature over authenticator data + SHA-256(client data JSON)
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WebAuthnSignature {
+    /// Base64-encoded credential ID.
+    ///
+    /// Identifies the credential used for signing.
+    pub credential_id: String,
+
+    /// Base64-encoded authenticator data.
+    ///
+    /// Contains the RP ID hash, flags, and signature counter.
+    pub authenticator_data: String,
+
+    /// Base64-encoded client data JSON.
+    ///
+    /// Contains the challenge (document ID), origin, and type.
+    pub client_data_json: String,
+
+    /// Base64-encoded signature.
+    ///
+    /// The cryptographic signature over the authenticator data
+    /// concatenated with the SHA-256 hash of the client data JSON.
+    pub signature: String,
+}
+
+impl WebAuthnSignature {
+    /// Create a new WebAuthn signature.
+    #[must_use]
+    pub fn new(
+        credential_id: impl Into<String>,
+        authenticator_data: impl Into<String>,
+        client_data_json: impl Into<String>,
+        signature: impl Into<String>,
+    ) -> Self {
+        Self {
+            credential_id: credential_id.into(),
+            authenticator_data: authenticator_data.into(),
+            client_data_json: client_data_json.into(),
+            signature: signature.into(),
+        }
+    }
 }
 
 /// Signature scope for scoped signatures.
@@ -210,6 +277,29 @@ impl Signature {
             value: value.into(),
             certificate_chain: None,
             scope: None,
+            webauthn: None,
+        }
+    }
+
+    /// Create a new WebAuthn signature.
+    ///
+    /// WebAuthn signatures use ES256 algorithm and store the full
+    /// assertion data rather than a simple signature value.
+    #[must_use]
+    pub fn new_webauthn(
+        id: impl Into<String>,
+        signer: SignerInfo,
+        webauthn: WebAuthnSignature,
+    ) -> Self {
+        Self {
+            id: id.into(),
+            algorithm: SignatureAlgorithm::ES256,
+            signed_at: Utc::now(),
+            signer,
+            value: String::new(),
+            certificate_chain: None,
+            scope: None,
+            webauthn: Some(webauthn),
         }
     }
 
@@ -224,6 +314,18 @@ impl Signature {
     #[must_use]
     pub fn is_scoped(&self) -> bool {
         self.scope.is_some()
+    }
+
+    /// Check if this is a WebAuthn signature.
+    #[must_use]
+    pub fn is_webauthn(&self) -> bool {
+        self.webauthn.is_some()
+    }
+
+    /// Get the WebAuthn signature data, if present.
+    #[must_use]
+    pub fn webauthn_data(&self) -> Option<&WebAuthnSignature> {
+        self.webauthn.as_ref()
     }
 }
 
