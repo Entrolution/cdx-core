@@ -3,7 +3,8 @@
 //! Run with: cargo bench
 
 use cdx_core::{Document, HashAlgorithm, Hasher};
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
+use std::hint::black_box;
 
 /// Benchmark creating a simple document.
 fn bench_create_simple_document(c: &mut Criterion) {

@@ -1936,7 +1936,7 @@ mod proptests {
         fn heading_level_clamped(level in any::<u8>()) {
             let block = Block::heading(level, vec![Text::plain("Test")]);
             if let Block::Heading { level: actual, .. } = block {
-                prop_assert!(actual >= 1 && actual <= 6);
+                prop_assert!((1..=6).contains(&actual));
             } else {
                 prop_assert!(false, "Expected Heading block");
             }
