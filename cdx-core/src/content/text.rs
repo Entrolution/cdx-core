@@ -393,6 +393,33 @@ impl ExtensionMark {
             "format": format.into()
         }))
     }
+
+    // ===== Collaboration extension marks =====
+
+    /// Create a highlight mark (collaboration extension).
+    ///
+    /// Applies a colored highlight to text for collaborative annotation.
+    /// Default color is yellow if not specified.
+    #[must_use]
+    pub fn highlight(color: impl Into<String>) -> Self {
+        Self::new("collaboration", "highlight").with_attributes(serde_json::json!({
+            "color": color.into()
+        }))
+    }
+
+    /// Create a highlight mark with default yellow color.
+    #[must_use]
+    pub fn highlight_yellow() -> Self {
+        Self::highlight("yellow")
+    }
+
+    /// Create a highlight mark with a specific color.
+    ///
+    /// Convenience method that accepts the `HighlightColor` display string.
+    #[must_use]
+    pub fn highlight_colored(color: impl std::fmt::Display) -> Self {
+        Self::highlight(color.to_string())
+    }
 }
 
 impl Mark {
@@ -857,5 +884,27 @@ mod tests {
             ext.get_string_attribute("format"),
             Some("{variant} {number}")
         );
+    }
+
+    #[test]
+    fn test_highlight_mark_convenience() {
+        let ext = ExtensionMark::highlight("yellow");
+        assert!(ext.is_type("collaboration", "highlight"));
+        assert_eq!(ext.get_string_attribute("color"), Some("yellow"));
+    }
+
+    #[test]
+    fn test_highlight_yellow_convenience() {
+        let ext = ExtensionMark::highlight_yellow();
+        assert!(ext.is_type("collaboration", "highlight"));
+        assert_eq!(ext.get_string_attribute("color"), Some("yellow"));
+    }
+
+    #[test]
+    fn test_highlight_colored_convenience() {
+        // Test with a string that would come from HighlightColor::display()
+        let ext = ExtensionMark::highlight_colored("green");
+        assert!(ext.is_type("collaboration", "highlight"));
+        assert_eq!(ext.get_string_attribute("color"), Some("green"));
     }
 }

@@ -39,11 +39,11 @@ use crate::archive::ENCRYPTION_PATH;
 use crate::archive::SIGNATURES_PATH;
 use crate::archive::{
     CdxReader, CdxWriter, CompressionMethod, ACADEMIC_NUMBERING_PATH, BIBLIOGRAPHY_PATH,
-    COMMENTS_PATH, CONTENT_PATH, DUBLIN_CORE_PATH, FORMS_DATA_PATH, PHANTOMS_PATH,
+    COMMENTS_PATH, CONTENT_PATH, DUBLIN_CORE_PATH, FORMS_DATA_PATH, JSONLD_PATH, PHANTOMS_PATH,
 };
 use crate::content::{Block, Content, Text};
 use crate::extensions::academic::NumberingConfig;
-use crate::extensions::{Bibliography, CommentThread, FormData, PhantomClusters};
+use crate::extensions::{Bibliography, CommentThread, FormData, JsonLdMetadata, PhantomClusters};
 use crate::manifest::Lineage;
 #[cfg(any(feature = "signatures", feature = "encryption"))]
 use crate::manifest::SecurityRef;
@@ -77,6 +77,8 @@ pub struct Document {
     form_data: Option<FormData>,
     /// Semantic extension bibliography.
     bibliography: Option<Bibliography>,
+    /// JSON-LD metadata for semantic web integration.
+    jsonld_metadata: Option<JsonLdMetadata>,
 }
 
 impl Document {
@@ -203,6 +205,14 @@ impl Document {
             None
         };
 
+        // Read JSON-LD metadata if present
+        let jsonld_metadata = if reader.file_exists(JSONLD_PATH)? {
+            let jsonld_data = reader.read_file(JSONLD_PATH)?;
+            Some(serde_json::from_slice(&jsonld_data)?)
+        } else {
+            None
+        };
+
         Ok(Self {
             manifest,
             content,
@@ -216,6 +226,7 @@ impl Document {
             phantom_clusters,
             form_data,
             bibliography,
+            jsonld_metadata,
         })
     }
 
@@ -356,6 +367,12 @@ impl Document {
         if let Some(ref bibliography) = self.bibliography {
             let bib_json = serde_json::to_vec_pretty(bibliography)?;
             cdx_writer.write_file(BIBLIOGRAPHY_PATH, &bib_json, CompressionMethod::Deflate)?;
+        }
+
+        // Write JSON-LD metadata if present
+        if let Some(ref jsonld) = self.jsonld_metadata {
+            let jsonld_json = serde_json::to_vec_pretty(jsonld)?;
+            cdx_writer.write_file(JSONLD_PATH, &jsonld_json, CompressionMethod::Deflate)?;
         }
 
         cdx_writer.finish()?;
@@ -889,6 +906,73 @@ impl Document {
         }
 
         self.bibliography = None;
+        Ok(())
+    }
+
+    /// Get the JSON-LD metadata, if present.
+    #[must_use]
+    pub fn jsonld_metadata(&self) -> Option<&JsonLdMetadata> {
+        self.jsonld_metadata.as_ref()
+    }
+
+    /// Get a mutable reference to the JSON-LD metadata.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the document is in an immutable state.
+    pub fn jsonld_metadata_mut(&mut self) -> Result<Option<&mut JsonLdMetadata>> {
+        if self.manifest.state.is_immutable() {
+            return Err(crate::Error::InvalidManifest {
+                reason: format!(
+                    "Cannot modify JSON-LD metadata in {} state",
+                    self.manifest.state
+                ),
+            });
+        }
+        Ok(self.jsonld_metadata.as_mut())
+    }
+
+    /// Check if the document has JSON-LD metadata.
+    #[must_use]
+    pub fn has_jsonld_metadata(&self) -> bool {
+        self.jsonld_metadata.is_some()
+    }
+
+    /// Set the JSON-LD metadata.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the document is in an immutable state.
+    pub fn set_jsonld_metadata(&mut self, metadata: JsonLdMetadata) -> Result<()> {
+        if self.manifest.state.is_immutable() {
+            return Err(crate::Error::InvalidManifest {
+                reason: format!(
+                    "Cannot set JSON-LD metadata in {} state",
+                    self.manifest.state
+                ),
+            });
+        }
+
+        self.jsonld_metadata = Some(metadata);
+        Ok(())
+    }
+
+    /// Remove the JSON-LD metadata.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the document is in an immutable state.
+    pub fn clear_jsonld_metadata(&mut self) -> Result<()> {
+        if self.manifest.state.is_immutable() {
+            return Err(crate::Error::InvalidManifest {
+                reason: format!(
+                    "Cannot remove JSON-LD metadata in {} state",
+                    self.manifest.state
+                ),
+            });
+        }
+
+        self.jsonld_metadata = None;
         Ok(())
     }
 
@@ -1656,6 +1740,7 @@ impl DocumentBuilder {
             phantom_clusters: None,
             form_data: None,
             bibliography: None,
+            jsonld_metadata: None,
         })
     }
 }
@@ -2043,6 +2128,45 @@ mod tests {
         assert_eq!(loaded_bib.len(), 1);
         assert_eq!(loaded_bib.style, CitationStyle::Apa);
         assert!(loaded_bib.contains("smith2023"));
+    }
+
+    #[test]
+    fn test_jsonld_round_trip() {
+        use crate::extensions::JsonLdMetadata;
+        use serde_json::json;
+
+        let mut doc = Document::builder()
+            .title("JSON-LD Test")
+            .creator("Author")
+            .add_paragraph("Content with structured data")
+            .build()
+            .unwrap();
+
+        // Create JSON-LD metadata
+        let mut jsonld = JsonLdMetadata::new();
+        jsonld.add_node(json!({
+            "@type": "Article",
+            "name": "Test Article",
+            "author": {
+                "@type": "Person",
+                "name": "Test Author"
+            }
+        }));
+
+        // Set JSON-LD metadata
+        doc.set_jsonld_metadata(jsonld).unwrap();
+        assert!(doc.has_jsonld_metadata());
+
+        // Round-trip through bytes
+        let bytes = doc.to_bytes().unwrap();
+        let loaded = Document::from_bytes(bytes).unwrap();
+
+        assert!(loaded.has_jsonld_metadata());
+        let loaded_jsonld = loaded.jsonld_metadata().unwrap();
+        assert_eq!(loaded_jsonld.graph.len(), 1);
+        assert!(loaded_jsonld
+            .context
+            .contains(&"https://schema.org".to_string()));
     }
 
     #[test]

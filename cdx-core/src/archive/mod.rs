@@ -60,6 +60,9 @@ pub const FORMS_DATA_PATH: &str = "forms/data.json";
 /// Path to the bibliography file within the archive.
 pub const BIBLIOGRAPHY_PATH: &str = "semantic/bibliography.json";
 
+/// Path to the JSON-LD metadata file within the archive.
+pub const JSONLD_PATH: &str = "metadata/jsonld.json";
+
 /// ZIP comment for Codex documents.
 pub const ZIP_COMMENT: &str = "Codex Document Format v0.1";
 
