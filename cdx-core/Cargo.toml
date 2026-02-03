@@ -88,6 +88,9 @@ der = { version = "0.7", features = ["std"], optional = true }
 # Time
 chrono = { version = "0.4", features = ["serde", "now"], default-features = false }
 
+# Code generation
+paste = "1.0"
+
 # Error handling
 thiserror = "2.0"
 

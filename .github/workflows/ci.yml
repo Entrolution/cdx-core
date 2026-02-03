@@ -161,6 +161,30 @@ jobs:
       - name: Clippy Swift bridge
         run: cargo clippy --manifest-path cdx-swift-bridge/Cargo.toml -- -D warnings
 
+  security:
+    name: Security Audit
+    runs-on: [self-hosted, macos]
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
+
+      - name: Audit dependencies
+        run: cargo audit
+
+      - name: Install cargo-deny
+        run: cargo install cargo-deny
+
+      - name: Check dependency policies
+        run: cargo deny check
+
   benchmark:
     name: Benchmark
     runs-on: [self-hosted, macos]

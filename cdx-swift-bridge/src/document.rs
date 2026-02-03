@@ -301,42 +301,15 @@ impl CdxDocument {
     ) -> Result<CdxSigningResult, CdxError> {
         #[cfg(feature = "signatures")]
         {
-            use cdx_core::security::{EcdsaSigner, Signer, SignerInfo};
+            use cdx_core::security::EcdsaSigner;
 
             let mut inner = self.inner.write().unwrap();
-
-            let doc_id = inner
-                .document
-                .compute_id()
-                .map_err(|e| CdxError::SigningFailed(e.to_string()))?;
-
-            let mut core_signer_info = SignerInfo::new(&signer_info.name);
-            if let Some(email) = &signer_info.email {
-                core_signer_info = core_signer_info.with_email(email);
-            }
-            if let Some(org) = &signer_info.organization {
-                core_signer_info = core_signer_info.with_organization(org);
-            }
+            let core_signer_info = build_signer_info(&signer_info);
 
             let (signer, public_key_pem) = EcdsaSigner::generate(core_signer_info)
                 .map_err(|e| CdxError::SigningFailed(e.to_string()))?;
 
-            let signature = signer
-                .sign(&doc_id)
-                .map_err(|e| CdxError::SigningFailed(e.to_string()))?;
-
-            inner
-                .document
-                .add_signature(signature.clone())
-                .map_err(|e| CdxError::SigningFailed(e.to_string()))?;
-
-            inner.modified = true;
-
-            Ok(CdxSigningResult {
-                signature_id: signature.id,
-                public_key_pem,
-                signed_at: signature.signed_at.to_rfc3339(),
-            })
+            sign_inner(&mut inner, &signer, public_key_pem)
         }
         #[cfg(not(feature = "signatures"))]
         {
@@ -355,22 +328,10 @@ impl CdxDocument {
     ) -> Result<CdxSigningResult, CdxError> {
         #[cfg(feature = "signatures")]
         {
-            use cdx_core::security::{EcdsaSigner, Signer, SignerInfo};
+            use cdx_core::security::EcdsaSigner;
 
             let mut inner = self.inner.write().unwrap();
-
-            let doc_id = inner
-                .document
-                .compute_id()
-                .map_err(|e| CdxError::SigningFailed(e.to_string()))?;
-
-            let mut core_signer_info = SignerInfo::new(&signer_info.name);
-            if let Some(email) = &signer_info.email {
-                core_signer_info = core_signer_info.with_email(email);
-            }
-            if let Some(org) = &signer_info.organization {
-                core_signer_info = core_signer_info.with_organization(org);
-            }
+            let core_signer_info = build_signer_info(&signer_info);
 
             let signer = EcdsaSigner::from_pem(&private_key_pem, core_signer_info)
                 .map_err(|e| CdxError::SigningFailed(e.to_string()))?;
@@ -379,22 +340,7 @@ impl CdxDocument {
                 .public_key_pem()
                 .map_err(|e| CdxError::SigningFailed(e.to_string()))?;
 
-            let signature = signer
-                .sign(&doc_id)
-                .map_err(|e| CdxError::SigningFailed(e.to_string()))?;
-
-            inner
-                .document
-                .add_signature(signature.clone())
-                .map_err(|e| CdxError::SigningFailed(e.to_string()))?;
-
-            inner.modified = true;
-
-            Ok(CdxSigningResult {
-                signature_id: signature.id,
-                public_key_pem,
-                signed_at: signature.signed_at.to_rfc3339(),
-            })
+            sign_inner(&mut inner, &signer, public_key_pem)
         }
         #[cfg(not(feature = "signatures"))]
         {
@@ -564,6 +510,49 @@ impl CdxDocument {
             ))
         }
     }
+}
+
+// Helper functions for signing
+
+#[cfg(feature = "signatures")]
+fn build_signer_info(request: &CdxSigningRequest) -> cdx_core::security::SignerInfo {
+    let mut info = cdx_core::security::SignerInfo::new(&request.name);
+    if let Some(email) = &request.email {
+        info = info.with_email(email);
+    }
+    if let Some(org) = &request.organization {
+        info = info.with_organization(org);
+    }
+    info
+}
+
+#[cfg(feature = "signatures")]
+fn sign_inner(
+    inner: &mut DocumentInner,
+    signer: &dyn cdx_core::security::Signer,
+    public_key_pem: String,
+) -> Result<CdxSigningResult, CdxError> {
+    let doc_id = inner
+        .document
+        .compute_id()
+        .map_err(|e| CdxError::SigningFailed(e.to_string()))?;
+
+    let signature = signer
+        .sign(&doc_id)
+        .map_err(|e| CdxError::SigningFailed(e.to_string()))?;
+
+    inner
+        .document
+        .add_signature(signature.clone())
+        .map_err(|e| CdxError::SigningFailed(e.to_string()))?;
+
+    inner.modified = true;
+
+    Ok(CdxSigningResult {
+        signature_id: signature.id,
+        public_key_pem,
+        signed_at: signature.signed_at.to_rfc3339(),
+    })
 }
 
 // Helper functions for converting Swift types back to core types
