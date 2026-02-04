@@ -166,3 +166,198 @@ pub enum Error {
         reason: String,
     },
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    #[test]
+    fn display_invalid_archive() {
+        let err = Error::InvalidArchive(zip::result::ZipError::FileNotFound);
+        assert!(err.to_string().contains("invalid ZIP archive"));
+    }
+
+    #[test]
+    fn display_json() {
+        let json_err = serde_json::from_str::<serde_json::Value>("not json").unwrap_err();
+        let err = Error::Json(json_err);
+        assert!(err.to_string().starts_with("JSON error:"));
+    }
+
+    #[test]
+    fn display_io() {
+        let io_err = std::io::Error::new(std::io::ErrorKind::NotFound, "gone");
+        let err = Error::Io(io_err);
+        assert!(err.to_string().starts_with("I/O error:"));
+    }
+
+    #[test]
+    fn display_missing_file() {
+        let err = Error::MissingFile {
+            path: "manifest.json".to_string(),
+        };
+        assert_eq!(err.to_string(), "missing required file: manifest.json");
+    }
+
+    #[test]
+    fn display_invalid_manifest() {
+        let err = Error::InvalidManifest {
+            reason: "bad version".to_string(),
+        };
+        assert_eq!(err.to_string(), "invalid manifest: bad version");
+    }
+
+    #[test]
+    fn display_unsupported_version() {
+        let err = Error::UnsupportedVersion {
+            version: "99.0".to_string(),
+        };
+        assert_eq!(err.to_string(), "unsupported Codex version: 99.0");
+    }
+
+    #[test]
+    fn display_hash_mismatch() {
+        let err = Error::HashMismatch {
+            path: "content.json".to_string(),
+            expected: "abc".to_string(),
+            actual: "def".to_string(),
+        };
+        assert_eq!(
+            err.to_string(),
+            "hash mismatch for content.json: expected abc, got def"
+        );
+    }
+
+    #[test]
+    fn display_document_id_mismatch() {
+        let err = Error::DocumentIdMismatch {
+            expected: "id1".to_string(),
+            actual: "id2".to_string(),
+        };
+        assert_eq!(
+            err.to_string(),
+            "document ID mismatch: expected id1, got id2"
+        );
+    }
+
+    #[test]
+    fn display_invalid_state_transition() {
+        let err = Error::InvalidStateTransition {
+            from: crate::DocumentState::Draft,
+            to: crate::DocumentState::Frozen,
+        };
+        assert!(err.to_string().contains("invalid state transition"));
+        assert!(err.to_string().contains("Draft"));
+        assert!(err.to_string().contains("Frozen"));
+    }
+
+    #[test]
+    fn display_state_requirement_not_met() {
+        let err = Error::StateRequirementNotMet {
+            state: crate::DocumentState::Frozen,
+            requirement: "at least one signature".to_string(),
+        };
+        assert!(err.to_string().contains("Frozen"));
+        assert!(err.to_string().contains("at least one signature"));
+    }
+
+    #[test]
+    fn display_path_traversal() {
+        let err = Error::PathTraversal {
+            path: "../etc/passwd".to_string(),
+        };
+        assert_eq!(err.to_string(), "path traversal detected: ../etc/passwd");
+    }
+
+    #[test]
+    fn display_unsupported_hash_algorithm() {
+        let err = Error::UnsupportedHashAlgorithm {
+            algorithm: "md5".to_string(),
+        };
+        assert_eq!(err.to_string(), "unsupported hash algorithm: md5");
+    }
+
+    #[test]
+    fn display_invalid_hash_format() {
+        let err = Error::InvalidHashFormat {
+            value: "not-a-hash".to_string(),
+        };
+        assert_eq!(err.to_string(), "invalid hash format: not-a-hash");
+    }
+
+    #[test]
+    fn display_file_not_found() {
+        let err = Error::FileNotFound {
+            path: PathBuf::from("/tmp/missing.cdx"),
+        };
+        assert!(err.to_string().contains("file not found"));
+        assert!(err.to_string().contains("missing.cdx"));
+    }
+
+    #[test]
+    fn display_invalid_certificate() {
+        let err = Error::InvalidCertificate {
+            reason: "expired".to_string(),
+        };
+        assert_eq!(err.to_string(), "invalid certificate: expired");
+    }
+
+    #[test]
+    fn display_network() {
+        let err = Error::Network {
+            message: "timeout".to_string(),
+        };
+        assert_eq!(err.to_string(), "network error: timeout");
+    }
+
+    #[test]
+    fn display_not_implemented() {
+        let err = Error::NotImplemented {
+            feature: "blockchain anchoring".to_string(),
+        };
+        assert_eq!(err.to_string(), "not implemented: blockchain anchoring");
+    }
+
+    #[test]
+    fn display_immutable_document() {
+        let err = Error::ImmutableDocument {
+            action: "modify content".to_string(),
+            state: crate::DocumentState::Frozen,
+        };
+        assert!(err.to_string().contains("cannot modify content"));
+        assert!(err.to_string().contains("Frozen"));
+    }
+
+    #[test]
+    fn display_extension_not_available() {
+        let err = Error::ExtensionNotAvailable {
+            extension: "forms".to_string(),
+        };
+        assert_eq!(err.to_string(), "extension not available: forms");
+    }
+
+    #[test]
+    fn display_validation_failed() {
+        let err = Error::ValidationFailed {
+            reason: "empty content".to_string(),
+        };
+        assert_eq!(err.to_string(), "content validation failed: empty content");
+    }
+
+    #[test]
+    fn display_signature_error() {
+        let err = Error::SignatureError {
+            reason: "invalid key".to_string(),
+        };
+        assert_eq!(err.to_string(), "signature error: invalid key");
+    }
+
+    #[test]
+    fn display_encryption_error() {
+        let err = Error::EncryptionError {
+            reason: "wrong password".to_string(),
+        };
+        assert_eq!(err.to_string(), "encryption error: wrong password");
+    }
+}
