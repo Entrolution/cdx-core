@@ -92,7 +92,7 @@ chrono = { version = "0.4", features = ["serde", "now"], default-features = fals
 thiserror = "2.0"
 
 # Random for WASM
-getrandom = "0.3"
+getrandom = "0.4"
 
 [dev-dependencies]
 tempfile = "3.14"
