@@ -187,7 +187,7 @@ impl Theorem {
 }
 
 /// Variant of theorem-like statement.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, strum::Display)]
 #[serde(rename_all = "lowercase")]
 pub enum TheoremVariant {
     /// Main theorem.
@@ -214,25 +214,6 @@ pub enum TheoremVariant {
     Fact,
     /// Assumption.
     Assumption,
-}
-
-impl std::fmt::Display for TheoremVariant {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Theorem => write!(f, "Theorem"),
-            Self::Lemma => write!(f, "Lemma"),
-            Self::Proposition => write!(f, "Proposition"),
-            Self::Corollary => write!(f, "Corollary"),
-            Self::Definition => write!(f, "Definition"),
-            Self::Conjecture => write!(f, "Conjecture"),
-            Self::Remark => write!(f, "Remark"),
-            Self::Example => write!(f, "Example"),
-            Self::Axiom => write!(f, "Axiom"),
-            Self::Claim => write!(f, "Claim"),
-            Self::Fact => write!(f, "Fact"),
-            Self::Assumption => write!(f, "Assumption"),
-        }
-    }
 }
 
 // ============================================================================

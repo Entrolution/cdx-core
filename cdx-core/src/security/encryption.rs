@@ -8,13 +8,15 @@ use serde::{Deserialize, Serialize};
 use crate::Result;
 
 /// Encryption algorithm enumeration.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, strum::Display)]
 pub enum EncryptionAlgorithm {
     /// AES-256-GCM (required).
     #[serde(rename = "AES-256-GCM")]
+    #[strum(serialize = "AES-256-GCM")]
     Aes256Gcm,
     /// ChaCha20-Poly1305 (optional).
     #[serde(rename = "ChaCha20-Poly1305")]
+    #[strum(serialize = "ChaCha20-Poly1305")]
     ChaCha20Poly1305,
 }
 
@@ -44,12 +46,6 @@ impl EncryptionAlgorithm {
             // Both algorithms use 96-bit nonces
             Self::Aes256Gcm | Self::ChaCha20Poly1305 => 12,
         }
-    }
-}
-
-impl std::fmt::Display for EncryptionAlgorithm {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.as_str())
     }
 }
 

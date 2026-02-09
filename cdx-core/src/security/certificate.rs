@@ -195,8 +195,9 @@ impl CertificateInfo {
 }
 
 /// Key usage flags for X.509 certificates.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, strum::Display)]
 #[serde(rename_all = "camelCase")]
+#[strum(serialize_all = "camelCase")]
 pub enum KeyUsage {
     /// Digital signature.
     DigitalSignature,
@@ -211,27 +212,12 @@ pub enum KeyUsage {
     /// Key certificate signing.
     KeyCertSign,
     /// CRL signing.
+    #[strum(serialize = "cRLSign")]
     CrlSign,
     /// Encipher only (with key agreement).
     EncipherOnly,
     /// Decipher only (with key agreement).
     DecipherOnly,
-}
-
-impl std::fmt::Display for KeyUsage {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::DigitalSignature => write!(f, "digitalSignature"),
-            Self::NonRepudiation => write!(f, "nonRepudiation"),
-            Self::KeyEncipherment => write!(f, "keyEncipherment"),
-            Self::DataEncipherment => write!(f, "dataEncipherment"),
-            Self::KeyAgreement => write!(f, "keyAgreement"),
-            Self::KeyCertSign => write!(f, "keyCertSign"),
-            Self::CrlSign => write!(f, "cRLSign"),
-            Self::EncipherOnly => write!(f, "encipherOnly"),
-            Self::DecipherOnly => write!(f, "decipherOnly"),
-        }
-    }
 }
 
 /// Common extended key usage OIDs.

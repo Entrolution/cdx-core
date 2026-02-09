@@ -248,25 +248,18 @@ impl std::fmt::Display for EthereumNetwork {
 }
 
 /// Method used to anchor the timestamp on Ethereum.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, strum::Display)]
 #[serde(rename_all = "camelCase")]
 pub enum EthereumTimestampMethod {
     /// Hash stored in transaction input data.
+    #[strum(serialize = "Transaction Data")]
     TransactionData,
     /// Hash emitted via smart contract event.
+    #[strum(serialize = "Smart Contract Event")]
     SmartContract,
     /// Hash stored in contract storage.
+    #[strum(serialize = "Contract Storage")]
     ContractStorage,
-}
-
-impl std::fmt::Display for EthereumTimestampMethod {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::TransactionData => write!(f, "Transaction Data"),
-            Self::SmartContract => write!(f, "Smart Contract Event"),
-            Self::ContractStorage => write!(f, "Contract Storage"),
-        }
-    }
 }
 
 /// Result of Ethereum timestamp verification.

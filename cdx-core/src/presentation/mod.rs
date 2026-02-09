@@ -46,7 +46,8 @@ pub use style::{
 };
 
 /// Presentation type identifier.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, strum::Display)]
+#[strum(serialize_all = "lowercase")]
 pub enum PresentationType {
     /// Fixed pages for print/PDF (reactive).
     Paginated,
@@ -84,8 +85,3 @@ impl PresentationType {
     }
 }
 
-impl std::fmt::Display for PresentationType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.as_str())
-    }
-}

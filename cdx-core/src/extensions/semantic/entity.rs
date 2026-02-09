@@ -79,8 +79,9 @@ impl EntityLink {
 }
 
 /// Type of entity being linked.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, strum::Display)]
 #[serde(rename_all = "camelCase")]
+#[strum(serialize_all = "kebab-case")]
 pub enum EntityType {
     /// A person.
     Person,
@@ -102,23 +103,6 @@ pub enum EntityType {
     TimePeriod,
     /// Other entity type.
     Other,
-}
-
-impl std::fmt::Display for EntityType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Person => write!(f, "person"),
-            Self::Organization => write!(f, "organization"),
-            Self::Place => write!(f, "place"),
-            Self::Event => write!(f, "event"),
-            Self::Product => write!(f, "product"),
-            Self::CreativeWork => write!(f, "creative-work"),
-            Self::Concept => write!(f, "concept"),
-            Self::Scientific => write!(f, "scientific"),
-            Self::TimePeriod => write!(f, "time-period"),
-            Self::Other => write!(f, "other"),
-        }
-    }
 }
 
 /// Known knowledge bases for entity linking.

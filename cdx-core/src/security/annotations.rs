@@ -201,8 +201,9 @@ impl Annotation {
 }
 
 /// Annotation type for core annotations.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, strum::Display)]
 #[serde(rename_all = "lowercase")]
+#[strum(serialize_all = "lowercase")]
 pub enum AnnotationType {
     /// General comment on content.
     Comment,
@@ -224,12 +225,6 @@ impl AnnotationType {
             Self::Note => "note",
             Self::Reaction => "reaction",
         }
-    }
-}
-
-impl std::fmt::Display for AnnotationType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.as_str())
     }
 }
 

@@ -192,8 +192,9 @@ impl MaterializationEvent {
 }
 
 /// Reason for materializing CRDT state.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, strum::Display)]
 #[serde(rename_all = "kebab-case")]
+#[strum(serialize_all = "kebab-case")]
 pub enum MaterializationReason {
     /// Exchanging between tools using different CRDT formats.
     CrossToolExchange,
@@ -203,15 +204,4 @@ pub enum MaterializationReason {
     Archive,
     /// Manual user request.
     UserRequest,
-}
-
-impl std::fmt::Display for MaterializationReason {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::CrossToolExchange => write!(f, "cross-tool-exchange"),
-            Self::Export => write!(f, "export"),
-            Self::Archive => write!(f, "archive"),
-            Self::UserRequest => write!(f, "user-request"),
-        }
-    }
 }

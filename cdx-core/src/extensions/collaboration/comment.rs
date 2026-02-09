@@ -284,8 +284,9 @@ pub enum CommentType {
 }
 
 /// Highlight color.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, strum::Display)]
 #[serde(rename_all = "lowercase")]
+#[strum(serialize_all = "lowercase")]
 pub enum HighlightColor {
     /// Yellow highlight.
     #[default]
@@ -304,23 +305,10 @@ pub enum HighlightColor {
     Red,
 }
 
-impl std::fmt::Display for HighlightColor {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Yellow => write!(f, "yellow"),
-            Self::Green => write!(f, "green"),
-            Self::Blue => write!(f, "blue"),
-            Self::Pink => write!(f, "pink"),
-            Self::Orange => write!(f, "orange"),
-            Self::Purple => write!(f, "purple"),
-            Self::Red => write!(f, "red"),
-        }
-    }
-}
-
 /// Status of a suggestion.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, strum::Display)]
 #[serde(rename_all = "lowercase")]
+#[strum(serialize_all = "lowercase")]
 pub enum SuggestionStatus {
     /// Suggestion is pending review.
     #[default]
@@ -331,19 +319,10 @@ pub enum SuggestionStatus {
     Rejected,
 }
 
-impl std::fmt::Display for SuggestionStatus {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Pending => write!(f, "pending"),
-            Self::Accepted => write!(f, "accepted"),
-            Self::Rejected => write!(f, "rejected"),
-        }
-    }
-}
-
 /// Priority level for comments.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, strum::Display)]
 #[serde(rename_all = "lowercase")]
+#[strum(serialize_all = "lowercase")]
 pub enum Priority {
     /// Low priority.
     Low,
@@ -353,17 +332,6 @@ pub enum Priority {
     High,
     /// Critical priority.
     Critical,
-}
-
-impl std::fmt::Display for Priority {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Low => write!(f, "low"),
-            Self::Normal => write!(f, "normal"),
-            Self::High => write!(f, "high"),
-            Self::Critical => write!(f, "critical"),
-        }
-    }
 }
 
 /// A text range within a block.

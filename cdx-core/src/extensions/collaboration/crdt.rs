@@ -11,8 +11,9 @@ use serde::{Deserialize, Serialize};
 /// Specifies which CRDT library/format is used for real-time collaboration.
 /// Documents using CRDT-based collaboration MUST declare the format to enable
 /// correct interpretation of CRDT state.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, strum::Display)]
 #[serde(rename_all = "kebab-case")]
+#[strum(serialize_all = "kebab-case")]
 pub enum CrdtFormat {
     /// [Yjs](https://yjs.dev/) CRDT library.
     Yjs,
@@ -20,16 +21,6 @@ pub enum CrdtFormat {
     Automerge,
     /// [Diamond Types](https://github.com/josephg/diamond-types) text CRDT.
     DiamondTypes,
-}
-
-impl std::fmt::Display for CrdtFormat {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Yjs => write!(f, "yjs"),
-            Self::Automerge => write!(f, "automerge"),
-            Self::DiamondTypes => write!(f, "diamond-types"),
-        }
-    }
 }
 
 /// CRDT metadata for a content block.

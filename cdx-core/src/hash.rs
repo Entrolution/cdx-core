@@ -13,32 +13,38 @@ use std::str::FromStr;
 use crate::{Error, Result};
 
 /// Hash algorithm identifier.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default, strum::Display)]
 #[serde(rename_all = "lowercase")]
 pub enum HashAlgorithm {
     /// SHA-256 (default, required).
     #[default]
     #[serde(rename = "sha256")]
+    #[strum(serialize = "sha256")]
     Sha256,
 
     /// SHA-384 (optional).
     #[serde(rename = "sha384")]
+    #[strum(serialize = "sha384")]
     Sha384,
 
     /// SHA-512 (optional).
     #[serde(rename = "sha512")]
+    #[strum(serialize = "sha512")]
     Sha512,
 
     /// SHA3-256 (optional).
     #[serde(rename = "sha3-256")]
+    #[strum(serialize = "sha3-256")]
     Sha3_256,
 
     /// SHA3-512 (optional).
     #[serde(rename = "sha3-512")]
+    #[strum(serialize = "sha3-512")]
     Sha3_512,
 
     /// BLAKE3 (optional).
     #[serde(rename = "blake3")]
+    #[strum(serialize = "blake3")]
     Blake3,
 }
 
@@ -64,12 +70,6 @@ impl HashAlgorithm {
             Self::Sha384 => 48,
             Self::Sha512 | Self::Sha3_512 => 64,
         }
-    }
-}
-
-impl fmt::Display for HashAlgorithm {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.as_str())
     }
 }
 
