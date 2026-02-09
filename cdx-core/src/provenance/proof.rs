@@ -165,4 +165,107 @@ mod tests {
             assert!(proof.verify(&block_hash), "Proof failed for block {i}");
         }
     }
+
+    #[test]
+    fn test_proof_verification_detailed_failure() {
+        let items = vec!["a", "b", "c", "d"];
+        let tree = MerkleTree::from_items(&items, HashAlgorithm::Sha256).unwrap();
+
+        let proof = tree.prove(2).unwrap();
+        let wrong_hash = Hasher::hash(HashAlgorithm::Sha256, b"wrong");
+
+        let result = proof.verify_detailed(&wrong_hash);
+        assert!(!result.is_valid());
+        assert!(!result.valid);
+        assert_eq!(result.index, 2);
+        assert!(result.error.is_some());
+        assert!(result.error.unwrap().contains("does not match"));
+    }
+
+    #[test]
+    fn test_block_proof_fields() {
+        let items = vec!["x", "y", "z"];
+        let tree = MerkleTree::from_items(&items, HashAlgorithm::Sha256).unwrap();
+
+        let proof = tree.prove(1).unwrap();
+
+        assert_eq!(proof.index, 1);
+        assert_eq!(proof.algorithm, HashAlgorithm::Sha256);
+        assert_eq!(proof.root_hash, *tree.root_hash());
+        assert!(!proof.path.is_empty());
+    }
+
+    #[test]
+    fn test_single_item_proof() {
+        let items = vec!["only"];
+        let tree = MerkleTree::from_items(&items, HashAlgorithm::Sha256).unwrap();
+
+        let proof = tree.prove(0).unwrap();
+        let block_hash = Hasher::hash(HashAlgorithm::Sha256, b"only");
+
+        // Single item tree should verify
+        assert!(proof.verify(&block_hash));
+    }
+
+    #[test]
+    fn test_proof_verification_struct() {
+        let verification = ProofVerification {
+            valid: true,
+            index: 5,
+            root_hash: Hasher::hash(HashAlgorithm::Sha256, b"root"),
+            error: None,
+        };
+
+        assert!(verification.is_valid());
+        assert_eq!(verification.index, 5);
+        assert!(verification.error.is_none());
+    }
+
+    #[test]
+    fn test_proof_path_direction() {
+        // Create a simple 4-item tree
+        let items = vec!["a", "b", "c", "d"];
+        let tree = MerkleTree::from_items(&items, HashAlgorithm::Sha256).unwrap();
+
+        // Proof for index 0 (leftmost)
+        let proof0 = tree.prove(0).unwrap();
+        // Proof for index 3 (rightmost)
+        let proof3 = tree.prove(3).unwrap();
+
+        // Both proofs should have same depth
+        assert_eq!(proof0.path.len(), proof3.path.len());
+
+        // Verify both work
+        let hash0 = Hasher::hash(HashAlgorithm::Sha256, b"a");
+        let hash3 = Hasher::hash(HashAlgorithm::Sha256, b"d");
+        assert!(proof0.verify(&hash0));
+        assert!(proof3.verify(&hash3));
+    }
+
+    #[test]
+    fn test_proof_power_of_two_tree() {
+        // Power-of-two trees work with standard proof generation
+        let items: Vec<&str> = vec!["a", "b", "c", "d"];
+        let tree = MerkleTree::from_items(&items, HashAlgorithm::Sha256).unwrap();
+
+        // All items should be verifiable
+        for (i, item) in items.iter().enumerate() {
+            let proof = tree.prove(i).unwrap();
+            let hash = Hasher::hash(HashAlgorithm::Sha256, item.as_bytes());
+            assert!(proof.verify(&hash), "Failed for index {i}");
+        }
+    }
+
+    #[test]
+    fn test_proof_sixteen_items() {
+        // Larger power-of-two tree
+        let items: Vec<String> = (0..16).map(|i| format!("item{i}")).collect();
+        let tree = MerkleTree::from_items(&items, HashAlgorithm::Sha256).unwrap();
+
+        for (i, item) in items.iter().enumerate() {
+            let proof = tree.prove(i).unwrap();
+            let hash = Hasher::hash(HashAlgorithm::Sha256, item.as_bytes());
+            assert!(proof.verify(&hash), "Failed for index {i}");
+        }
+    }
 }

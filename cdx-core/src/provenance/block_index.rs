@@ -223,4 +223,94 @@ mod tests {
 
         assert_ne!(index1.root, index2.root);
     }
+
+    #[test]
+    fn test_block_index_version() {
+        assert_eq!(BlockIndex::VERSION, "0.1");
+    }
+
+    #[test]
+    fn test_block_index_merkle_root() {
+        let content = create_test_content();
+        let index = BlockIndex::from_content(&content, HashAlgorithm::Sha256).unwrap();
+
+        let root = index.merkle_root();
+        assert!(!root.is_pending());
+        assert_eq!(root, &index.root);
+    }
+
+    #[test]
+    fn test_block_index_block_count() {
+        let content = create_test_content();
+        let index = BlockIndex::from_content(&content, HashAlgorithm::Sha256).unwrap();
+
+        assert_eq!(index.block_count(), 3);
+        assert_eq!(index.block_count(), index.blocks.len());
+    }
+
+    #[test]
+    fn test_block_index_find_block_not_found() {
+        let content = create_test_content();
+        let index = BlockIndex::from_content(&content, HashAlgorithm::Sha256).unwrap();
+
+        assert!(index.find_block("nonexistent").is_none());
+    }
+
+    #[test]
+    fn test_block_index_get_block_out_of_bounds() {
+        let content = create_test_content();
+        let index = BlockIndex::from_content(&content, HashAlgorithm::Sha256).unwrap();
+
+        assert!(index.get_block(100).is_none());
+    }
+
+    #[test]
+    fn test_block_index_hashes() {
+        let content = create_test_content();
+        let index = BlockIndex::from_content(&content, HashAlgorithm::Sha256).unwrap();
+
+        let hashes = index.hashes();
+        assert_eq!(hashes.len(), 3);
+        for hash in hashes {
+            assert!(!hash.is_pending());
+        }
+    }
+
+    #[test]
+    fn test_block_index_different_algorithms() {
+        let content = create_test_content();
+        let index_sha256 = BlockIndex::from_content(&content, HashAlgorithm::Sha256).unwrap();
+        let index_sha384 = BlockIndex::from_content(&content, HashAlgorithm::Sha384).unwrap();
+
+        assert_eq!(index_sha256.algorithm, HashAlgorithm::Sha256);
+        assert_eq!(index_sha384.algorithm, HashAlgorithm::Sha384);
+        assert_ne!(index_sha256.root, index_sha384.root);
+    }
+
+    #[test]
+    fn test_block_hash_entry_fields() {
+        let content = create_test_content();
+        let index = BlockIndex::from_content(&content, HashAlgorithm::Sha256).unwrap();
+
+        let entry = index.get_block(0).unwrap();
+        assert_eq!(entry.index, 0);
+        assert!(!entry.id.is_empty());
+        assert!(!entry.hash.is_pending());
+    }
+
+    #[test]
+    fn test_block_index_single_block() {
+        let content = Content::new(vec![Block::paragraph(vec![Text::plain("Only one")])]);
+        let index = BlockIndex::from_content(&content, HashAlgorithm::Sha256).unwrap();
+
+        assert_eq!(index.block_count(), 1);
+        assert!(!index.root.is_pending());
+    }
+
+    #[test]
+    fn test_block_index_from_json_invalid() {
+        let invalid_json = "{ invalid }";
+        let result = BlockIndex::from_json(invalid_json);
+        assert!(result.is_err());
+    }
 }
