@@ -25,9 +25,11 @@
 //! ```
 
 mod reader;
+mod storage;
 mod writer;
 
 pub use reader::CdxReader;
+pub use storage::{ArchiveStorage, MemoryStorage};
 pub use writer::{CdxWriter, CompressionMethod};
 
 /// Path to the manifest file within the archive.

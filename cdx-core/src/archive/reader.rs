@@ -311,7 +311,7 @@ mod tests {
     use super::*;
     use crate::archive::CdxWriter;
     use crate::{ContentRef, DocumentId, Metadata};
-    use std::io::Cursor;
+    use std::io::{Cursor, Write};
 
     fn create_test_archive() -> Vec<u8> {
         let buffer = Cursor::new(Vec::new());
@@ -398,5 +398,297 @@ mod tests {
         let mut reader = CdxReader::from_bytes(data).unwrap();
         let result = reader.read_file("nonexistent.json");
         assert!(matches!(result, Err(Error::MissingFile { .. })));
+    }
+
+    #[test]
+    fn test_open_corrupted_zip() {
+        // Random bytes that aren't a valid ZIP
+        let corrupted = vec![0x50, 0x4B, 0x03, 0x04, 0xFF, 0xFF, 0xFF, 0xFF];
+        let result = CdxReader::from_bytes(corrupted);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_open_not_a_zip() {
+        // Plain text, not a ZIP file
+        let not_zip = b"This is not a ZIP file at all".to_vec();
+        let result = CdxReader::from_bytes(not_zip);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_open_empty_zip() {
+        // Create an empty ZIP (no files)
+        let buffer = Cursor::new(Vec::new());
+        let writer = zip::ZipWriter::new(buffer);
+        let empty_zip = writer.finish().unwrap().into_inner();
+
+        let result = CdxReader::from_bytes(empty_zip);
+        assert!(matches!(result, Err(Error::MissingFile { .. })));
+    }
+
+    #[test]
+    fn test_open_missing_manifest() {
+        // Create a ZIP without manifest.json
+        let buffer = Cursor::new(Vec::new());
+        let mut writer = zip::ZipWriter::new(buffer);
+        writer
+            .start_file::<&str, ()>(CONTENT_PATH, Default::default())
+            .unwrap();
+        writer.write_all(b"{}").unwrap();
+        writer
+            .start_file::<&str, ()>(DUBLIN_CORE_PATH, Default::default())
+            .unwrap();
+        writer.write_all(b"{}").unwrap();
+        let data = writer.finish().unwrap().into_inner();
+
+        let result = CdxReader::from_bytes(data);
+        assert!(matches!(result, Err(Error::MissingFile { path }) if path == MANIFEST_PATH));
+    }
+
+    #[test]
+    fn test_open_missing_content() {
+        // Create a ZIP with manifest but no content file
+        let buffer = Cursor::new(Vec::new());
+        let mut writer = zip::ZipWriter::new(buffer);
+
+        // Add manifest
+        writer
+            .start_file::<&str, ()>(MANIFEST_PATH, Default::default())
+            .unwrap();
+        writer
+            .write_all(br#"{"codex":"0.1"}"#)
+            .unwrap();
+
+        // Add Dublin Core but no content
+        writer
+            .start_file::<&str, ()>(DUBLIN_CORE_PATH, Default::default())
+            .unwrap();
+        writer.write_all(b"{}").unwrap();
+
+        let data = writer.finish().unwrap().into_inner();
+
+        let result = CdxReader::from_bytes(data);
+        assert!(matches!(result, Err(Error::MissingFile { path }) if path == CONTENT_PATH));
+    }
+
+    #[test]
+    fn test_open_invalid_manifest_json() {
+        // Create a ZIP with invalid JSON in manifest
+        let buffer = Cursor::new(Vec::new());
+        let mut writer = zip::ZipWriter::new(buffer);
+
+        writer
+            .start_file::<&str, ()>(MANIFEST_PATH, Default::default())
+            .unwrap();
+        writer.write_all(b"{ invalid json }").unwrap();
+
+        writer
+            .start_file::<&str, ()>(CONTENT_PATH, Default::default())
+            .unwrap();
+        writer.write_all(b"{}").unwrap();
+
+        writer
+            .start_file::<&str, ()>(DUBLIN_CORE_PATH, Default::default())
+            .unwrap();
+        writer.write_all(b"{}").unwrap();
+
+        let data = writer.finish().unwrap().into_inner();
+
+        let result = CdxReader::from_bytes(data);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_read_file_hash_mismatch() {
+        let buffer = Cursor::new(Vec::new());
+        let mut writer = CdxWriter::new(buffer).unwrap();
+
+        // Create manifest with a specific hash
+        let expected_hash: DocumentId =
+            "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+                .parse()
+                .unwrap();
+        let content = ContentRef {
+            path: CONTENT_PATH.to_string(),
+            hash: expected_hash.clone(),
+            compression: None,
+            merkle_root: None,
+            block_count: None,
+        };
+        let metadata = Metadata {
+            dublin_core: DUBLIN_CORE_PATH.to_string(),
+            custom: None,
+        };
+        let manifest = Manifest::new(content, metadata);
+
+        writer.write_manifest(&manifest).unwrap();
+        // Write content that doesn't match the hash
+        writer
+            .write_file(
+                CONTENT_PATH,
+                br#"{"version":"0.1","blocks":[]}"#,
+                super::super::writer::CompressionMethod::Deflate,
+            )
+            .unwrap();
+        writer
+            .write_file(
+                DUBLIN_CORE_PATH,
+                br#"{"title":"Test"}"#,
+                super::super::writer::CompressionMethod::Deflate,
+            )
+            .unwrap();
+
+        let data = writer.finish().unwrap().into_inner();
+        let mut reader = CdxReader::from_bytes(data).unwrap();
+
+        let result = reader.read_file_verified(CONTENT_PATH, &expected_hash);
+        assert!(matches!(result, Err(Error::HashMismatch { .. })));
+    }
+
+    #[test]
+    fn test_verify_hashes_with_mismatch() {
+        let buffer = Cursor::new(Vec::new());
+        let mut writer = CdxWriter::new(buffer).unwrap();
+
+        // Create manifest with a wrong hash
+        let wrong_hash: DocumentId =
+            "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+                .parse()
+                .unwrap();
+        let content = ContentRef {
+            path: CONTENT_PATH.to_string(),
+            hash: wrong_hash,
+            compression: None,
+            merkle_root: None,
+            block_count: None,
+        };
+        let metadata = Metadata {
+            dublin_core: DUBLIN_CORE_PATH.to_string(),
+            custom: None,
+        };
+        let manifest = Manifest::new(content, metadata);
+
+        writer.write_manifest(&manifest).unwrap();
+        writer
+            .write_file(
+                CONTENT_PATH,
+                br#"{"version":"0.1","blocks":[]}"#,
+                super::super::writer::CompressionMethod::Deflate,
+            )
+            .unwrap();
+        writer
+            .write_file(
+                DUBLIN_CORE_PATH,
+                br#"{"title":"Test"}"#,
+                super::super::writer::CompressionMethod::Deflate,
+            )
+            .unwrap();
+
+        let data = writer.finish().unwrap().into_inner();
+        let mut reader = CdxReader::from_bytes(data).unwrap();
+
+        let result = reader.verify_hashes();
+        assert!(matches!(result, Err(Error::HashMismatch { .. })));
+    }
+
+    #[test]
+    fn test_read_file_verified_with_pending_hash() {
+        let data = create_test_archive();
+        let mut reader = CdxReader::from_bytes(data).unwrap();
+
+        // Pending hashes should skip verification
+        let pending = DocumentId::pending();
+        let result = reader.read_file_verified(CONTENT_PATH, &pending);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_unicode_filenames() {
+        let buffer = Cursor::new(Vec::new());
+        let mut writer = CdxWriter::new(buffer).unwrap();
+
+        let content = ContentRef {
+            path: CONTENT_PATH.to_string(),
+            hash: DocumentId::pending(),
+            compression: None,
+            merkle_root: None,
+            block_count: None,
+        };
+        let metadata = Metadata {
+            dublin_core: DUBLIN_CORE_PATH.to_string(),
+            custom: None,
+        };
+        let manifest = Manifest::new(content, metadata);
+
+        writer.write_manifest(&manifest).unwrap();
+        writer
+            .write_file(
+                CONTENT_PATH,
+                br#"{"version":"0.1","blocks":[]}"#,
+                super::super::writer::CompressionMethod::Deflate,
+            )
+            .unwrap();
+        writer
+            .write_file(
+                DUBLIN_CORE_PATH,
+                br#"{"title":"Test"}"#,
+                super::super::writer::CompressionMethod::Deflate,
+            )
+            .unwrap();
+
+        // Add a file with Unicode characters
+        writer
+            .write_file(
+                "assets/文档.txt",
+                b"Unicode content",
+                super::super::writer::CompressionMethod::Deflate,
+            )
+            .unwrap();
+        writer
+            .write_file(
+                "assets/émoji_🎉.txt",
+                b"Emoji content",
+                super::super::writer::CompressionMethod::Deflate,
+            )
+            .unwrap();
+
+        let data = writer.finish().unwrap().into_inner();
+        let mut reader = CdxReader::from_bytes(data).unwrap();
+
+        // Verify we can read the Unicode files
+        let files = reader.file_names();
+        assert!(files.contains(&"assets/文档.txt".to_string()));
+        assert!(files.contains(&"assets/émoji_🎉.txt".to_string()));
+
+        let content = reader.read_file("assets/文档.txt").unwrap();
+        assert_eq!(content, b"Unicode content");
+
+        let emoji_content = reader.read_file("assets/émoji_🎉.txt").unwrap();
+        assert_eq!(emoji_content, b"Emoji content");
+    }
+
+    #[test]
+    fn test_file_count() {
+        let data = create_test_archive();
+        let reader = CdxReader::from_bytes(data).unwrap();
+        // manifest, content, dublin_core = 3 files
+        assert_eq!(reader.file_count(), 3);
+    }
+
+    #[test]
+    fn test_hash_algorithm() {
+        let data = create_test_archive();
+        let reader = CdxReader::from_bytes(data).unwrap();
+        assert_eq!(reader.hash_algorithm(), HashAlgorithm::Sha256);
+    }
+
+    #[test]
+    fn test_read_phantoms_none() {
+        let data = create_test_archive();
+        let mut reader = CdxReader::from_bytes(data).unwrap();
+        // No phantoms file in the test archive
+        let result = reader.read_phantoms().unwrap();
+        assert!(result.is_none());
     }
 }

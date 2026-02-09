@@ -318,4 +318,123 @@ mod tests {
         let result = tree.prove(5);
         assert!(result.is_err());
     }
+
+    #[test]
+    fn test_merkle_node_leaf() {
+        let hash = Hasher::hash(HashAlgorithm::Sha256, b"test");
+        let node = MerkleNode::leaf(hash.clone());
+
+        assert!(node.is_leaf());
+        assert_eq!(node.hash, hash);
+        assert!(node.left.is_none());
+        assert!(node.right.is_none());
+    }
+
+    #[test]
+    fn test_merkle_node_branch() {
+        let left = MerkleNode::leaf(Hasher::hash(HashAlgorithm::Sha256, b"left"));
+        let right = MerkleNode::leaf(Hasher::hash(HashAlgorithm::Sha256, b"right"));
+        let branch = MerkleNode::branch(left.clone(), right.clone(), HashAlgorithm::Sha256);
+
+        assert!(!branch.is_leaf());
+        assert!(branch.left.is_some());
+        assert!(branch.right.is_some());
+        // Branch hash should differ from children
+        assert_ne!(branch.hash, left.hash);
+        assert_ne!(branch.hash, right.hash);
+    }
+
+    #[test]
+    fn test_merkle_tree_from_hashes() {
+        let hashes = vec![
+            Hasher::hash(HashAlgorithm::Sha256, b"a"),
+            Hasher::hash(HashAlgorithm::Sha256, b"b"),
+            Hasher::hash(HashAlgorithm::Sha256, b"c"),
+            Hasher::hash(HashAlgorithm::Sha256, b"d"),
+        ];
+        let tree = MerkleTree::from_hashes(&hashes, HashAlgorithm::Sha256).unwrap();
+
+        assert_eq!(tree.leaf_count(), 4);
+        assert!(!tree.root_hash().is_pending());
+    }
+
+    #[test]
+    fn test_merkle_tree_from_hashes_empty_fails() {
+        let hashes: Vec<DocumentId> = vec![];
+        let result = MerkleTree::from_hashes(&hashes, HashAlgorithm::Sha256);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_merkle_tree_serialization_roundtrip() {
+        let items = vec!["a", "b", "c", "d"];
+        let tree = MerkleTree::from_items(&items, HashAlgorithm::Sha256).unwrap();
+
+        let json = serde_json::to_string(&tree).unwrap();
+        let deserialized: MerkleTree = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(tree.root_hash(), deserialized.root_hash());
+        assert_eq!(tree.leaf_count(), deserialized.leaf_count());
+        assert_eq!(tree.algorithm(), deserialized.algorithm());
+    }
+
+    #[test]
+    fn test_merkle_tree_different_algorithms() {
+        let items = vec!["test1", "test2"];
+        let tree_sha256 = MerkleTree::from_items(&items, HashAlgorithm::Sha256).unwrap();
+        let tree_sha384 = MerkleTree::from_items(&items, HashAlgorithm::Sha384).unwrap();
+        let tree_sha512 = MerkleTree::from_items(&items, HashAlgorithm::Sha512).unwrap();
+
+        // Different algorithms produce different root hashes
+        assert_ne!(tree_sha256.root_hash(), tree_sha384.root_hash());
+        assert_ne!(tree_sha256.root_hash(), tree_sha512.root_hash());
+        assert_ne!(tree_sha384.root_hash(), tree_sha512.root_hash());
+
+        // Algorithm is correctly stored
+        assert_eq!(tree_sha256.algorithm(), HashAlgorithm::Sha256);
+        assert_eq!(tree_sha384.algorithm(), HashAlgorithm::Sha384);
+        assert_eq!(tree_sha512.algorithm(), HashAlgorithm::Sha512);
+    }
+
+    #[test]
+    fn test_merkle_tree_large() {
+        // Test with 100 items to ensure tree builds correctly at scale
+        let items: Vec<String> = (0..100).map(|i| format!("item{i}")).collect();
+        let tree = MerkleTree::from_items(&items, HashAlgorithm::Sha256).unwrap();
+
+        assert_eq!(tree.leaf_count(), 100);
+
+        // Every index should be provable
+        for i in 0..100 {
+            let proof = tree.prove(i);
+            assert!(proof.is_ok(), "Failed to generate proof for index {i}");
+        }
+    }
+
+    #[test]
+    fn test_merkle_tree_two_items() {
+        let items = vec!["left", "right"];
+        let tree = MerkleTree::from_items(&items, HashAlgorithm::Sha256).unwrap();
+
+        assert_eq!(tree.leaf_count(), 2);
+        assert!(!tree.root().is_leaf());
+
+        // Both proofs should work
+        let proof0 = tree.prove(0).unwrap();
+        let proof1 = tree.prove(1).unwrap();
+
+        // Each proof should have one sibling
+        assert_eq!(proof0.path.len(), 1);
+        assert_eq!(proof1.path.len(), 1);
+    }
+
+    #[test]
+    fn test_merkle_tree_root_accessor() {
+        let items = vec!["a", "b"];
+        let tree = MerkleTree::from_items(&items, HashAlgorithm::Sha256).unwrap();
+
+        let root = tree.root();
+        assert!(!root.is_leaf());
+        assert_eq!(&root.hash, tree.root_hash());
+    }
 }

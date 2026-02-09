@@ -603,4 +603,157 @@ mod tests {
         let parsed: SignatureScope = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed, scope);
     }
+
+    #[test]
+    fn test_signature_algorithm_display() {
+        assert_eq!(SignatureAlgorithm::ES256.to_string(), "ES256");
+        assert_eq!(SignatureAlgorithm::ES384.to_string(), "ES384");
+        assert_eq!(SignatureAlgorithm::EdDSA.to_string(), "EdDSA");
+        assert_eq!(SignatureAlgorithm::PS256.to_string(), "PS256");
+        assert_eq!(SignatureAlgorithm::MlDsa65.to_string(), "ML-DSA-65");
+    }
+
+    #[test]
+    fn test_signature_algorithm_as_str() {
+        assert_eq!(SignatureAlgorithm::ES256.as_str(), "ES256");
+        assert_eq!(SignatureAlgorithm::ES384.as_str(), "ES384");
+        assert_eq!(SignatureAlgorithm::EdDSA.as_str(), "EdDSA");
+        assert_eq!(SignatureAlgorithm::PS256.as_str(), "PS256");
+        assert_eq!(SignatureAlgorithm::MlDsa65.as_str(), "ML-DSA-65");
+    }
+
+    #[test]
+    fn test_signature_algorithm_is_post_quantum() {
+        assert!(!SignatureAlgorithm::ES256.is_post_quantum());
+        assert!(!SignatureAlgorithm::ES384.is_post_quantum());
+        assert!(!SignatureAlgorithm::EdDSA.is_post_quantum());
+        assert!(!SignatureAlgorithm::PS256.is_post_quantum());
+        assert!(SignatureAlgorithm::MlDsa65.is_post_quantum());
+    }
+
+    #[test]
+    fn test_signature_algorithm_serialization() {
+        // Test each algorithm variant serializes correctly
+        let json = serde_json::to_string(&SignatureAlgorithm::ES256).unwrap();
+        assert_eq!(json, "\"ES256\"");
+
+        let json = serde_json::to_string(&SignatureAlgorithm::MlDsa65).unwrap();
+        assert_eq!(json, "\"ML-DSA-65\"");
+
+        // Test deserialization
+        let algo: SignatureAlgorithm = serde_json::from_str("\"EdDSA\"").unwrap();
+        assert_eq!(algo, SignatureAlgorithm::EdDSA);
+    }
+
+    #[test]
+    fn test_signature_file_roundtrip() {
+        let doc_id = crate::Hasher::hash(HashAlgorithm::Sha256, b"test document");
+        let mut file = SignatureFile::new(doc_id.clone());
+
+        let signer = SignerInfo::new("Test User").with_email("test@example.com");
+        let sig = Signature::new("sig-1", SignatureAlgorithm::ES256, signer, "base64value");
+        file.add_signature(sig);
+
+        let json = file.to_json().unwrap();
+        let parsed = SignatureFile::from_json(&json).unwrap();
+
+        assert_eq!(parsed.document_id, doc_id);
+        assert_eq!(parsed.signatures.len(), 1);
+        assert_eq!(parsed.signatures[0].id, "sig-1");
+    }
+
+    #[test]
+    fn test_signature_file_find_signature() {
+        let doc_id = crate::Hasher::hash(HashAlgorithm::Sha256, b"test");
+        let mut file = SignatureFile::new(doc_id);
+
+        let signer1 = SignerInfo::new("User 1");
+        let signer2 = SignerInfo::new("User 2");
+        file.add_signature(Signature::new("sig-1", SignatureAlgorithm::ES256, signer1, "val1"));
+        file.add_signature(Signature::new("sig-2", SignatureAlgorithm::EdDSA, signer2, "val2"));
+
+        assert!(file.find_signature("sig-1").is_some());
+        assert!(file.find_signature("sig-2").is_some());
+        assert!(file.find_signature("sig-3").is_none());
+
+        let sig1 = file.find_signature("sig-1").unwrap();
+        assert_eq!(sig1.algorithm, SignatureAlgorithm::ES256);
+    }
+
+    #[test]
+    fn test_signature_file_len() {
+        let doc_id = crate::Hasher::hash(HashAlgorithm::Sha256, b"test");
+        let mut file = SignatureFile::new(doc_id);
+
+        assert_eq!(file.len(), 0);
+        assert!(file.is_empty());
+
+        let signer = SignerInfo::new("User");
+        file.add_signature(Signature::new("sig-1", SignatureAlgorithm::ES256, signer, "val"));
+
+        assert_eq!(file.len(), 1);
+        assert!(!file.is_empty());
+    }
+
+    #[test]
+    fn test_webauthn_signature() {
+        let signer = SignerInfo::new("WebAuthn User");
+        let webauthn = WebAuthnSignature::new(
+            "credential-id-base64",
+            "authenticator-data-base64",
+            "client-data-json-base64",
+            "signature-base64",
+        );
+
+        let sig = Signature::new_webauthn("sig-webauthn", signer, webauthn);
+
+        assert!(sig.is_webauthn());
+        assert!(!sig.is_scoped());
+        assert_eq!(sig.algorithm, SignatureAlgorithm::ES256);
+        assert!(sig.value.is_empty());
+
+        let webauthn_data = sig.webauthn_data().unwrap();
+        assert_eq!(webauthn_data.credential_id, "credential-id-base64");
+    }
+
+    #[test]
+    fn test_webauthn_signature_serialization() {
+        let signer = SignerInfo::new("WebAuthn User");
+        let webauthn = WebAuthnSignature::new(
+            "cred-id",
+            "auth-data",
+            "client-data",
+            "sig-value",
+        );
+
+        let sig = Signature::new_webauthn("sig-1", signer, webauthn);
+        let json = serde_json::to_string_pretty(&sig).unwrap();
+
+        assert!(json.contains("\"webauthn\":"));
+        assert!(json.contains("\"credentialId\":"));
+        assert!(json.contains("\"authenticatorData\":"));
+        assert!(json.contains("\"clientDataJson\":"));
+
+        // Roundtrip
+        let parsed: Signature = serde_json::from_str(&json).unwrap();
+        assert!(parsed.is_webauthn());
+        assert_eq!(parsed.webauthn_data().unwrap().credential_id, "cred-id");
+    }
+
+    #[test]
+    fn test_verification_status_variants() {
+        let valid = SignatureVerification::valid("sig-1");
+        assert_eq!(valid.status, VerificationStatus::Valid);
+
+        let invalid = SignatureVerification::invalid("sig-2", "bad sig");
+        assert_eq!(invalid.status, VerificationStatus::Invalid);
+
+        // Test all status variants exist
+        assert!(matches!(VerificationStatus::Valid, VerificationStatus::Valid));
+        assert!(matches!(VerificationStatus::Invalid, VerificationStatus::Invalid));
+        assert!(matches!(VerificationStatus::Expired, VerificationStatus::Expired));
+        assert!(matches!(VerificationStatus::Revoked, VerificationStatus::Revoked));
+        assert!(matches!(VerificationStatus::Untrusted, VerificationStatus::Untrusted));
+        assert!(matches!(VerificationStatus::Unknown, VerificationStatus::Unknown));
+    }
 }
