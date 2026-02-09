@@ -1769,8 +1769,8 @@ mod hash_boundary_tests {
         let position = PhantomPosition::new(100.0, 200.0);
         let content = PhantomContent::paragraph("Phantom note");
         let phantom = Phantom::new("p1", position, content);
-        let cluster =
-            PhantomCluster::new("c1", ContentAnchor::block("block-1"), "Notes").with_phantom(phantom);
+        let cluster = PhantomCluster::new("c1", ContentAnchor::block("block-1"), "Notes")
+            .with_phantom(phantom);
         clusters.add_cluster(cluster);
         doc1.set_phantom_clusters(clusters)?;
 
@@ -1859,10 +1859,7 @@ mod hash_boundary_tests {
 
         let id2 = doc1.compute_id()?;
 
-        assert_eq!(
-            id1, id2,
-            "Hash should NOT change when signatures are added"
-        );
+        assert_eq!(id1, id2, "Hash should NOT change when signatures are added");
 
         Ok(())
     }
@@ -1886,10 +1883,7 @@ mod lineage_validation_tests {
 
         // Parent should be a valid hash, not pending
         let parent = lineage.parent.as_ref().unwrap();
-        assert!(
-            !parent.is_pending(),
-            "Parent hash should not be pending"
-        );
+        assert!(!parent.is_pending(), "Parent hash should not be pending");
         assert!(
             parent.to_string().contains(':'),
             "Parent hash should be in algorithm:hexdigest format"
@@ -1943,10 +1937,7 @@ mod lineage_validation_tests {
         let forked = doc.fork()?;
         let lineage = forked.manifest().lineage.as_ref().unwrap();
 
-        assert!(
-            lineage.version.unwrap_or(0) >= 1,
-            "Version should be >= 1"
-        );
+        assert!(lineage.version.unwrap_or(0) >= 1, "Version should be >= 1");
 
         Ok(())
     }
@@ -2027,10 +2018,7 @@ mod state_requirement_tests {
 
         // After submit_for_review, ID should be computed
         doc.submit_for_review()?;
-        assert!(
-            !doc.id().is_pending(),
-            "Review state requires computed ID"
-        );
+        assert!(!doc.id().is_pending(), "Review state requires computed ID");
 
         Ok(())
     }
@@ -2201,10 +2189,7 @@ mod merkle_proof_tests {
         let merkle_root = index.merkle_root();
 
         // Root should not be pending
-        assert!(
-            !merkle_root.is_pending(),
-            "Merkle root should be computed"
-        );
+        assert!(!merkle_root.is_pending(), "Merkle root should be computed");
 
         // Block count should match
         assert_eq!(index.block_count(), 3, "Should have 3 blocks");
@@ -2298,7 +2283,7 @@ mod merkle_proof_tests {
 /// Manifest validation tests - Per spec §02-manifest.md
 mod manifest_validation_tests {
     use super::*;
-    use cdx_core::{ContentRef, Metadata, DocumentId};
+    use cdx_core::{ContentRef, DocumentId, Metadata};
 
     fn test_hash() -> DocumentId {
         "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
@@ -2311,8 +2296,7 @@ mod manifest_validation_tests {
     fn test_manifest_id_valid_hash_pattern() {
         // Valid hash format
         let valid: std::result::Result<DocumentId, _> =
-            "sha256:3a7bd3e2360a3d29eea436fcfb7e44c735d117c42d1c1835420b6b9942dd4f1b"
-                .parse();
+            "sha256:3a7bd3e2360a3d29eea436fcfb7e44c735d117c42d1c1835420b6b9942dd4f1b".parse();
         assert!(valid.is_ok(), "Valid hash should parse");
 
         // Pending is also valid
@@ -2408,10 +2392,16 @@ mod extension_declaration_tests {
     #[test]
     fn test_required_extension_flag() {
         let required = Extension::required("codex.security", "0.1");
-        assert!(required.required, "required=true should reject if unsupported");
+        assert!(
+            required.required,
+            "required=true should reject if unsupported"
+        );
 
         let optional = Extension::optional("codex.phantoms", "0.1");
-        assert!(!optional.required, "required=false should allow graceful degradation");
+        assert!(
+            !optional.required,
+            "required=false should allow graceful degradation"
+        );
     }
 }
 
@@ -2463,8 +2453,7 @@ mod signature_validation_tests {
         // The signature file's document_id should match the document's ID
         let sig_file = doc.signature_file().unwrap();
         assert_eq!(
-            sig_file.document_id,
-            doc_id,
+            sig_file.document_id, doc_id,
             "Signature documentId should match manifest id"
         );
 
@@ -2486,10 +2475,7 @@ mod metadata_validation_tests {
             .build()
             .unwrap();
 
-        assert!(
-            !doc.dublin_core().title().is_empty(),
-            "Title is required"
-        );
+        assert!(!doc.dublin_core().title().is_empty(), "Title is required");
     }
 
     /// Per spec §08-metadata.md - Dublin Core requires creator

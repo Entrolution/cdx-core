@@ -38,9 +38,7 @@ pub use comment::{
 };
 pub use crdt::{CrdtFormat, CrdtMetadata, Peer, SyncState, TextCrdtMetadata, TextCrdtPosition};
 pub use revision::{MaterializationEvent, MaterializationReason, Revision, RevisionHistory};
-pub use session::{
-    CollaborationSession, CursorPosition, Participant, Selection, SessionStatus,
-};
+pub use session::{CollaborationSession, CursorPosition, Participant, Selection, SessionStatus};
 pub use thread::CommentThread;
 
 #[cfg(test)]

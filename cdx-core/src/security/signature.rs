@@ -669,8 +669,18 @@ mod tests {
 
         let signer1 = SignerInfo::new("User 1");
         let signer2 = SignerInfo::new("User 2");
-        file.add_signature(Signature::new("sig-1", SignatureAlgorithm::ES256, signer1, "val1"));
-        file.add_signature(Signature::new("sig-2", SignatureAlgorithm::EdDSA, signer2, "val2"));
+        file.add_signature(Signature::new(
+            "sig-1",
+            SignatureAlgorithm::ES256,
+            signer1,
+            "val1",
+        ));
+        file.add_signature(Signature::new(
+            "sig-2",
+            SignatureAlgorithm::EdDSA,
+            signer2,
+            "val2",
+        ));
 
         assert!(file.find_signature("sig-1").is_some());
         assert!(file.find_signature("sig-2").is_some());
@@ -689,7 +699,12 @@ mod tests {
         assert!(file.is_empty());
 
         let signer = SignerInfo::new("User");
-        file.add_signature(Signature::new("sig-1", SignatureAlgorithm::ES256, signer, "val"));
+        file.add_signature(Signature::new(
+            "sig-1",
+            SignatureAlgorithm::ES256,
+            signer,
+            "val",
+        ));
 
         assert_eq!(file.len(), 1);
         assert!(!file.is_empty());
@@ -719,12 +734,7 @@ mod tests {
     #[test]
     fn test_webauthn_signature_serialization() {
         let signer = SignerInfo::new("WebAuthn User");
-        let webauthn = WebAuthnSignature::new(
-            "cred-id",
-            "auth-data",
-            "client-data",
-            "sig-value",
-        );
+        let webauthn = WebAuthnSignature::new("cred-id", "auth-data", "client-data", "sig-value");
 
         let sig = Signature::new_webauthn("sig-1", signer, webauthn);
         let json = serde_json::to_string_pretty(&sig).unwrap();
@@ -749,11 +759,29 @@ mod tests {
         assert_eq!(invalid.status, VerificationStatus::Invalid);
 
         // Test all status variants exist
-        assert!(matches!(VerificationStatus::Valid, VerificationStatus::Valid));
-        assert!(matches!(VerificationStatus::Invalid, VerificationStatus::Invalid));
-        assert!(matches!(VerificationStatus::Expired, VerificationStatus::Expired));
-        assert!(matches!(VerificationStatus::Revoked, VerificationStatus::Revoked));
-        assert!(matches!(VerificationStatus::Untrusted, VerificationStatus::Untrusted));
-        assert!(matches!(VerificationStatus::Unknown, VerificationStatus::Unknown));
+        assert!(matches!(
+            VerificationStatus::Valid,
+            VerificationStatus::Valid
+        ));
+        assert!(matches!(
+            VerificationStatus::Invalid,
+            VerificationStatus::Invalid
+        ));
+        assert!(matches!(
+            VerificationStatus::Expired,
+            VerificationStatus::Expired
+        ));
+        assert!(matches!(
+            VerificationStatus::Revoked,
+            VerificationStatus::Revoked
+        ));
+        assert!(matches!(
+            VerificationStatus::Untrusted,
+            VerificationStatus::Untrusted
+        ));
+        assert!(matches!(
+            VerificationStatus::Unknown,
+            VerificationStatus::Unknown
+        ));
     }
 }

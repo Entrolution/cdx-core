@@ -456,9 +456,7 @@ mod tests {
         writer
             .start_file::<&str, ()>(MANIFEST_PATH, Default::default())
             .unwrap();
-        writer
-            .write_all(br#"{"codex":"0.1"}"#)
-            .unwrap();
+        writer.write_all(br#"{"codex":"0.1"}"#).unwrap();
 
         // Add Dublin Core but no content
         writer
