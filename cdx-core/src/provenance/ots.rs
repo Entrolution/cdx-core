@@ -535,7 +535,7 @@ mod hex {
 /// Convert hex string to bytes.
 fn hex_to_bytes(hex: &str) -> Result<Vec<u8>> {
     let hex = hex.trim();
-    if hex.len() % 2 != 0 {
+    if !hex.len().is_multiple_of(2) {
         return Err(Error::InvalidHashFormat {
             value: "Invalid hex string length".to_string(),
         });

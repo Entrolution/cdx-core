@@ -1036,7 +1036,15 @@ mod proptests {
                 Mark::Code => MarkType::Code,
                 Mark::Superscript => MarkType::Superscript,
                 Mark::Subscript => MarkType::Subscript,
-                _ => unreachable!(),
+                Mark::Link { .. }
+                | Mark::Anchor { .. }
+                | Mark::Footnote { .. }
+                | Mark::Math { .. }
+                | Mark::Extension(_) => {
+                    // arb_simple_mark() should never generate these variants
+                    prop_assert!(false, "arb_simple_mark() generated non-simple mark: {mark:?}");
+                    return Ok(());
+                }
             };
             prop_assert_eq!(mark.mark_type(), expected);
         }
