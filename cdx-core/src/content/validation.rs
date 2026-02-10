@@ -6,7 +6,14 @@ use std::fmt;
 use super::{Block, Content, Text};
 use crate::extensions::ExtensionBlock;
 
-/// Content validation error.
+/// Content structure validation error.
+///
+/// Reports issues with block hierarchy, unique IDs, heading levels,
+/// parent-child constraints, and similar structural rules within
+/// document content.
+///
+/// See also [`crate::validation::SchemaValidationError`] for JSON schema
+/// validation of manifest and metadata files.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ValidationError {
     /// Path to the invalid element (e.g., `blocks[0].children[1]`).
@@ -18,7 +25,11 @@ pub struct ValidationError {
 
 impl fmt::Display for ValidationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}: {}", self.path, self.message)
+        if self.path.is_empty() {
+            write!(f, "{}", self.message)
+        } else {
+            write!(f, "{}: {}", self.path, self.message)
+        }
     }
 }
 

@@ -58,6 +58,8 @@ mod revocation;
 mod rsa_pss;
 mod signature;
 mod signer;
+#[cfg(test)]
+mod test_helpers;
 #[cfg(feature = "webauthn")]
 mod webauthn;
 

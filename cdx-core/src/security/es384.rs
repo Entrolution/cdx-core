@@ -189,6 +189,14 @@ impl Verifier for Es384Verifier {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::security::test_helpers;
+
+    fn generate_keypair() -> (Es384Signer, Es384Verifier) {
+        let signer_info = SignerInfo::new("Test ES384 Signer");
+        let (signer, public_key_pem) = Es384Signer::generate(signer_info).unwrap();
+        let verifier = Es384Verifier::from_pem(&public_key_pem).unwrap();
+        (signer, verifier)
+    }
 
     #[test]
     fn test_generate_and_sign() {
@@ -198,70 +206,34 @@ mod tests {
         assert!(!public_key_pem.is_empty());
         assert!(public_key_pem.contains("BEGIN PUBLIC KEY"));
 
-        let doc_id = crate::Hasher::hash(crate::HashAlgorithm::Sha256, b"test document");
-        let signature = signer.sign(&doc_id).unwrap();
-
-        assert_eq!(signature.algorithm, SignatureAlgorithm::ES384);
-        assert!(!signature.value.is_empty());
+        test_helpers::assert_sign_produces_valid_signature(&signer, SignatureAlgorithm::ES384);
     }
 
     #[test]
     fn test_sign_and_verify() {
-        let signer_info = SignerInfo::new("Test ES384 Signer");
-        let (signer, public_key_pem) = Es384Signer::generate(signer_info).unwrap();
-
-        let doc_id = crate::Hasher::hash(crate::HashAlgorithm::Sha256, b"test document");
-        let signature = signer.sign(&doc_id).unwrap();
-
-        let verifier = Es384Verifier::from_pem(&public_key_pem).unwrap();
-        let result = verifier.verify(&doc_id, &signature).unwrap();
-
-        assert!(result.is_valid());
+        let (signer, verifier) = generate_keypair();
+        test_helpers::assert_sign_verify_roundtrip(&signer, &verifier);
     }
 
     #[test]
     fn test_verify_wrong_document() {
-        let signer_info = SignerInfo::new("Test ES384 Signer");
-        let (signer, public_key_pem) = Es384Signer::generate(signer_info).unwrap();
-
-        let doc_id = crate::Hasher::hash(crate::HashAlgorithm::Sha256, b"original document");
-        let signature = signer.sign(&doc_id).unwrap();
-
-        let different_doc_id =
-            crate::Hasher::hash(crate::HashAlgorithm::Sha256, b"different document");
-
-        let verifier = Es384Verifier::from_pem(&public_key_pem).unwrap();
-        let result = verifier.verify(&different_doc_id, &signature).unwrap();
-
-        assert!(!result.is_valid());
+        let (signer, verifier) = generate_keypair();
+        test_helpers::assert_verify_wrong_document_fails(&signer, &verifier);
     }
 
     #[test]
     fn test_cannot_sign_pending_id() {
-        let signer_info = SignerInfo::new("Test ES384 Signer");
-        let (signer, _) = Es384Signer::generate(signer_info).unwrap();
-
-        let pending_id = crate::DocumentId::pending();
-        let result = signer.sign(&pending_id);
-
-        assert!(result.is_err());
+        let (signer, _) = generate_keypair();
+        test_helpers::assert_cannot_sign_pending_id(&signer);
     }
 
     #[test]
     fn test_algorithm_mismatch() {
-        let signer_info = SignerInfo::new("Test ES384 Signer");
-        let (signer, public_key_pem) = Es384Signer::generate(signer_info).unwrap();
-
-        let doc_id = crate::Hasher::hash(crate::HashAlgorithm::Sha256, b"test document");
-        let mut signature = signer.sign(&doc_id).unwrap();
-
-        // Change the algorithm to ES256
-        signature.algorithm = SignatureAlgorithm::ES256;
-
-        let verifier = Es384Verifier::from_pem(&public_key_pem).unwrap();
-        let result = verifier.verify(&doc_id, &signature).unwrap();
-
-        assert!(!result.is_valid());
-        assert!(result.error.unwrap().contains("Algorithm mismatch"));
+        let (signer, verifier) = generate_keypair();
+        test_helpers::assert_algorithm_mismatch_rejected(
+            &signer,
+            &verifier,
+            SignatureAlgorithm::ES256,
+        );
     }
 }

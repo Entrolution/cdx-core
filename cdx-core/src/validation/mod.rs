@@ -32,10 +32,17 @@
 
 use std::fmt;
 
-/// A validation error from JSON Schema validation.
+/// JSON schema validation error for manifest and metadata files.
+///
+/// Reports type mismatches, missing required properties, and invalid
+/// enum values when validating manifest, content, Dublin Core metadata,
+/// block index, and signature JSON files against their schemas.
+///
+/// See also [`crate::content::ValidationError`] for content structure
+/// validation (block hierarchy, unique IDs, etc.).
 #[derive(Debug, Clone)]
 pub struct SchemaValidationError {
-    /// JSON path to the invalid element.
+    /// JSON path to the invalid element (empty for root-level errors).
     pub path: String,
     /// Description of the validation failure.
     pub message: String,
