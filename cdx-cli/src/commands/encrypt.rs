@@ -42,6 +42,8 @@ pub fn run(
 
     #[cfg(feature = "encryption")]
     {
+        use super::crypto_common;
+
         config.verbose(&format!("Encrypting document: {}", file.display()));
 
         // Open the document
@@ -71,7 +73,7 @@ pub fn run(
         let password = if let Some(pwd) = password {
             pwd
         } else {
-            prompt_password("Enter encryption password: ")?
+            crypto_common::prompt_password("Enter encryption password: ")?
         };
 
         if password.is_empty() {
@@ -80,18 +82,18 @@ pub fn run(
 
         // Confirm password
         if !config.quiet {
-            let confirm = prompt_password("Confirm password: ")?;
+            let confirm = crypto_common::prompt_password("Confirm password: ")?;
             if password != confirm {
                 anyhow::bail!("Passwords do not match");
             }
         }
 
         // Generate salt for key derivation
-        let salt = generate_salt();
+        let salt = crypto_common::generate_salt();
         let salt_b64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, salt);
 
         // Derive key from password using Argon2id
-        let key = derive_key(&password, &salt)?;
+        let _key = crypto_common::derive_key_argon2(&password, &salt, 65536, 4)?;
 
         // Create encryption metadata
         let encryption_metadata = EncryptionMetadata {
@@ -147,54 +149,4 @@ pub fn run(
 
         Ok(())
     }
-}
-
-#[cfg(feature = "encryption")]
-fn prompt_password(prompt: &str) -> Result<String> {
-    use std::io::{self, Write};
-
-    print!("{}", prompt);
-    io::stdout().flush()?;
-
-    // Try to use rpassword for hidden input, fall back to regular input
-    #[cfg(feature = "rpassword")]
-    {
-        rpassword::read_password().context("Failed to read password")
-    }
-
-    #[cfg(not(feature = "rpassword"))]
-    {
-        let mut password = String::new();
-        io::stdin().read_line(&mut password)?;
-        Ok(password.trim().to_string())
-    }
-}
-
-#[cfg(feature = "encryption")]
-fn generate_salt() -> [u8; 16] {
-    use rand_core::RngCore;
-    let mut salt = [0u8; 16];
-    rand_core::OsRng.fill_bytes(&mut salt);
-    salt
-}
-
-#[cfg(feature = "encryption")]
-fn derive_key(password: &str, salt: &[u8]) -> Result<[u8; 32]> {
-    use argon2::Argon2;
-
-    let mut key = [0u8; 32];
-
-    // Use Argon2id with recommended parameters
-    let argon2 = Argon2::new(
-        argon2::Algorithm::Argon2id,
-        argon2::Version::V0x13,
-        argon2::Params::new(65536, 3, 4, Some(32))
-            .map_err(|e| anyhow::anyhow!("Failed to configure Argon2: {}", e))?,
-    );
-
-    argon2
-        .hash_password_into(password.as_bytes(), salt, &mut key)
-        .map_err(|e| anyhow::anyhow!("Failed to derive key: {}", e))?;
-
-    Ok(key)
 }
