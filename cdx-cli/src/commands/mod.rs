@@ -1,6 +1,8 @@
 //! CLI command implementations.
 
 pub mod create;
+#[cfg(feature = "encryption")]
+pub mod crypto_common;
 pub mod decrypt;
 pub mod diff;
 pub mod encrypt;
