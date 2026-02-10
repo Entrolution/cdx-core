@@ -13,7 +13,9 @@ use std::str::FromStr;
 use crate::{Error, Result};
 
 /// Hash algorithm identifier.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default, strum::Display)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default, strum::Display,
+)]
 #[serde(rename_all = "lowercase")]
 pub enum HashAlgorithm {
     /// SHA-256 (default, required).

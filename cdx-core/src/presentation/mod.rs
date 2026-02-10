@@ -84,4 +84,3 @@ impl PresentationType {
         matches!(self, Self::Precise)
     }
 }
-
