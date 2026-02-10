@@ -876,60 +876,52 @@ impl PdfXCompliance {
 }
 
 /// PDF/X conformance level.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, strum::Display)]
 pub enum PdfXLevel {
     /// PDF/X-1a:2001 - CMYK/spot only, no transparency.
     #[serde(rename = "PDF/X-1a:2001")]
+    #[strum(serialize = "PDF/X-1a:2001")]
     X1a2001,
 
     /// PDF/X-1a:2003 - Updated PDF/X-1a.
     #[serde(rename = "PDF/X-1a:2003")]
+    #[strum(serialize = "PDF/X-1a:2003")]
     X1a2003,
 
     /// PDF/X-3:2002 - Allows RGB and device-independent color.
     #[serde(rename = "PDF/X-3:2002")]
+    #[strum(serialize = "PDF/X-3:2002")]
     X32002,
 
     /// PDF/X-3:2003 - Updated PDF/X-3.
     #[serde(rename = "PDF/X-3:2003")]
+    #[strum(serialize = "PDF/X-3:2003")]
     X32003,
 
     /// PDF/X-4 - Supports transparency, layers, and OpenType fonts.
     #[serde(rename = "PDF/X-4")]
+    #[strum(serialize = "PDF/X-4")]
     X4,
 
     /// PDF/X-4p - PDF/X-4 with external ICC profile reference.
     #[serde(rename = "PDF/X-4p")]
+    #[strum(serialize = "PDF/X-4p")]
     X4p,
 
     /// PDF/X-5g - For multi-file workflows with external graphics.
     #[serde(rename = "PDF/X-5g")]
+    #[strum(serialize = "PDF/X-5g")]
     X5g,
 
     /// PDF/X-5pg - Combines X-4p and X-5g features.
     #[serde(rename = "PDF/X-5pg")]
+    #[strum(serialize = "PDF/X-5pg")]
     X5pg,
 
     /// PDF/X-6 - Latest standard with expanded features.
     #[serde(rename = "PDF/X-6")]
+    #[strum(serialize = "PDF/X-6")]
     X6,
-}
-
-impl std::fmt::Display for PdfXLevel {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let s = match self {
-            Self::X1a2001 => "PDF/X-1a:2001",
-            Self::X1a2003 => "PDF/X-1a:2003",
-            Self::X32002 => "PDF/X-3:2002",
-            Self::X32003 => "PDF/X-3:2003",
-            Self::X4 => "PDF/X-4",
-            Self::X4p => "PDF/X-4p",
-            Self::X5g => "PDF/X-5g",
-            Self::X5pg => "PDF/X-5pg",
-            Self::X6 => "PDF/X-6",
-        };
-        write!(f, "{s}")
-    }
 }
 
 /// Output intent specification for PDF/X.

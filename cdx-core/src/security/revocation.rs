@@ -100,29 +100,39 @@ impl fmt::Display for RevocationStatus {
 }
 
 /// Reason for certificate revocation (RFC 5280).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, strum::Display)]
 #[serde(rename_all = "camelCase")]
 #[repr(u8)]
 pub enum RevocationReason {
     /// Unspecified reason.
+    #[strum(serialize = "unspecified")]
     Unspecified = 0,
     /// Key has been compromised.
+    #[strum(serialize = "key compromise")]
     KeyCompromise = 1,
     /// CA key has been compromised.
+    #[strum(serialize = "CA compromise")]
     CaCompromise = 2,
     /// Affiliation has changed.
+    #[strum(serialize = "affiliation changed")]
     AffiliationChanged = 3,
     /// Certificate has been superseded.
+    #[strum(serialize = "superseded")]
     Superseded = 4,
     /// Certificate is no longer needed.
+    #[strum(serialize = "cessation of operation")]
     CessationOfOperation = 5,
     /// Certificate is on hold.
+    #[strum(serialize = "certificate hold")]
     CertificateHold = 6,
     /// Removed from CRL (not revoked).
+    #[strum(serialize = "remove from CRL")]
     RemoveFromCrl = 8,
     /// Privilege has been withdrawn.
+    #[strum(serialize = "privilege withdrawn")]
     PrivilegeWithdrawn = 9,
     /// AA has been compromised.
+    #[strum(serialize = "AA compromise")]
     AaCompromise = 10,
 }
 
@@ -149,23 +159,6 @@ impl RevocationReason {
     #[must_use]
     pub const fn code(&self) -> u8 {
         *self as u8
-    }
-}
-
-impl fmt::Display for RevocationReason {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Unspecified => write!(f, "unspecified"),
-            Self::KeyCompromise => write!(f, "key compromise"),
-            Self::CaCompromise => write!(f, "CA compromise"),
-            Self::AffiliationChanged => write!(f, "affiliation changed"),
-            Self::Superseded => write!(f, "superseded"),
-            Self::CessationOfOperation => write!(f, "cessation of operation"),
-            Self::CertificateHold => write!(f, "certificate hold"),
-            Self::RemoveFromCrl => write!(f, "remove from CRL"),
-            Self::PrivilegeWithdrawn => write!(f, "privilege withdrawn"),
-            Self::AaCompromise => write!(f, "AA compromise"),
-        }
     }
 }
 
@@ -242,25 +235,18 @@ impl RevocationResult {
 }
 
 /// Method used for revocation checking.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, strum::Display)]
 #[serde(rename_all = "camelCase")]
 pub enum RevocationMethod {
     /// OCSP (Online Certificate Status Protocol).
+    #[strum(serialize = "OCSP")]
     Ocsp,
     /// CRL (Certificate Revocation List).
+    #[strum(serialize = "CRL")]
     Crl,
     /// OCSP stapled in TLS handshake.
+    #[strum(serialize = "OCSP Stapling")]
     OcspStapling,
-}
-
-impl fmt::Display for RevocationMethod {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Ocsp => write!(f, "OCSP"),
-            Self::Crl => write!(f, "CRL"),
-            Self::OcspStapling => write!(f, "OCSP Stapling"),
-        }
-    }
 }
 
 /// Configuration for revocation checking.

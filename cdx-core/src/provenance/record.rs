@@ -289,10 +289,11 @@ impl TimestampRecord {
 }
 
 /// Method used for timestamp anchoring.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, strum::Display)]
 #[serde(rename_all = "lowercase")]
 pub enum TimestampMethod {
     /// RFC 3161 Time Stamp Protocol.
+    #[strum(serialize = "RFC 3161")]
     Rfc3161,
     /// Bitcoin blockchain anchoring.
     Bitcoin,
@@ -300,17 +301,6 @@ pub enum TimestampMethod {
     Ethereum,
     /// `OpenTimestamps` protocol.
     OpenTimestamps,
-}
-
-impl std::fmt::Display for TimestampMethod {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Rfc3161 => write!(f, "RFC 3161"),
-            Self::Bitcoin => write!(f, "Bitcoin"),
-            Self::Ethereum => write!(f, "Ethereum"),
-            Self::OpenTimestamps => write!(f, "OpenTimestamps"),
-        }
-    }
 }
 
 /// Record of content derived from another source.
@@ -372,7 +362,7 @@ impl DerivationRecord {
 }
 
 /// Type of content derivation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, strum::Display)]
 #[serde(rename_all = "camelCase")]
 pub enum DerivationType {
     /// Direct quotation from source.
@@ -384,22 +374,10 @@ pub enum DerivationType {
     /// Content adapted or modified.
     Adaptation,
     /// Content based on or inspired by source.
+    #[strum(serialize = "Based On")]
     BasedOn,
     /// Content imported from external source.
     Import,
-}
-
-impl std::fmt::Display for DerivationType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Quotation => write!(f, "Quotation"),
-            Self::Paraphrase => write!(f, "Paraphrase"),
-            Self::Translation => write!(f, "Translation"),
-            Self::Adaptation => write!(f, "Adaptation"),
-            Self::BasedOn => write!(f, "Based On"),
-            Self::Import => write!(f, "Import"),
-        }
-    }
 }
 
 #[cfg(test)]

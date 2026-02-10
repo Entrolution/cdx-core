@@ -61,41 +61,30 @@ impl Default for Bibliography {
 }
 
 /// Citation style for formatting references.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, strum::Display)]
 #[serde(rename_all = "lowercase")]
 pub enum CitationStyle {
     /// APA (American Psychological Association) style.
     #[default]
+    #[strum(serialize = "APA")]
     Apa,
     /// MLA (Modern Language Association) style.
+    #[strum(serialize = "MLA")]
     Mla,
     /// Chicago Manual of Style.
     Chicago,
     /// IEEE style.
+    #[strum(serialize = "IEEE")]
     Ieee,
     /// Harvard style.
     Harvard,
     /// Vancouver style.
     Vancouver,
     /// ACM style.
+    #[strum(serialize = "ACM")]
     Acm,
     /// Custom style (implementation-defined).
     Custom,
-}
-
-impl std::fmt::Display for CitationStyle {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Apa => write!(f, "APA"),
-            Self::Mla => write!(f, "MLA"),
-            Self::Chicago => write!(f, "Chicago"),
-            Self::Ieee => write!(f, "IEEE"),
-            Self::Harvard => write!(f, "Harvard"),
-            Self::Vancouver => write!(f, "Vancouver"),
-            Self::Acm => write!(f, "ACM"),
-            Self::Custom => write!(f, "Custom"),
-        }
-    }
 }
 
 /// A bibliography entry representing a single reference.
@@ -285,8 +274,9 @@ impl BibliographyEntry {
 }
 
 /// Type of bibliography entry.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, strum::Display)]
 #[serde(rename_all = "camelCase")]
+#[strum(serialize_all = "lowercase")]
 pub enum EntryType {
     /// Journal article.
     Article,
@@ -309,6 +299,7 @@ pub enum EntryType {
     /// Software.
     Software,
     /// Legal case.
+    #[strum(serialize = "legal-case")]
     LegalCase,
     /// Legislation or statute.
     Legislation,
@@ -318,28 +309,6 @@ pub enum EntryType {
     Manuscript,
     /// Other type.
     Other,
-}
-
-impl std::fmt::Display for EntryType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Article => write!(f, "article"),
-            Self::Book => write!(f, "book"),
-            Self::Chapter => write!(f, "chapter"),
-            Self::Conference => write!(f, "conference"),
-            Self::Thesis => write!(f, "thesis"),
-            Self::Report => write!(f, "report"),
-            Self::Webpage => write!(f, "webpage"),
-            Self::Patent => write!(f, "patent"),
-            Self::Dataset => write!(f, "dataset"),
-            Self::Software => write!(f, "software"),
-            Self::LegalCase => write!(f, "legal-case"),
-            Self::Legislation => write!(f, "legislation"),
-            Self::Personal => write!(f, "personal"),
-            Self::Manuscript => write!(f, "manuscript"),
-            Self::Other => write!(f, "other"),
-        }
-    }
 }
 
 /// An author or contributor.

@@ -294,8 +294,9 @@ impl TrackedChange {
 }
 
 /// Type of tracked change.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, strum::Display)]
 #[serde(rename_all = "lowercase")]
+#[strum(serialize_all = "lowercase")]
 pub enum ChangeType {
     /// Content was inserted.
     Insert,
@@ -309,21 +310,10 @@ pub enum ChangeType {
     Format,
 }
 
-impl std::fmt::Display for ChangeType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Insert => write!(f, "insert"),
-            Self::Delete => write!(f, "delete"),
-            Self::Modify => write!(f, "modify"),
-            Self::Move => write!(f, "move"),
-            Self::Format => write!(f, "format"),
-        }
-    }
-}
-
 /// Status of a tracked change.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, strum::Display)]
 #[serde(rename_all = "lowercase")]
+#[strum(serialize_all = "lowercase")]
 pub enum ChangeStatus {
     /// Change is pending review.
     #[default]
@@ -332,14 +322,4 @@ pub enum ChangeStatus {
     Accepted,
     /// Change has been rejected.
     Rejected,
-}
-
-impl std::fmt::Display for ChangeStatus {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Pending => write!(f, "pending"),
-            Self::Accepted => write!(f, "accepted"),
-            Self::Rejected => write!(f, "rejected"),
-        }
-    }
 }

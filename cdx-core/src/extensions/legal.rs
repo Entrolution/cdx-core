@@ -568,43 +568,36 @@ impl LegalCitation {
 }
 
 /// Type of legal citation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, strum::Display)]
 #[serde(rename_all = "lowercase")]
 pub enum LegalCitationType {
     /// Court case.
+    #[strum(serialize = "Cases")]
     Case,
     /// Statute or legislation.
+    #[strum(serialize = "Statutes")]
     Statute,
     /// Regulation.
+    #[strum(serialize = "Regulations")]
     Regulation,
     /// Constitutional provision.
+    #[strum(serialize = "Constitutional Provisions")]
     Constitution,
     /// Secondary source (treatise, law review, etc.).
+    #[strum(serialize = "Secondary Sources")]
     Secondary,
     /// Book or treatise.
+    #[strum(serialize = "Books")]
     Book,
     /// Law review article.
+    #[strum(serialize = "Law Review Articles")]
     LawReview,
     /// Legislative history.
+    #[strum(serialize = "Legislative History")]
     Legislative,
     /// Other authority.
+    #[strum(serialize = "Other Authorities")]
     Other,
-}
-
-impl std::fmt::Display for LegalCitationType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Case => write!(f, "Cases"),
-            Self::Statute => write!(f, "Statutes"),
-            Self::Regulation => write!(f, "Regulations"),
-            Self::Constitution => write!(f, "Constitutional Provisions"),
-            Self::Secondary => write!(f, "Secondary Sources"),
-            Self::Book => write!(f, "Books"),
-            Self::LawReview => write!(f, "Law Review Articles"),
-            Self::Legislative => write!(f, "Legislative History"),
-            Self::Other => write!(f, "Other Authorities"),
-        }
-    }
 }
 
 /// Pinpoint reference within a citation.
@@ -666,75 +659,55 @@ pub enum PinpointType {
 }
 
 /// Citation signal indicating how authority supports proposition.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, strum::Display)]
 #[serde(rename_all = "lowercase")]
 pub enum CitationSignal {
     /// No signal (direct support).
+    #[strum(serialize = "")]
     None,
     /// E.g.,
+    #[strum(serialize = "E.g.")]
     Eg,
     /// Accord
     Accord,
     /// See
     See,
     /// See also
+    #[strum(serialize = "See also")]
     SeeAlso,
     /// Cf.
+    #[strum(serialize = "Cf.")]
     Cf,
     /// Compare
     Compare,
     /// Contra
     Contra,
     /// But see
+    #[strum(serialize = "But see")]
     ButSee,
     /// But cf.
+    #[strum(serialize = "But cf.")]
     ButCf,
     /// See generally
+    #[strum(serialize = "See generally")]
     SeeGenerally,
 }
 
-impl std::fmt::Display for CitationSignal {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::None => write!(f, ""),
-            Self::Eg => write!(f, "E.g."),
-            Self::Accord => write!(f, "Accord"),
-            Self::See => write!(f, "See"),
-            Self::SeeAlso => write!(f, "See also"),
-            Self::Cf => write!(f, "Cf."),
-            Self::Compare => write!(f, "Compare"),
-            Self::Contra => write!(f, "Contra"),
-            Self::ButSee => write!(f, "But see"),
-            Self::ButCf => write!(f, "But cf."),
-            Self::SeeGenerally => write!(f, "See generally"),
-        }
-    }
-}
-
 /// Legal citation format.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, strum::Display)]
 #[serde(rename_all = "lowercase")]
 pub enum LegalCitationFormat {
     /// Bluebook format (US).
     #[default]
     Bluebook,
     /// ALWD Citation Manual.
+    #[strum(serialize = "ALWD")]
     Alwd,
     /// `McGill` Guide (Canada).
     McGill,
     /// OSCOLA (UK).
+    #[strum(serialize = "OSCOLA")]
     Oscola,
-}
-
-impl std::fmt::Display for LegalCitationFormat {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Bluebook => write!(f, "Bluebook"),
-            Self::Alwd => write!(f, "ALWD"),
-            Self::McGill => write!(f, "McGill"),
-            Self::Oscola => write!(f, "OSCOLA"),
-        }
-    }
 }
 
 #[cfg(test)]

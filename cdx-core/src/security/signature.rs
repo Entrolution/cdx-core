@@ -330,7 +330,7 @@ impl Signature {
 }
 
 /// Signature algorithm.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, strum::Display)]
 pub enum SignatureAlgorithm {
     /// ECDSA with P-256 (required).
     ES256,
@@ -342,6 +342,7 @@ pub enum SignatureAlgorithm {
     PS256,
     /// ML-DSA-65 post-quantum signature (FIPS-204).
     #[serde(rename = "ML-DSA-65")]
+    #[strum(serialize = "ML-DSA-65")]
     MlDsa65,
 }
 
@@ -362,12 +363,6 @@ impl SignatureAlgorithm {
     #[must_use]
     pub const fn is_post_quantum(&self) -> bool {
         matches!(self, Self::MlDsa65)
-    }
-}
-
-impl std::fmt::Display for SignatureAlgorithm {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.as_str())
     }
 }
 

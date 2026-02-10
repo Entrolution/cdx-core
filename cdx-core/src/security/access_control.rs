@@ -327,7 +327,8 @@ impl std::fmt::Display for Principal {
 }
 
 /// Operations that can be controlled by permissions.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, strum::Display)]
+#[strum(serialize_all = "lowercase")]
 pub enum Operation {
     /// View/read the document.
     View,
@@ -343,20 +344,6 @@ pub enum Operation {
     Sign,
     /// Decrypt the document (if encrypted).
     Decrypt,
-}
-
-impl std::fmt::Display for Operation {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::View => write!(f, "view"),
-            Self::Print => write!(f, "print"),
-            Self::Copy => write!(f, "copy"),
-            Self::Annotate => write!(f, "annotate"),
-            Self::Edit => write!(f, "edit"),
-            Self::Sign => write!(f, "sign"),
-            Self::Decrypt => write!(f, "decrypt"),
-        }
-    }
 }
 
 #[cfg(test)]

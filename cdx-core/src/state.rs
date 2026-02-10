@@ -14,8 +14,9 @@ use serde::{Deserialize, Serialize};
 ///
 /// Documents progress through states that determine what operations are allowed
 /// and what integrity guarantees are enforced.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, strum::Display)]
 #[serde(rename_all = "lowercase")]
+#[strum(serialize_all = "lowercase")]
 pub enum DocumentState {
     /// Active editing state.
     ///
@@ -110,17 +111,6 @@ impl DocumentState {
             Review => &[Draft, Frozen],
             Frozen => &[Published],
             Published => &[],
-        }
-    }
-}
-
-impl std::fmt::Display for DocumentState {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Draft => write!(f, "draft"),
-            Self::Review => write!(f, "review"),
-            Self::Frozen => write!(f, "frozen"),
-            Self::Published => write!(f, "published"),
         }
     }
 }

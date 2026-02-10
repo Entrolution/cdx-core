@@ -947,7 +947,7 @@ impl AdmonitionBlock {
 }
 
 /// Admonition variant/type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, strum::Display)]
 #[serde(rename_all = "lowercase")]
 pub enum AdmonitionVariant {
     /// General note or information.
@@ -966,21 +966,6 @@ pub enum AdmonitionVariant {
     Important,
     /// Example content.
     Example,
-}
-
-impl std::fmt::Display for AdmonitionVariant {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Note => write!(f, "Note"),
-            Self::Tip => write!(f, "Tip"),
-            Self::Info => write!(f, "Info"),
-            Self::Warning => write!(f, "Warning"),
-            Self::Caution => write!(f, "Caution"),
-            Self::Danger => write!(f, "Danger"),
-            Self::Important => write!(f, "Important"),
-            Self::Example => write!(f, "Example"),
-        }
-    }
 }
 
 /// Definition list block.
