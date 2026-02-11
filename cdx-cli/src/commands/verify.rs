@@ -108,11 +108,22 @@ pub fn run(file: &Path, key_paths: &[PathBuf], config: &OutputConfig) -> Result<
         display_json_verification(&doc, file, all_valid, &verification_results)?;
     } else {
         display_text_verification(
-            &doc, file, &report, &signature_results, &loaded_keys, key_paths, all_valid, config,
+            &doc,
+            file,
+            &report,
+            &signature_results,
+            &loaded_keys,
+            key_paths,
+            all_valid,
+            config,
         );
     }
 
-    if all_valid { Ok(()) } else { anyhow::bail!("Verification failed") }
+    if all_valid {
+        Ok(())
+    } else {
+        anyhow::bail!("Verification failed")
+    }
 }
 
 fn load_keys(key_paths: &[PathBuf], config: &OutputConfig) -> Vec<LoadedKey> {

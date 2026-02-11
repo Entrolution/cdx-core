@@ -318,9 +318,7 @@ pub fn run_acquire_timestamp(
         "rfc3161" => run_acquire_rfc3161(file, server, config),
         "ots" | "opentimestamps" => run_acquire_ots(file, config),
         "auto" => run_acquire_auto(file, server, config),
-        _ => anyhow::bail!(
-            "Unknown timestamp method: {method}. Valid options: rfc3161, ots, auto"
-        ),
+        _ => anyhow::bail!("Unknown timestamp method: {method}. Valid options: rfc3161, ots, auto"),
     }
 }
 
@@ -416,11 +414,7 @@ fn run_acquire_rfc3161(file: &Path, server: Option<&str>, config: &OutputConfig)
 }
 
 #[cfg(not(feature = "timestamps-rfc3161"))]
-fn run_acquire_rfc3161(
-    _file: &Path,
-    _server: Option<&str>,
-    config: &OutputConfig,
-) -> Result<()> {
+fn run_acquire_rfc3161(_file: &Path, _server: Option<&str>, config: &OutputConfig) -> Result<()> {
     if config.json {
         let output = serde_json::json!({
             "error": "RFC 3161 feature not enabled",

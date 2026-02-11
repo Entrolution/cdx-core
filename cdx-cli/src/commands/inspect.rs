@@ -23,7 +23,14 @@ pub fn run(
     if config.json {
         display_json(&doc, file, show_signatures, show_provenance)
     } else {
-        display_text(&doc, file, show_blocks, show_signatures, show_provenance, config);
+        display_text(
+            &doc,
+            file,
+            show_blocks,
+            show_signatures,
+            show_provenance,
+            config,
+        );
         Ok(())
     }
 }

@@ -171,12 +171,7 @@ fn display_json_diff(
     Ok(())
 }
 
-fn display_text_diff(
-    file1: &Path,
-    file2: &Path,
-    differences: &[DiffItem],
-    is_related: bool,
-) {
+fn display_text_diff(file1: &Path, file2: &Path, differences: &[DiffItem], is_related: bool) {
     println!("\n{}", "Document Comparison".blue().bold());
     println!("{}", "═".repeat(60).blue());
 

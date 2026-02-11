@@ -520,9 +520,7 @@ fn run_command(command: Commands, output_config: &output::OutputConfig) -> Resul
 
         Commands::Freeze { file, output } => commands::freeze::run(&file, output, output_config),
 
-        Commands::Publish { file, output } => {
-            commands::publish::run(&file, output, output_config)
-        }
+        Commands::Publish { file, output } => commands::publish::run(&file, output, output_config),
 
         Commands::Revert { file, output } => commands::revert::run(&file, output, output_config),
 
@@ -541,9 +539,7 @@ fn run_command(command: Commands, output_config: &output::OutputConfig) -> Resul
             commands::prove::run_verify_proof(&file, &proof, output_config)
         }
 
-        Commands::ShowLineage { file } => {
-            commands::prove::run_show_lineage(&file, output_config)
-        }
+        Commands::ShowLineage { file } => commands::prove::run_show_lineage(&file, output_config),
 
         Commands::GetMetadata { file } => {
             commands::metadata::run_get_metadata(&file, output_config)
@@ -613,7 +609,11 @@ fn run_command(command: Commands, output_config: &output::OutputConfig) -> Resul
             server,
             output,
         } => commands::timestamp::run_acquire_timestamp(
-            &file, method.as_deref(), server.as_deref(), output, output_config,
+            &file,
+            method.as_deref(),
+            server.as_deref(),
+            output,
+            output_config,
         ),
 
         Commands::Encrypt {

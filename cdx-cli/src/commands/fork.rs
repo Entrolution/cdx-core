@@ -6,12 +6,7 @@ use std::path::Path;
 
 use crate::output::OutputConfig;
 
-pub fn run(
-    file: &Path,
-    output: &Path,
-    note: Option<String>,
-    config: &OutputConfig,
-) -> Result<()> {
+pub fn run(file: &Path, output: &Path, note: Option<String>, config: &OutputConfig) -> Result<()> {
     config.verbose(&format!("Forking document: {}", file.display()));
 
     // Open the document

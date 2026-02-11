@@ -76,13 +76,7 @@ pub fn run(
 
     // Asset extraction
     if asset_name.is_some() || all_assets {
-        let asset_results = extract_assets(
-            file,
-            output_dir,
-            asset_name,
-            all_assets,
-            config,
-        )?;
+        let asset_results = extract_assets(file, output_dir, asset_name, all_assets, config)?;
         extracted_items.extend(asset_results);
     }
 

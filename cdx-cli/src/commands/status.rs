@@ -28,7 +28,11 @@ fn display_json_status(doc: &Document, file: &Path) -> Result<()> {
     let has_lineage = manifest.lineage.is_some();
     let has_signatures = doc.has_signatures();
     let has_precise_layout = manifest.has_precise_layout();
-    let integrity_ok = doc.verify().ok().as_ref().is_some_and(cdx_core::VerificationReport::is_valid);
+    let integrity_ok = doc
+        .verify()
+        .ok()
+        .as_ref()
+        .is_some_and(cdx_core::VerificationReport::is_valid);
     let merkle_root = doc.merkle_root().ok();
     let can_freeze = has_signatures && has_lineage && has_precise_layout;
 
@@ -82,7 +86,9 @@ fn display_text_status(doc: &Document, file: &Path, config: &OutputConfig) {
     let is_encrypted = doc.is_encrypted();
     let has_precise_layout = manifest.has_precise_layout();
     let verification = doc.verify().ok();
-    let integrity_ok = verification.as_ref().is_some_and(cdx_core::VerificationReport::is_valid);
+    let integrity_ok = verification
+        .as_ref()
+        .is_some_and(cdx_core::VerificationReport::is_valid);
     let merkle_root = doc.merkle_root().ok();
     let block_count = doc.content().len();
 
