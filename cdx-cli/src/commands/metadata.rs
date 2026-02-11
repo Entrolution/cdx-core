@@ -3,15 +3,15 @@
 use anyhow::{Context, Result};
 use cdx_core::Document;
 use colored::Colorize;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::output::OutputConfig;
 
 /// Display document metadata.
-pub fn run_get_metadata(file: PathBuf, config: &OutputConfig) -> Result<()> {
+pub fn run_get_metadata(file: &Path, config: &OutputConfig) -> Result<()> {
     config.verbose(&format!("Reading metadata from: {}", file.display()));
 
-    let doc = Document::open(&file)
+    let doc = Document::open(file)
         .with_context(|| format!("Failed to open document: {}", file.display()))?;
 
     let dc = doc.dublin_core();
@@ -133,8 +133,8 @@ pub fn run_get_metadata(file: PathBuf, config: &OutputConfig) -> Result<()> {
 pub fn run_set_metadata(
     file: PathBuf,
     title: Option<String>,
-    creator: Vec<String>,
-    subject: Vec<String>,
+    creator: &[String],
+    subject: &[String],
     description: Option<String>,
     publisher: Option<String>,
     language: Option<String>,
@@ -158,7 +158,7 @@ pub fn run_set_metadata(
 
     if !has_changes {
         config.info("No metadata changes specified. Use --help to see available options.");
-        return run_get_metadata(file, config);
+        return run_get_metadata(&file, config);
     }
 
     // Get mutable access to dublin core
@@ -175,12 +175,12 @@ pub fn run_set_metadata(
     }
 
     if !creator.is_empty() {
-        dc.set_creators(creator.clone());
+        dc.set_creators(creator.to_vec());
         changes.push(format!("creator={:?}", creator));
     }
 
     if !subject.is_empty() {
-        dc.set_subjects(subject.clone());
+        dc.set_subjects(subject.to_vec());
         changes.push(format!("subject={:?}", subject));
     }
 

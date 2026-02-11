@@ -3,21 +3,21 @@
 use anyhow::{Context, Result};
 use cdx_core::Document;
 use colored::Colorize;
-use std::path::PathBuf;
+use std::path::Path;
 
 use crate::output::OutputConfig;
 
 /// Compare two Codex documents.
-pub fn run(file1: PathBuf, file2: PathBuf, config: &OutputConfig) -> Result<()> {
+pub fn run(file1: &Path, file2: &Path, config: &OutputConfig) -> Result<()> {
     config.verbose(&format!(
         "Comparing: {} vs {}",
         file1.display(),
         file2.display()
     ));
 
-    let doc1 = Document::open(&file1)
+    let doc1 = Document::open(file1)
         .with_context(|| format!("Failed to open document: {}", file1.display()))?;
-    let doc2 = Document::open(&file2)
+    let doc2 = Document::open(file2)
         .with_context(|| format!("Failed to open document: {}", file2.display()))?;
 
     let manifest1 = doc1.manifest();

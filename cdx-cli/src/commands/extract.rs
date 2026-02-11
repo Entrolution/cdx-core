@@ -5,28 +5,28 @@ use cdx_core::archive::CdxReader;
 use cdx_core::content::{Block, Text};
 use cdx_core::Document;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use crate::output::OutputConfig;
 
 pub fn run(
-    file: PathBuf,
-    output_dir: PathBuf,
+    file: &Path,
+    output_dir: &Path,
     extract_content: bool,
     extract_text: bool,
-    asset_name: Option<String>,
+    asset_name: Option<&str>,
     all_assets: bool,
     config: &OutputConfig,
 ) -> Result<()> {
     config.verbose(&format!("Extracting from: {}", file.display()));
 
     // Open the document
-    let doc = Document::open(&file)
+    let doc = Document::open(file)
         .with_context(|| format!("Failed to open document: {}", file.display()))?;
 
     // Ensure output directory exists
     if !output_dir.exists() {
-        fs::create_dir_all(&output_dir).with_context(|| {
+        fs::create_dir_all(output_dir).with_context(|| {
             format!(
                 "Failed to create output directory: {}",
                 output_dir.display()
@@ -77,9 +77,9 @@ pub fn run(
     // Asset extraction
     if asset_name.is_some() || all_assets {
         let asset_results = extract_assets(
-            &file,
-            &output_dir,
-            asset_name.as_deref(),
+            file,
+            output_dir,
+            asset_name,
             all_assets,
             config,
         )?;

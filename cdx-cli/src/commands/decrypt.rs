@@ -5,7 +5,7 @@
 #[cfg(feature = "encryption")]
 use anyhow::Context;
 use anyhow::Result;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::output::OutputConfig;
 
@@ -17,7 +17,7 @@ use cdx_core::Document;
 /// Run the decrypt command.
 #[allow(unused_variables)]
 pub fn run(
-    file: PathBuf,
+    file: &Path,
     password: Option<String>,
     output: Option<PathBuf>,
     config: &OutputConfig,
@@ -45,7 +45,7 @@ pub fn run(
         config.verbose(&format!("Decrypting document: {}", file.display()));
 
         // Open the document
-        let mut doc = Document::open(&file)
+        let mut doc = Document::open(file)
             .with_context(|| format!("Failed to open document: {}", file.display()))?;
 
         // Check if document is encrypted
@@ -116,7 +116,7 @@ pub fn run(
         doc.clear_encryption()?;
 
         // Determine output path
-        let output_path = output.unwrap_or_else(|| file.clone());
+        let output_path = output.unwrap_or_else(|| file.to_path_buf());
 
         // Save the document
         doc.save(&output_path).with_context(|| {

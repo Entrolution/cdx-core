@@ -3,12 +3,12 @@
 use anyhow::{Context, Result};
 use cdx_core::Document;
 use colored::Colorize;
-use std::path::PathBuf;
+use std::path::Path;
 
 use crate::output::OutputConfig;
 
 pub fn run(
-    file: PathBuf,
+    file: &Path,
     show_blocks: bool,
     show_signatures: bool,
     show_provenance: bool,
@@ -17,7 +17,7 @@ pub fn run(
     config.verbose(&format!("Inspecting: {}", file.display()));
 
     // Open the document
-    let doc = Document::open(&file)
+    let doc = Document::open(file)
         .with_context(|| format!("Failed to open document: {}", file.display()))?;
 
     let manifest = doc.manifest();
@@ -185,7 +185,7 @@ mod tests {
         }
     }
 
-    fn create_test_document(path: &PathBuf, title: &str) {
+    fn create_test_document(path: &Path, title: &str) {
         let doc = Document::builder()
             .title(title)
             .creator("Test Author")
@@ -202,7 +202,7 @@ mod tests {
 
         create_test_document(&doc_path, "Inspect Test");
 
-        let result = run(doc_path, false, false, false, &test_config());
+        let result = run(&doc_path, false, false, false, &test_config());
         assert!(result.is_ok());
     }
 
@@ -213,7 +213,7 @@ mod tests {
 
         create_test_document(&doc_path, "Blocks Test");
 
-        let result = run(doc_path, true, false, false, &test_config());
+        let result = run(&doc_path, true, false, false, &test_config());
         assert!(result.is_ok());
     }
 
@@ -224,7 +224,7 @@ mod tests {
 
         create_test_document(&doc_path, "Signatures Test");
 
-        let result = run(doc_path, false, true, false, &test_config());
+        let result = run(&doc_path, false, true, false, &test_config());
         assert!(result.is_ok());
     }
 
@@ -235,7 +235,7 @@ mod tests {
 
         create_test_document(&doc_path, "Provenance Test");
 
-        let result = run(doc_path, false, false, true, &test_config());
+        let result = run(&doc_path, false, false, true, &test_config());
         assert!(result.is_ok());
     }
 
@@ -246,14 +246,14 @@ mod tests {
 
         create_test_document(&doc_path, "All Flags Test");
 
-        let result = run(doc_path, true, true, true, &test_config());
+        let result = run(&doc_path, true, true, true, &test_config());
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_inspect_nonexistent_file() {
         let result = run(
-            PathBuf::from("/nonexistent/file.cdx"),
+            Path::new("/nonexistent/file.cdx"),
             false,
             false,
             false,
@@ -277,7 +277,7 @@ mod tests {
             .unwrap();
         doc.save(&doc_path).unwrap();
 
-        let result = run(doc_path.clone(), true, false, false, &test_config());
+        let result = run(&doc_path, true, false, false, &test_config());
         assert!(result.is_ok());
 
         // Verify block count

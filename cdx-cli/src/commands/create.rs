@@ -3,16 +3,16 @@
 use anyhow::{Context, Result};
 use cdx_core::{Document, DocumentState};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::output::OutputConfig;
 
 pub fn run(
-    title: String,
-    authors: Vec<String>,
-    state: String,
+    title: &str,
+    authors: &[String],
+    state: &str,
     input: Option<PathBuf>,
-    output: PathBuf,
+    output: &Path,
     config: &OutputConfig,
 ) -> Result<()> {
     config.verbose(&format!("Creating document: {}", title));
@@ -37,7 +37,7 @@ pub fn run(
         fs::read_to_string(&input_path)
             .with_context(|| format!("Failed to read input file: {}", input_path.display()))?
     } else {
-        title.clone()
+        title.to_string()
     };
 
     // Convert content to blocks (simple paragraph parsing)
@@ -56,7 +56,7 @@ pub fn run(
     };
 
     let mut builder = Document::builder()
-        .title(&title)
+        .title(title)
         .creator(&creator)
         .state(doc_state);
 
@@ -70,7 +70,7 @@ pub fn run(
     config.verbose(&format!("Document ID: {}", doc.id()));
 
     // Write to file
-    doc.save(&output)
+    doc.save(output)
         .with_context(|| format!("Failed to write document to: {}", output.display()))?;
 
     if config.json {
@@ -111,14 +111,7 @@ mod tests {
         let temp = TempDir::new().unwrap();
         let output = temp.path().join("test.cdx");
 
-        let result = run(
-            "Test Document".to_string(),
-            vec![],
-            "draft".to_string(),
-            None,
-            output.clone(),
-            &test_config(),
-        );
+        let result = run("Test Document", &[], "draft", None, &output, &test_config());
 
         assert!(result.is_ok());
         assert!(output.exists());
@@ -132,15 +125,9 @@ mod tests {
     fn test_create_with_single_author() {
         let temp = TempDir::new().unwrap();
         let output = temp.path().join("test.cdx");
+        let authors = vec!["Jane Doe".to_string()];
 
-        let result = run(
-            "Test".to_string(),
-            vec!["Jane Doe".to_string()],
-            "draft".to_string(),
-            None,
-            output.clone(),
-            &test_config(),
-        );
+        let result = run("Test", &authors, "draft", None, &output, &test_config());
 
         assert!(result.is_ok());
         let doc = Document::open(&output).unwrap();
@@ -152,15 +139,9 @@ mod tests {
     fn test_create_with_multiple_authors() {
         let temp = TempDir::new().unwrap();
         let output = temp.path().join("test.cdx");
+        let authors = vec!["Jane Doe".to_string(), "John Smith".to_string()];
 
-        let result = run(
-            "Test".to_string(),
-            vec!["Jane Doe".to_string(), "John Smith".to_string()],
-            "draft".to_string(),
-            None,
-            output.clone(),
-            &test_config(),
-        );
+        let result = run("Test", &authors, "draft", None, &output, &test_config());
 
         assert!(result.is_ok());
         let doc = Document::open(&output).unwrap();
@@ -173,15 +154,7 @@ mod tests {
         let temp = TempDir::new().unwrap();
         let output = temp.path().join("test.cdx");
 
-        run(
-            "Test".to_string(),
-            vec![],
-            "draft".to_string(),
-            None,
-            output.clone(),
-            &test_config(),
-        )
-        .unwrap();
+        run("Test", &[], "draft", None, &output, &test_config()).unwrap();
 
         let doc = Document::open(&output).unwrap();
         assert_eq!(doc.state(), DocumentState::Draft);
@@ -197,14 +170,7 @@ mod tests {
         let temp = TempDir::new().unwrap();
         let output = temp.path().join("test.cdx");
 
-        let result = run(
-            "Test".to_string(),
-            vec![],
-            "review".to_string(),
-            None,
-            output.clone(),
-            &test_config(),
-        );
+        let result = run("Test", &[], "review", None, &output, &test_config());
 
         // The create command should succeed
         assert!(result.is_ok());
@@ -222,14 +188,7 @@ mod tests {
         let temp = TempDir::new().unwrap();
         let output = temp.path().join("test.cdx");
 
-        let result = run(
-            "Test".to_string(),
-            vec![],
-            "frozen".to_string(),
-            None,
-            output.clone(),
-            &test_config(),
-        );
+        let result = run("Test", &[], "frozen", None, &output, &test_config());
 
         // The create command should succeed
         assert!(result.is_ok());
@@ -244,14 +203,7 @@ mod tests {
         let temp = TempDir::new().unwrap();
         let output = temp.path().join("test.cdx");
 
-        let result = run(
-            "Test".to_string(),
-            vec![],
-            "invalid".to_string(),
-            None,
-            output,
-            &test_config(),
-        );
+        let result = run("Test", &[], "invalid", None, &output, &test_config());
 
         assert!(result.is_err());
         let err = result.unwrap_err();
@@ -263,15 +215,7 @@ mod tests {
         let temp = TempDir::new().unwrap();
         let output = temp.path().join("test.cdx");
 
-        run(
-            "Test".to_string(),
-            vec![],
-            "DRAFT".to_string(),
-            None,
-            output.clone(),
-            &test_config(),
-        )
-        .unwrap();
+        run("Test", &[], "DRAFT", None, &output, &test_config()).unwrap();
 
         let doc = Document::open(&output).unwrap();
         assert_eq!(doc.state(), DocumentState::Draft);
@@ -285,15 +229,7 @@ mod tests {
 
         std::fs::write(&input, "First paragraph.\n\nSecond paragraph.").unwrap();
 
-        run(
-            "Test".to_string(),
-            vec![],
-            "draft".to_string(),
-            Some(input),
-            output.clone(),
-            &test_config(),
-        )
-        .unwrap();
+        run("Test", &[], "draft", Some(input), &output, &test_config()).unwrap();
 
         let doc = Document::open(&output).unwrap();
         assert_eq!(doc.content().len(), 2);
@@ -305,14 +241,7 @@ mod tests {
         let input = temp.path().join("nonexistent.txt");
         let output = temp.path().join("test.cdx");
 
-        let result = run(
-            "Test".to_string(),
-            vec![],
-            "draft".to_string(),
-            Some(input),
-            output,
-            &test_config(),
-        );
+        let result = run("Test", &[], "draft", Some(input), &output, &test_config());
 
         assert!(result.is_err());
     }
@@ -322,15 +251,7 @@ mod tests {
         let temp = TempDir::new().unwrap();
         let output = temp.path().join("test.cdx");
 
-        run(
-            "Test".to_string(),
-            vec![],
-            "draft".to_string(),
-            None,
-            output.clone(),
-            &test_config(),
-        )
-        .unwrap();
+        run("Test", &[], "draft", None, &output, &test_config()).unwrap();
 
         let doc = Document::open(&output).unwrap();
         let creators = doc.dublin_core().creators();
@@ -346,15 +267,7 @@ mod tests {
         // Three paragraphs separated by blank lines
         std::fs::write(&input, "Para 1.\n\nPara 2.\n\nPara 3.").unwrap();
 
-        run(
-            "Test".to_string(),
-            vec![],
-            "draft".to_string(),
-            Some(input),
-            output.clone(),
-            &test_config(),
-        )
-        .unwrap();
+        run("Test", &[], "draft", Some(input), &output, &test_config()).unwrap();
 
         let doc = Document::open(&output).unwrap();
         assert_eq!(doc.content().len(), 3);

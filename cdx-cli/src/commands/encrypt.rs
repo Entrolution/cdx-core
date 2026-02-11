@@ -7,7 +7,7 @@ use anyhow::Context;
 use anyhow::Result;
 #[cfg(feature = "encryption")]
 use colored::Colorize;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::output::OutputConfig;
 
@@ -19,7 +19,7 @@ use cdx_core::Document;
 /// Run the encrypt command.
 #[allow(unused_variables)]
 pub fn run(
-    file: PathBuf,
+    file: &Path,
     password: Option<String>,
     output: Option<PathBuf>,
     config: &OutputConfig,
@@ -47,7 +47,7 @@ pub fn run(
         config.verbose(&format!("Encrypting document: {}", file.display()));
 
         // Open the document
-        let mut doc = Document::open(&file)
+        let mut doc = Document::open(file)
             .with_context(|| format!("Failed to open document: {}", file.display()))?;
 
         // Check if document is already encrypted
@@ -113,7 +113,7 @@ pub fn run(
         doc.set_encryption(encryption_metadata)?;
 
         // Determine output path
-        let output_path = output.unwrap_or_else(|| file.clone());
+        let output_path = output.unwrap_or_else(|| file.to_path_buf());
 
         // Save the document
         doc.save(&output_path).with_context(|| {

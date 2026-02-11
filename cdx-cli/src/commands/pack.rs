@@ -7,11 +7,11 @@ use cdx_core::DocumentId;
 use cdx_core::{Document, DocumentState};
 use serde_json::Value;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use crate::output::OutputConfig;
 
-pub fn run(input: PathBuf, output: PathBuf, from_json: bool, config: &OutputConfig) -> Result<()> {
+pub fn run(input: &Path, output: &Path, from_json: bool, config: &OutputConfig) -> Result<()> {
     if from_json {
         pack_from_json(input, output, config)
     } else {
@@ -42,10 +42,10 @@ fn output_pack_result(
     Ok(())
 }
 
-fn pack_from_json(input: PathBuf, output: PathBuf, config: &OutputConfig) -> Result<()> {
+fn pack_from_json(input: &Path, output: &Path, config: &OutputConfig) -> Result<()> {
     config.verbose(&format!("Packing from JSON: {}", input.display()));
 
-    let json_str = fs::read_to_string(&input)
+    let json_str = fs::read_to_string(input)
         .with_context(|| format!("Failed to read input file: {}", input.display()))?;
     let combined: Value = serde_json::from_str(&json_str)
         .with_context(|| format!("Failed to parse JSON from: {}", input.display()))?;
@@ -78,13 +78,13 @@ fn pack_from_json(input: PathBuf, output: PathBuf, config: &OutputConfig) -> Res
         .build()
         .context("Failed to build document")?;
 
-    doc.save(&output)
+    doc.save(output)
         .with_context(|| format!("Failed to write document to: {}", output.display()))?;
 
-    output_pack_result(config, &output, doc.id(), block_count)
+    output_pack_result(config, output, doc.id(), block_count)
 }
 
-fn pack_from_directory(input: PathBuf, output: PathBuf, config: &OutputConfig) -> Result<()> {
+fn pack_from_directory(input: &Path, output: &Path, config: &OutputConfig) -> Result<()> {
     config.verbose(&format!("Packing from directory: {}", input.display()));
 
     let content_path = input.join("content/document.json");
@@ -115,10 +115,10 @@ fn pack_from_directory(input: PathBuf, output: PathBuf, config: &OutputConfig) -
         .build()
         .context("Failed to build document")?;
 
-    doc.save(&output)
+    doc.save(output)
         .with_context(|| format!("Failed to write document to: {}", output.display()))?;
 
-    output_pack_result(config, &output, doc.id(), block_count)
+    output_pack_result(config, output, doc.id(), block_count)
 }
 
 /// Normalize Pandoc writer JSON to match cdx-core's expected format.
@@ -163,6 +163,7 @@ fn normalize_marks(marks: &mut Value) {
 mod tests {
     use super::*;
     use cdx_core::Document;
+    use std::path::PathBuf;
     use tempfile::TempDir;
 
     fn test_config() -> OutputConfig {
@@ -243,7 +244,7 @@ mod tests {
         let input_dir = create_pack_directory(&temp);
         let output = temp.path().join("output.cdx");
 
-        let result = run(input_dir, output.clone(), false, &test_config());
+        let result = run(&input_dir, &output, false, &test_config());
         assert!(result.is_ok());
         assert!(output.exists());
 
@@ -258,7 +259,7 @@ mod tests {
         let json_path = create_combined_json(&temp);
         let output = temp.path().join("output.cdx");
 
-        let result = run(json_path, output.clone(), true, &test_config());
+        let result = run(&json_path, &output, true, &test_config());
         assert!(result.is_ok());
         assert!(output.exists());
 
@@ -273,7 +274,7 @@ mod tests {
         let input_dir = create_pack_directory(&temp);
         let output = temp.path().join("output.cdx");
 
-        run(input_dir, output.clone(), false, &test_config()).unwrap();
+        run(&input_dir, &output, false, &test_config()).unwrap();
 
         let doc = Document::open(&output).unwrap();
         assert_eq!(doc.state(), DocumentState::Draft);
@@ -282,28 +283,20 @@ mod tests {
     #[test]
     fn test_pack_nonexistent_directory() {
         let temp = TempDir::new().unwrap();
+        let nonexistent = temp.path().join("nonexistent");
         let output = temp.path().join("output.cdx");
 
-        let result = run(
-            temp.path().join("nonexistent"),
-            output,
-            false,
-            &test_config(),
-        );
+        let result = run(&nonexistent, &output, false, &test_config());
         assert!(result.is_err());
     }
 
     #[test]
     fn test_pack_nonexistent_json() {
         let temp = TempDir::new().unwrap();
+        let nonexistent = temp.path().join("nonexistent.json");
         let output = temp.path().join("output.cdx");
 
-        let result = run(
-            temp.path().join("nonexistent.json"),
-            output,
-            true,
-            &test_config(),
-        );
+        let result = run(&nonexistent, &output, true, &test_config());
         assert!(result.is_err());
     }
 
@@ -314,7 +307,7 @@ mod tests {
         fs::write(&json_path, "not valid json").unwrap();
         let output = temp.path().join("output.cdx");
 
-        let result = run(json_path, output, true, &test_config());
+        let result = run(&json_path, &output, true, &test_config());
         assert!(result.is_err());
     }
 
@@ -330,7 +323,7 @@ mod tests {
         fs::write(&json_path, json).unwrap();
         let output = temp.path().join("output.cdx");
 
-        let result = run(json_path, output, true, &test_config());
+        let result = run(&json_path, &output, true, &test_config());
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("content"));
     }
@@ -348,7 +341,7 @@ mod tests {
         fs::write(&json_path, json).unwrap();
         let output = temp.path().join("output.cdx");
 
-        let result = run(json_path, output, true, &test_config());
+        let result = run(&json_path, &output, true, &test_config());
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("dublin_core"));
     }

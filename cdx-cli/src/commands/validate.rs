@@ -3,15 +3,15 @@
 use anyhow::{Context, Result};
 use cdx_core::Document;
 use colored::Colorize;
-use std::path::PathBuf;
+use std::path::Path;
 
 use crate::output::OutputConfig;
 
-pub fn run(file: PathBuf, config: &OutputConfig) -> Result<()> {
+pub fn run(file: &Path, config: &OutputConfig) -> Result<()> {
     config.verbose(&format!("Validating: {}", file.display()));
 
     // Open the document
-    let doc = Document::open(&file)
+    let doc = Document::open(file)
         .with_context(|| format!("Failed to open document: {}", file.display()))?;
 
     // Get verification report
@@ -118,7 +118,7 @@ mod tests {
         }
     }
 
-    fn create_test_document(path: &PathBuf, title: &str) {
+    fn create_test_document(path: &Path, title: &str) {
         let doc = Document::builder()
             .title(title)
             .creator("Test")
@@ -135,13 +135,13 @@ mod tests {
 
         create_test_document(&doc_path, "Valid Document");
 
-        let result = run(doc_path, &test_config());
+        let result = run(&doc_path, &test_config());
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_validate_nonexistent_file() {
-        let result = run(PathBuf::from("/nonexistent/file.cdx"), &test_config());
+        let result = run(Path::new("/nonexistent/file.cdx"), &test_config());
         assert!(result.is_err());
     }
 
@@ -159,7 +159,7 @@ mod tests {
             .unwrap();
         doc.save(&doc_path).unwrap();
 
-        let result = run(doc_path, &test_config());
+        let result = run(&doc_path, &test_config());
         assert!(result.is_ok());
     }
 
@@ -179,7 +179,7 @@ mod tests {
             .unwrap();
         doc.save(&doc_path).unwrap();
 
-        let result = run(doc_path, &test_config());
+        let result = run(&doc_path, &test_config());
         assert!(result.is_ok());
     }
 
@@ -191,7 +191,7 @@ mod tests {
         create_test_document(&doc_path, "Integrity Test");
 
         // Validate and verify the document passes integrity checks
-        let result = run(doc_path.clone(), &test_config());
+        let result = run(&doc_path, &test_config());
         assert!(result.is_ok());
 
         // Also verify by opening and checking the report directly
@@ -215,7 +215,7 @@ mod tests {
             json: false,
         };
 
-        let result = run(doc_path, &config);
+        let result = run(&doc_path, &config);
         assert!(result.is_ok());
     }
 
@@ -234,7 +234,7 @@ mod tests {
         doc.save(&doc_path).unwrap();
 
         // Validate to ensure state doesn't cause validation failure
-        let result = run(doc_path.clone(), &test_config());
+        let result = run(&doc_path, &test_config());
         assert!(result.is_ok());
 
         // Verify state was preserved

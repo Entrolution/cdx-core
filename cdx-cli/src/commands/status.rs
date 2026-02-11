@@ -3,15 +3,15 @@
 use anyhow::{Context, Result};
 use cdx_core::Document;
 use colored::Colorize;
-use std::path::PathBuf;
+use std::path::Path;
 
 use crate::output::OutputConfig;
 
 /// Display comprehensive document status.
-pub fn run(file: PathBuf, config: &OutputConfig) -> Result<()> {
+pub fn run(file: &Path, config: &OutputConfig) -> Result<()> {
     config.verbose(&format!("Checking status of: {}", file.display()));
 
-    let doc = Document::open(&file)
+    let doc = Document::open(file)
         .with_context(|| format!("Failed to open document: {}", file.display()))?;
 
     let manifest = doc.manifest();

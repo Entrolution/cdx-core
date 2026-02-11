@@ -7,7 +7,7 @@ use cdx_core::security::{
 use cdx_core::{Document, DocumentId};
 use colored::Colorize;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::output::OutputConfig;
 
@@ -91,11 +91,11 @@ struct SignatureVerificationResult {
     error: Option<String>,
 }
 
-pub fn run(file: PathBuf, key_paths: Vec<PathBuf>, config: &OutputConfig) -> Result<()> {
+pub fn run(file: &Path, key_paths: &[PathBuf], config: &OutputConfig) -> Result<()> {
     config.verbose(&format!("Verifying: {}", file.display()));
 
     // Open the document
-    let doc = Document::open(&file)
+    let doc = Document::open(file)
         .with_context(|| format!("Failed to open document: {}", file.display()))?;
 
     // Verify document integrity
@@ -115,7 +115,7 @@ pub fn run(file: PathBuf, key_paths: Vec<PathBuf>, config: &OutputConfig) -> Res
 
     // Load public keys
     let mut loaded_keys = Vec::new();
-    for key_path in &key_paths {
+    for key_path in key_paths {
         match fs::read_to_string(key_path) {
             Ok(pem) => {
                 config.verbose(&format!("Loaded key: {}", key_path.display()));
