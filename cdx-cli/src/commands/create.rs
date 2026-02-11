@@ -15,7 +15,7 @@ pub fn run(
     output: &Path,
     config: &OutputConfig,
 ) -> Result<()> {
-    config.verbose(&format!("Creating document: {}", title));
+    config.verbose(&format!("Creating document: {title}"));
 
     // Parse state
     let doc_state = match state.to_lowercase().as_str() {
@@ -25,8 +25,7 @@ pub fn run(
         "published" => DocumentState::Published,
         _ => {
             anyhow::bail!(
-                "Invalid state '{}'. Valid states: draft, review, frozen, published",
-                state
+                "Invalid state '{state}'. Valid states: draft, review, frozen, published"
             );
         }
     };

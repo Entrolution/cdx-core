@@ -26,7 +26,7 @@ pub fn run(
         doc.id().to_string()
     };
 
-    config.verbose(&format!("Parent document ID: {}", parent_id));
+    config.verbose(&format!("Parent document ID: {parent_id}"));
 
     // Fork the document
     let mut forked = doc.fork().with_context(|| "Failed to fork document")?;

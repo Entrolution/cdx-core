@@ -220,8 +220,7 @@ pub fn run_add_timestamp(
         "ethereum" => TimestampMethod::Ethereum,
         "opentimestamps" | "ots" => TimestampMethod::OpenTimestamps,
         _ => anyhow::bail!(
-            "Unknown timestamp method: {}. Valid options: rfc3161, bitcoin, ethereum, opentimestamps",
-            method
+            "Unknown timestamp method: {method}. Valid options: rfc3161, bitcoin, ethereum, opentimestamps"
         ),
     };
 
@@ -320,8 +319,7 @@ pub fn run_acquire_timestamp(
         "ots" | "opentimestamps" => run_acquire_ots(file, config),
         "auto" => run_acquire_auto(file, server, config),
         _ => anyhow::bail!(
-            "Unknown timestamp method: {}. Valid options: rfc3161, ots, auto",
-            method
+            "Unknown timestamp method: {method}. Valid options: rfc3161, ots, auto"
         ),
     }
 }

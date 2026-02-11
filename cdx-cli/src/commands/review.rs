@@ -14,7 +14,7 @@ pub fn run(file: &Path, output: Option<PathBuf>, config: &OutputConfig) -> Resul
         .with_context(|| format!("Failed to open document: {}", file.display()))?;
 
     let current_state = doc.state();
-    config.verbose(&format!("Current state: {}", current_state));
+    config.verbose(&format!("Current state: {current_state}"));
 
     // Submit for review
     doc.submit_for_review()

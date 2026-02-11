@@ -54,7 +54,7 @@ pub fn run(
         if show_provenance {
             if let Some(lineage) = &manifest.lineage {
                 result["lineage"] = serde_json::json!({
-                    "parent": lineage.parent.as_ref().map(|p| p.to_string()),
+                    "parent": lineage.parent.as_ref().map(std::string::ToString::to_string),
                     "version": lineage.version,
                     "branch": lineage.branch,
                     "note": lineage.note,

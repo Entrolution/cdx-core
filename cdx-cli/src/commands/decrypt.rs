@@ -49,20 +49,16 @@ pub fn run(
             .with_context(|| format!("Failed to open document: {}", file.display()))?;
 
         // Check if document is encrypted
-        let encryption_metadata = match doc.encryption_metadata() {
-            Some(meta) => meta.clone(),
-            None => {
-                if config.json {
-                    let result = serde_json::json!({
-                        "error": "Document is not encrypted",
-                        "file": file.display().to_string()
-                    });
-                    println!("{}", serde_json::to_string_pretty(&result)?);
-                    return Ok(());
-                } else {
-                    anyhow::bail!("Document is not encrypted");
-                }
+        let Some(encryption_metadata) = doc.encryption_metadata().cloned() else {
+            if config.json {
+                let result = serde_json::json!({
+                    "error": "Document is not encrypted",
+                    "file": file.display().to_string()
+                });
+                println!("{}", serde_json::to_string_pretty(&result)?);
+                return Ok(());
             }
+            anyhow::bail!("Document is not encrypted");
         };
 
         // Check document state

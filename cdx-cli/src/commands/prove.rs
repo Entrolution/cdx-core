@@ -130,12 +130,12 @@ pub fn run_show_lineage(file: &Path, config: &OutputConfig) -> Result<()> {
         let lineage_json = if let Some(ref lineage) = manifest.lineage {
             serde_json::json!({
                 "document_id": doc.id().to_string(),
-                "parent": lineage.parent.as_ref().map(|p| p.to_string()),
-                "ancestors": lineage.ancestors.iter().map(|a| a.to_string()).collect::<Vec<_>>(),
+                "parent": lineage.parent.as_ref().map(std::string::ToString::to_string),
+                "ancestors": lineage.ancestors.iter().map(std::string::ToString::to_string).collect::<Vec<_>>(),
                 "version": lineage.version,
                 "depth": lineage.depth,
                 "branch": lineage.branch,
-                "merged_from": lineage.merged_from.iter().map(|m| m.to_string()).collect::<Vec<_>>(),
+                "merged_from": lineage.merged_from.iter().map(std::string::ToString::to_string).collect::<Vec<_>>(),
                 "note": lineage.note,
             })
         } else {

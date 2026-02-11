@@ -176,12 +176,12 @@ pub fn run_set_metadata(
 
     if !creator.is_empty() {
         dc.set_creators(creator.to_vec());
-        changes.push(format!("creator={:?}", creator));
+        changes.push(format!("creator={creator:?}"));
     }
 
     if !subject.is_empty() {
         dc.set_subjects(subject.to_vec());
-        changes.push(format!("subject={:?}", subject));
+        changes.push(format!("subject={subject:?}"));
     }
 
     if let Some(desc) = description {

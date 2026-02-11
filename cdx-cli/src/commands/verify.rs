@@ -240,7 +240,7 @@ pub fn run(file: &Path, key_paths: &[PathBuf], config: &OutputConfig) -> Result<
             );
 
             if let Some(ref key) = result.matched_key {
-                println!("      Matched key: {}", key);
+                println!("      Matched key: {key}");
             }
             if let Some(ref error) = result.error {
                 println!("      {}", error.red());

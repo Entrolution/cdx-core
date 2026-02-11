@@ -59,9 +59,8 @@ pub fn run(
                 });
                 println!("{}", serde_json::to_string_pretty(&result)?);
                 return Ok(());
-            } else {
-                anyhow::bail!("Document is already encrypted. Decrypt it first.");
             }
+            anyhow::bail!("Document is already encrypted. Decrypt it first.");
         }
 
         // Check document state

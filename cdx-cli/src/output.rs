@@ -34,7 +34,7 @@ impl OutputConfig {
             return;
         }
         if !self.json {
-            println!("{}", message);
+            println!("{message}");
         }
     }
 

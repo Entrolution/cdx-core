@@ -55,12 +55,12 @@ pub fn run(
             signer.sign(&doc_id).context("Failed to sign document")?
         }
         other => {
-            anyhow::bail!("Unsupported algorithm '{}'. Supported: ES256, EdDSA", other);
+            anyhow::bail!("Unsupported algorithm '{other}'. Supported: ES256, EdDSA");
         }
     };
 
     let signature_id = signature.id.clone();
-    config.verbose(&format!("Signature ID: {}", signature_id));
+    config.verbose(&format!("Signature ID: {signature_id}"));
 
     // Add signature to document
     doc.add_signature(signature)

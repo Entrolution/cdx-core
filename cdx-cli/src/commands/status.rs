@@ -26,7 +26,7 @@ pub fn run(file: &Path, config: &OutputConfig) -> Result<()> {
 
     // Verify document integrity
     let verification = doc.verify().ok();
-    let integrity_ok = verification.as_ref().is_some_and(|v| v.is_valid());
+    let integrity_ok = verification.as_ref().is_some_and(cdx_core::VerificationReport::is_valid);
 
     // Get merkle info
     let merkle_root = doc.merkle_root().ok();
@@ -62,7 +62,7 @@ pub fn run(file: &Path, config: &OutputConfig) -> Result<()> {
             },
             "lineage": {
                 "has_lineage": has_lineage,
-                "parent": manifest.lineage.as_ref().and_then(|l| l.parent.as_ref().map(|p| p.to_string())),
+                "parent": manifest.lineage.as_ref().and_then(|l| l.parent.as_ref().map(std::string::ToString::to_string)),
                 "version": manifest.lineage.as_ref().and_then(|l| l.version),
                 "depth": manifest.lineage.as_ref().and_then(|l| l.depth),
             },
