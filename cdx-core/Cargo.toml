@@ -41,7 +41,7 @@ webauthn = ["signatures"]
 # timestamps-bitcoin = []               # Bitcoin anchoring
 # timestamps-ethereum = []              # Ethereum anchoring
 
-full = ["zstd", "signatures", "signatures-es384", "signatures-rsa", "encryption", "encryption-chacha", "eddsa", "ml-dsa", "webauthn"]
+full = ["zstd", "signatures", "signatures-es384", "signatures-rsa", "encryption", "encryption-chacha", "eddsa", "ml-dsa", "webauthn", "timestamps-ots", "timestamps-rfc3161", "ocsp"]
 
 [dependencies]
 # Serialization

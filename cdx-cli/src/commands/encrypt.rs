@@ -32,11 +32,11 @@ pub fn run(
                 "message": "Rebuild with --features encryption to enable encryption"
             });
             println!("{}", serde_json::to_string_pretty(&result)?);
-            return Ok(());
+            Ok(())
         } else {
             anyhow::bail!(
                 "Encryption feature not enabled. Rebuild with: cargo build --features encryption"
-            );
+            )
         }
     }
 
