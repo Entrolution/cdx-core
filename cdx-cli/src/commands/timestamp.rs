@@ -435,7 +435,7 @@ fn run_acquire_rfc3161(
     }
 }
 
-/// Acquire a timestamp from OpenTimestamps.
+/// Acquire a timestamp from `OpenTimestamps`.
 #[cfg(feature = "timestamps-ots")]
 fn run_acquire_ots(file: &Path, config: &OutputConfig) -> Result<()> {
     config.verbose(&format!(
