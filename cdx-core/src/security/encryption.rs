@@ -193,7 +193,7 @@ impl Aes256GcmEncryptor {
                 reason: format!("Failed to create cipher: {e}"),
             })?;
 
-        #[allow(deprecated)] // generic-array 1.x transition
+        #[allow(deprecated)] // generic-array 1.x: Nonce::from_slice uses deprecated GenericArray; resolved in aes-gcm/chacha20poly1305 0.11
         let nonce_obj = Nonce::from_slice(nonce);
         let ciphertext =
             cipher
@@ -238,7 +238,7 @@ impl Aes256GcmEncryptor {
                 reason: format!("Failed to create cipher: {e}"),
             })?;
 
-        #[allow(deprecated)] // generic-array 1.x transition
+        #[allow(deprecated)] // generic-array 1.x: Nonce::from_slice uses deprecated GenericArray; resolved in aes-gcm/chacha20poly1305 0.11
         let nonce_obj = Nonce::from_slice(&nonce);
         cipher
             .decrypt(nonce_obj, ciphertext)
@@ -312,7 +312,7 @@ impl ChaCha20Poly1305Encryptor {
             }
         })?;
 
-        #[allow(deprecated)] // generic-array 1.x transition
+        #[allow(deprecated)] // generic-array 1.x: Nonce::from_slice uses deprecated GenericArray; resolved in aes-gcm/chacha20poly1305 0.11
         let nonce_obj = Nonce::from_slice(nonce);
         let ciphertext =
             cipher
@@ -358,7 +358,7 @@ impl ChaCha20Poly1305Encryptor {
             }
         })?;
 
-        #[allow(deprecated)] // generic-array 1.x transition
+        #[allow(deprecated)] // generic-array 1.x: Nonce::from_slice uses deprecated GenericArray; resolved in aes-gcm/chacha20poly1305 0.11
         let nonce_obj = Nonce::from_slice(&nonce);
         cipher
             .decrypt(nonce_obj, ciphertext)
