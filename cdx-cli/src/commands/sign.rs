@@ -4,23 +4,23 @@ use anyhow::{Context, Result};
 use cdx_core::security::{EcdsaSigner, Signer, SignerInfo};
 use cdx_core::Document;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::output::OutputConfig;
 
 pub fn run(
-    file: PathBuf,
-    key_path: PathBuf,
-    name: String,
+    file: &Path,
+    key_path: &Path,
+    name: &str,
     email: Option<String>,
-    algorithm: String,
+    algorithm: &str,
     output: Option<PathBuf>,
     config: &OutputConfig,
 ) -> Result<()> {
     config.verbose(&format!("Signing: {}", file.display()));
 
     // Open the document
-    let mut doc = Document::open(&file)
+    let mut doc = Document::open(file)
         .with_context(|| format!("Failed to open document: {}", file.display()))?;
 
     // Compute the document ID for signing
@@ -31,11 +31,11 @@ pub fn run(
     }
 
     // Read the private key
-    let key_pem = fs::read_to_string(&key_path)
+    let key_pem = fs::read_to_string(key_path)
         .with_context(|| format!("Failed to read private key: {}", key_path.display()))?;
 
     // Build signer info
-    let mut signer_info = SignerInfo::new(&name);
+    let mut signer_info = SignerInfo::new(name);
     if let Some(email_addr) = email {
         signer_info = signer_info.with_email(email_addr);
     }
@@ -55,19 +55,19 @@ pub fn run(
             signer.sign(&doc_id).context("Failed to sign document")?
         }
         other => {
-            anyhow::bail!("Unsupported algorithm '{}'. Supported: ES256, EdDSA", other);
+            anyhow::bail!("Unsupported algorithm '{other}'. Supported: ES256, EdDSA");
         }
     };
 
     let signature_id = signature.id.clone();
-    config.verbose(&format!("Signature ID: {}", signature_id));
+    config.verbose(&format!("Signature ID: {signature_id}"));
 
     // Add signature to document
     doc.add_signature(signature)
         .context("Failed to add signature to document")?;
 
     // Determine output path
-    let output_path = output.unwrap_or_else(|| file.clone());
+    let output_path = output.unwrap_or_else(|| file.to_path_buf());
 
     // Save the signed document
     doc.save(&output_path).with_context(|| {
@@ -91,8 +91,8 @@ pub fn run(
         config.success("Document signed successfully");
         config.field("Output", &output_path.display().to_string());
         config.field("Signature ID", &signature_id);
-        config.field("Algorithm", &algorithm);
-        config.field("Signer", &name);
+        config.field("Algorithm", algorithm);
+        config.field("Signer", name);
         config.field("Document ID", &doc_id.to_string());
     }
 

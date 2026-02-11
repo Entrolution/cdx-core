@@ -7,7 +7,7 @@ use cdx_core::security::{
 use cdx_core::{Document, DocumentId};
 use colored::Colorize;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::output::OutputConfig;
 
@@ -91,31 +91,44 @@ struct SignatureVerificationResult {
     error: Option<String>,
 }
 
-pub fn run(file: PathBuf, key_paths: Vec<PathBuf>, config: &OutputConfig) -> Result<()> {
+pub fn run(file: &Path, key_paths: &[PathBuf], config: &OutputConfig) -> Result<()> {
     config.verbose(&format!("Verifying: {}", file.display()));
 
-    // Open the document
-    let doc = Document::open(&file)
+    let doc = Document::open(file)
         .with_context(|| format!("Failed to open document: {}", file.display()))?;
 
-    // Verify document integrity
     let report = doc.verify().context("Verification failed")?;
-
     let mut all_valid = report.is_valid();
-    let mut verification_results = Vec::new();
 
-    // Check document integrity
-    verification_results.push(serde_json::json!({
-        "check": "integrity",
-        "valid": report.is_valid(),
-        "document_id_valid": report.id_valid,
-        "content_valid": report.content_valid,
-        "errors": report.errors
-    }));
+    let loaded_keys = load_keys(key_paths, config);
+    let (signature_results, verification_results) =
+        verify_signatures(&doc, &report, &loaded_keys, &mut all_valid)?;
 
-    // Load public keys
+    if config.json {
+        display_json_verification(&doc, file, all_valid, &verification_results)?;
+    } else {
+        display_text_verification(
+            &doc,
+            file,
+            &report,
+            &signature_results,
+            &loaded_keys,
+            key_paths,
+            all_valid,
+            config,
+        );
+    }
+
+    if all_valid {
+        Ok(())
+    } else {
+        anyhow::bail!("Verification failed")
+    }
+}
+
+fn load_keys(key_paths: &[PathBuf], config: &OutputConfig) -> Vec<LoadedKey> {
     let mut loaded_keys = Vec::new();
-    for key_path in &key_paths {
+    for key_path in key_paths {
         match fs::read_to_string(key_path) {
             Ok(pem) => {
                 config.verbose(&format!("Loaded key: {}", key_path.display()));
@@ -129,8 +142,23 @@ pub fn run(file: PathBuf, key_paths: Vec<PathBuf>, config: &OutputConfig) -> Res
             }
         }
     }
+    loaded_keys
+}
 
-    // Verify signatures
+fn verify_signatures(
+    doc: &Document,
+    report: &cdx_core::VerificationReport,
+    loaded_keys: &[LoadedKey],
+    all_valid: &mut bool,
+) -> Result<(Vec<SignatureVerificationResult>, Vec<serde_json::Value>)> {
+    let mut verification_results = vec![serde_json::json!({
+        "check": "integrity",
+        "valid": report.is_valid(),
+        "document_id_valid": report.id_valid,
+        "content_valid": report.content_valid,
+        "errors": report.errors
+    })];
+
     let signatures = doc.signatures();
     let mut signature_results = Vec::new();
 
@@ -139,7 +167,6 @@ pub fn run(file: PathBuf, key_paths: Vec<PathBuf>, config: &OutputConfig) -> Res
 
         for signature in signatures {
             if loaded_keys.is_empty() {
-                // No keys provided, mark as unverified
                 signature_results.push(SignatureVerificationResult {
                     signature_id: signature.id.clone(),
                     algorithm: signature.algorithm,
@@ -149,15 +176,14 @@ pub fn run(file: PathBuf, key_paths: Vec<PathBuf>, config: &OutputConfig) -> Res
                     error: Some("No public keys provided for verification".to_string()),
                 });
             } else {
-                let result = verify_signature_with_keys(&doc_id, signature, &loaded_keys);
+                let result = verify_signature_with_keys(&doc_id, signature, loaded_keys);
                 if !result.valid {
-                    all_valid = false;
+                    *all_valid = false;
                 }
                 signature_results.push(result);
             }
         }
 
-        // Build JSON for signature results
         let sig_json: Vec<_> = signature_results
             .iter()
             .map(|r| {
@@ -180,22 +206,36 @@ pub fn run(file: PathBuf, key_paths: Vec<PathBuf>, config: &OutputConfig) -> Res
         }));
     }
 
-    if config.json {
-        let result = serde_json::json!({
-            "file": file.display().to_string(),
-            "document_id": doc.id().to_string(),
-            "all_valid": all_valid,
-            "checks": verification_results
-        });
-        println!("{}", serde_json::to_string_pretty(&result)?);
-        return if all_valid {
-            Ok(())
-        } else {
-            anyhow::bail!("Verification failed")
-        };
-    }
+    Ok((signature_results, verification_results))
+}
 
-    // Human-readable output
+fn display_json_verification(
+    doc: &Document,
+    file: &Path,
+    all_valid: bool,
+    verification_results: &[serde_json::Value],
+) -> Result<()> {
+    let result = serde_json::json!({
+        "file": file.display().to_string(),
+        "document_id": doc.id().to_string(),
+        "all_valid": all_valid,
+        "checks": verification_results
+    });
+    println!("{}", serde_json::to_string_pretty(&result)?);
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn display_text_verification(
+    doc: &Document,
+    file: &Path,
+    report: &cdx_core::VerificationReport,
+    signature_results: &[SignatureVerificationResult],
+    loaded_keys: &[LoadedKey],
+    key_paths: &[PathBuf],
+    all_valid: bool,
+    config: &OutputConfig,
+) {
     config.field("File", &file.display().to_string());
     config.field("Document ID", &doc.id().to_string());
 
@@ -205,20 +245,16 @@ pub fn run(file: PathBuf, key_paths: Vec<PathBuf>, config: &OutputConfig) -> Res
     } else {
         println!("{} Document ID verification failed", "✗".red());
     }
-
     if report.content_valid {
         println!("{} Content verified", "✓".green());
     } else {
         println!("{} Content verification failed", "✗".red());
     }
-
-    if !report.errors.is_empty() {
-        for error in &report.errors {
-            println!("  {} {}", "•".red(), error);
-        }
+    for error in &report.errors {
+        println!("  {} {}", "•".red(), error);
     }
 
-    // Signature verification output
+    let signatures = doc.signatures();
     if !signatures.is_empty() {
         config.section("Signatures");
         println!(
@@ -227,20 +263,18 @@ pub fn run(file: PathBuf, key_paths: Vec<PathBuf>, config: &OutputConfig) -> Res
             loaded_keys.len()
         );
 
-        for result in &signature_results {
+        for result in signature_results {
             let status = if result.valid {
                 format!("{} Valid", "✓".green())
             } else {
                 format!("{} Invalid", "✗".red())
             };
-
             println!(
                 "  {} [{}] {} ({})",
                 status, result.signature_id, result.signer_name, result.algorithm
             );
-
             if let Some(ref key) = result.matched_key {
-                println!("      Matched key: {}", key);
+                println!("      Matched key: {key}");
             }
             if let Some(ref error) = result.error {
                 println!("      {}", error.red());
@@ -259,8 +293,5 @@ pub fn run(file: PathBuf, key_paths: Vec<PathBuf>, config: &OutputConfig) -> Res
         } else {
             config.success("Document verified successfully");
         }
-        Ok(())
-    } else {
-        anyhow::bail!("Verification failed")
     }
 }

@@ -2,20 +2,15 @@
 
 use anyhow::{Context, Result};
 use cdx_core::Document;
-use std::path::PathBuf;
+use std::path::Path;
 
 use crate::output::OutputConfig;
 
-pub fn run(
-    file: PathBuf,
-    output: PathBuf,
-    note: Option<String>,
-    config: &OutputConfig,
-) -> Result<()> {
+pub fn run(file: &Path, output: &Path, note: Option<String>, config: &OutputConfig) -> Result<()> {
     config.verbose(&format!("Forking document: {}", file.display()));
 
     // Open the document
-    let doc = Document::open(&file)
+    let doc = Document::open(file)
         .with_context(|| format!("Failed to open document: {}", file.display()))?;
 
     let parent_id = if doc.id().is_pending() {
@@ -26,7 +21,7 @@ pub fn run(
         doc.id().to_string()
     };
 
-    config.verbose(&format!("Parent document ID: {}", parent_id));
+    config.verbose(&format!("Parent document ID: {parent_id}"));
 
     // Fork the document
     let mut forked = doc.fork().with_context(|| "Failed to fork document")?;
@@ -47,7 +42,7 @@ pub fn run(
 
     // Save the forked document
     forked
-        .save(&output)
+        .save(output)
         .with_context(|| format!("Failed to save forked document to: {}", output.display()))?;
 
     if config.json {

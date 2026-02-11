@@ -8,7 +8,7 @@ use std::fs;
 use tempfile::TempDir;
 
 /// Get a Command for the cdx binary.
-#[allow(deprecated)]
+#[allow(deprecated)] // cargo_bin_cmd! replacement requires assert_cmd >2.1.2
 fn cdx() -> Command {
     Command::cargo_bin("cdx").unwrap()
 }

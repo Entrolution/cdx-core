@@ -3,12 +3,12 @@
 use anyhow::{Context, Result};
 use cdx_core::Document;
 use colored::Colorize;
-use std::path::PathBuf;
+use std::path::Path;
 
 use crate::output::OutputConfig;
 
 pub fn run(
-    file: PathBuf,
+    file: &Path,
     show_blocks: bool,
     show_signatures: bool,
     show_provenance: bool,
@@ -17,66 +17,93 @@ pub fn run(
     config.verbose(&format!("Inspecting: {}", file.display()));
 
     // Open the document
-    let doc = Document::open(&file)
+    let doc = Document::open(file)
         .with_context(|| format!("Failed to open document: {}", file.display()))?;
 
+    if config.json {
+        display_json(&doc, file, show_signatures, show_provenance)
+    } else {
+        display_text(
+            &doc,
+            file,
+            show_blocks,
+            show_signatures,
+            show_provenance,
+            config,
+        );
+        Ok(())
+    }
+}
+
+fn display_json(
+    doc: &Document,
+    file: &Path,
+    show_signatures: bool,
+    show_provenance: bool,
+) -> Result<()> {
     let manifest = doc.manifest();
     let content = doc.content();
     let dublin_core = doc.dublin_core();
 
-    if config.json {
-        let mut result = serde_json::json!({
-            "file": file.display().to_string(),
-            "document_id": doc.id().to_string(),
-            "spec_version": manifest.codex,
-            "state": doc.state().to_string(),
-            "metadata": {
-                "title": dublin_core.title(),
-                "creators": dublin_core.creators(),
-                "description": dublin_core.description(),
-            },
-            "content": {
-                "block_count": content.len(),
-            }
-        });
-
-        // Add signature info if requested
-        if show_signatures {
-            if let Some(security) = &manifest.security {
-                result["security"] = serde_json::json!({
-                    "has_signatures": security.signatures.is_some(),
-                    "is_encrypted": security.encryption.is_some(),
-                });
-            }
+    let mut result = serde_json::json!({
+        "file": file.display().to_string(),
+        "document_id": doc.id().to_string(),
+        "spec_version": manifest.codex,
+        "state": doc.state().to_string(),
+        "metadata": {
+            "title": dublin_core.title(),
+            "creators": dublin_core.creators(),
+            "description": dublin_core.description(),
+        },
+        "content": {
+            "block_count": content.len(),
         }
+    });
 
-        // Add lineage if requested and present
-        if show_provenance {
-            if let Some(lineage) = &manifest.lineage {
-                result["lineage"] = serde_json::json!({
-                    "parent": lineage.parent.as_ref().map(|p| p.to_string()),
-                    "version": lineage.version,
-                    "branch": lineage.branch,
-                    "note": lineage.note,
-                });
-            }
+    if show_signatures {
+        if let Some(security) = &manifest.security {
+            result["security"] = serde_json::json!({
+                "has_signatures": security.signatures.is_some(),
+                "is_encrypted": security.encryption.is_some(),
+            });
         }
-
-        println!("{}", serde_json::to_string_pretty(&result)?);
-        return Ok(());
     }
 
-    // Header
+    if show_provenance {
+        if let Some(lineage) = &manifest.lineage {
+            result["lineage"] = serde_json::json!({
+                "parent": lineage.parent.as_ref().map(std::string::ToString::to_string),
+                "version": lineage.version,
+                "branch": lineage.branch,
+                "note": lineage.note,
+            });
+        }
+    }
+
+    println!("{}", serde_json::to_string_pretty(&result)?);
+    Ok(())
+}
+
+fn display_text(
+    doc: &Document,
+    file: &Path,
+    show_blocks: bool,
+    show_signatures: bool,
+    show_provenance: bool,
+    config: &OutputConfig,
+) {
+    let manifest = doc.manifest();
+    let content = doc.content();
+    let dublin_core = doc.dublin_core();
+
     println!("\n{}", "Codex Document".blue().bold());
     println!("{}", "═".repeat(60).blue());
 
-    // Basic info
     config.field("File", &file.display().to_string());
     config.field("Document ID", &doc.id().to_string());
     config.field("Spec Version", &manifest.codex);
     config.field("State", &doc.state().to_string());
 
-    // Metadata
     config.section("Metadata");
     config.field("Title", dublin_core.title());
     let creators = dublin_core.creators();
@@ -90,7 +117,6 @@ pub fn run(
         config.field("Language", language);
     }
 
-    // Content summary
     config.section("Content");
     config.field("Block Count", &content.len().to_string());
 
@@ -105,7 +131,6 @@ pub fn run(
         }
     }
 
-    // Security info
     if show_signatures {
         if let Some(security) = &manifest.security {
             config.section("Security");
@@ -118,7 +143,6 @@ pub fn run(
         }
     }
 
-    // Provenance/lineage
     if show_provenance {
         if let Some(lineage) = &manifest.lineage {
             config.section("Provenance");
@@ -138,7 +162,6 @@ pub fn run(
     }
 
     println!();
-    Ok(())
 }
 
 fn format_block_type(block_type: &str) -> String {
@@ -185,7 +208,7 @@ mod tests {
         }
     }
 
-    fn create_test_document(path: &PathBuf, title: &str) {
+    fn create_test_document(path: &Path, title: &str) {
         let doc = Document::builder()
             .title(title)
             .creator("Test Author")
@@ -202,7 +225,7 @@ mod tests {
 
         create_test_document(&doc_path, "Inspect Test");
 
-        let result = run(doc_path, false, false, false, &test_config());
+        let result = run(&doc_path, false, false, false, &test_config());
         assert!(result.is_ok());
     }
 
@@ -213,7 +236,7 @@ mod tests {
 
         create_test_document(&doc_path, "Blocks Test");
 
-        let result = run(doc_path, true, false, false, &test_config());
+        let result = run(&doc_path, true, false, false, &test_config());
         assert!(result.is_ok());
     }
 
@@ -224,7 +247,7 @@ mod tests {
 
         create_test_document(&doc_path, "Signatures Test");
 
-        let result = run(doc_path, false, true, false, &test_config());
+        let result = run(&doc_path, false, true, false, &test_config());
         assert!(result.is_ok());
     }
 
@@ -235,7 +258,7 @@ mod tests {
 
         create_test_document(&doc_path, "Provenance Test");
 
-        let result = run(doc_path, false, false, true, &test_config());
+        let result = run(&doc_path, false, false, true, &test_config());
         assert!(result.is_ok());
     }
 
@@ -246,14 +269,14 @@ mod tests {
 
         create_test_document(&doc_path, "All Flags Test");
 
-        let result = run(doc_path, true, true, true, &test_config());
+        let result = run(&doc_path, true, true, true, &test_config());
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_inspect_nonexistent_file() {
         let result = run(
-            PathBuf::from("/nonexistent/file.cdx"),
+            Path::new("/nonexistent/file.cdx"),
             false,
             false,
             false,
@@ -277,7 +300,7 @@ mod tests {
             .unwrap();
         doc.save(&doc_path).unwrap();
 
-        let result = run(doc_path.clone(), true, false, false, &test_config());
+        let result = run(&doc_path, true, false, false, &test_config());
         assert!(result.is_ok());
 
         // Verify block count

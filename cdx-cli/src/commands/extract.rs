@@ -5,28 +5,28 @@ use cdx_core::archive::CdxReader;
 use cdx_core::content::{Block, Text};
 use cdx_core::Document;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use crate::output::OutputConfig;
 
 pub fn run(
-    file: PathBuf,
-    output_dir: PathBuf,
+    file: &Path,
+    output_dir: &Path,
     extract_content: bool,
     extract_text: bool,
-    asset_name: Option<String>,
+    asset_name: Option<&str>,
     all_assets: bool,
     config: &OutputConfig,
 ) -> Result<()> {
     config.verbose(&format!("Extracting from: {}", file.display()));
 
     // Open the document
-    let doc = Document::open(&file)
+    let doc = Document::open(file)
         .with_context(|| format!("Failed to open document: {}", file.display()))?;
 
     // Ensure output directory exists
     if !output_dir.exists() {
-        fs::create_dir_all(&output_dir).with_context(|| {
+        fs::create_dir_all(output_dir).with_context(|| {
             format!(
                 "Failed to create output directory: {}",
                 output_dir.display()
@@ -76,13 +76,7 @@ pub fn run(
 
     // Asset extraction
     if asset_name.is_some() || all_assets {
-        let asset_results = extract_assets(
-            &file,
-            &output_dir,
-            asset_name.as_deref(),
-            all_assets,
-            config,
-        )?;
+        let asset_results = extract_assets(file, output_dir, asset_name, all_assets, config)?;
         extracted_items.extend(asset_results);
     }
 
@@ -180,10 +174,10 @@ fn extract_assets(
                         "available": asset_files
                     }));
                 } else {
-                    config.warning(&format!("Asset '{}' not found", name));
+                    config.warning(&format!("Asset '{name}' not found"));
                     config.info("Available assets:");
                     for asset in &asset_files {
-                        println!("  - {}", asset);
+                        println!("  - {asset}");
                     }
                 }
                 return Ok(extracted);
@@ -201,7 +195,7 @@ fn extract_assets(
     for asset_path in to_extract {
         let data = reader
             .read_file(asset_path)
-            .with_context(|| format!("Failed to read asset: {}", asset_path))?;
+            .with_context(|| format!("Failed to read asset: {asset_path}"))?;
 
         // Create the output path, preserving directory structure under assets/
         let relative_path = asset_path.strip_prefix("assets/").unwrap_or(asset_path);
@@ -256,7 +250,9 @@ fn extract_plain_text(blocks: &[Block]) -> String {
 
 fn extract_block_text(block: &Block, output: &mut Vec<String>) {
     match block {
-        Block::Paragraph { children, .. } | Block::Heading { children, .. } => {
+        Block::Paragraph { children, .. }
+        | Block::Heading { children, .. }
+        | Block::CodeBlock { children, .. } => {
             let text = extract_text_nodes(children);
             if !text.is_empty() {
                 output.push(text);
@@ -276,12 +272,6 @@ fn extract_block_text(block: &Block, output: &mut Vec<String>) {
                 }
             }
         }
-        Block::CodeBlock { children, .. } => {
-            let text = extract_text_nodes(children);
-            if !text.is_empty() {
-                output.push(text);
-            }
-        }
         Block::Table { children, .. } => {
             for row in children {
                 if let Block::TableRow { children, .. } = row {
@@ -290,11 +280,7 @@ fn extract_block_text(block: &Block, output: &mut Vec<String>) {
                         .filter_map(|cell| {
                             if let Block::TableCell(cell_block) = cell {
                                 let cell_text = extract_text_nodes(&cell_block.children);
-                                if !cell_text.is_empty() {
-                                    Some(cell_text)
-                                } else {
-                                    None
-                                }
+                                (!cell_text.is_empty()).then_some(cell_text)
                             } else {
                                 None
                             }

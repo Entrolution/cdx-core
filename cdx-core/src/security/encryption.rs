@@ -193,11 +193,10 @@ impl Aes256GcmEncryptor {
                 reason: format!("Failed to create cipher: {e}"),
             })?;
 
-        #[allow(deprecated)] // generic-array 1.x transition
-        let nonce_obj = Nonce::from_slice(nonce);
+        let nonce_obj = Nonce::from(*nonce);
         let ciphertext =
             cipher
-                .encrypt(nonce_obj, plaintext)
+                .encrypt(&nonce_obj, plaintext)
                 .map_err(|e| crate::Error::InvalidManifest {
                     reason: format!("Encryption failed: {e}"),
                 })?;
@@ -238,10 +237,9 @@ impl Aes256GcmEncryptor {
                 reason: format!("Failed to create cipher: {e}"),
             })?;
 
-        #[allow(deprecated)] // generic-array 1.x transition
-        let nonce_obj = Nonce::from_slice(&nonce);
+        let nonce_obj = Nonce::from(nonce);
         cipher
-            .decrypt(nonce_obj, ciphertext)
+            .decrypt(&nonce_obj, ciphertext)
             .map_err(|e| crate::Error::InvalidManifest {
                 reason: format!("Decryption failed: {e}"),
             })
@@ -312,11 +310,10 @@ impl ChaCha20Poly1305Encryptor {
             }
         })?;
 
-        #[allow(deprecated)] // generic-array 1.x transition
-        let nonce_obj = Nonce::from_slice(nonce);
+        let nonce_obj = Nonce::from(*nonce);
         let ciphertext =
             cipher
-                .encrypt(nonce_obj, plaintext)
+                .encrypt(&nonce_obj, plaintext)
                 .map_err(|e| crate::Error::InvalidManifest {
                     reason: format!("Encryption failed: {e}"),
                 })?;
@@ -358,10 +355,9 @@ impl ChaCha20Poly1305Encryptor {
             }
         })?;
 
-        #[allow(deprecated)] // generic-array 1.x transition
-        let nonce_obj = Nonce::from_slice(&nonce);
+        let nonce_obj = Nonce::from(nonce);
         cipher
-            .decrypt(nonce_obj, ciphertext)
+            .decrypt(&nonce_obj, ciphertext)
             .map_err(|e| crate::Error::InvalidManifest {
                 reason: format!("Decryption failed: {e}"),
             })

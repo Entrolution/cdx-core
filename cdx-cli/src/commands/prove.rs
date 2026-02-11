@@ -5,13 +5,13 @@ use cdx_core::provenance::BlockProof;
 use cdx_core::Document;
 use colored::Colorize;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::output::OutputConfig;
 
 /// Generate a Merkle proof for a specific block.
 pub fn run_prove(
-    file: PathBuf,
+    file: &Path,
     block_id: Option<String>,
     block_index: Option<usize>,
     output: Option<PathBuf>,
@@ -19,7 +19,7 @@ pub fn run_prove(
 ) -> Result<()> {
     config.verbose(&format!("Generating proof for: {}", file.display()));
 
-    let doc = Document::open(&file)
+    let doc = Document::open(file)
         .with_context(|| format!("Failed to open document: {}", file.display()))?;
 
     // Determine which block to prove
@@ -60,17 +60,17 @@ pub fn run_prove(
 }
 
 /// Verify a Merkle proof against a document.
-pub fn run_verify_proof(file: PathBuf, proof_file: PathBuf, config: &OutputConfig) -> Result<()> {
+pub fn run_verify_proof(file: &Path, proof_file: &Path, config: &OutputConfig) -> Result<()> {
     config.verbose(&format!(
         "Verifying proof {} against {}",
         proof_file.display(),
         file.display()
     ));
 
-    let doc = Document::open(&file)
+    let doc = Document::open(file)
         .with_context(|| format!("Failed to open document: {}", file.display()))?;
 
-    let proof_json = fs::read_to_string(&proof_file)
+    let proof_json = fs::read_to_string(proof_file)
         .with_context(|| format!("Failed to read proof file: {}", proof_file.display()))?;
 
     let proof: BlockProof =
@@ -118,10 +118,10 @@ pub fn run_verify_proof(file: PathBuf, proof_file: PathBuf, config: &OutputConfi
 }
 
 /// Show document lineage (ancestor chain).
-pub fn run_show_lineage(file: PathBuf, config: &OutputConfig) -> Result<()> {
+pub fn run_show_lineage(file: &Path, config: &OutputConfig) -> Result<()> {
     config.verbose(&format!("Showing lineage for: {}", file.display()));
 
-    let doc = Document::open(&file)
+    let doc = Document::open(file)
         .with_context(|| format!("Failed to open document: {}", file.display()))?;
 
     let manifest = doc.manifest();
@@ -130,12 +130,12 @@ pub fn run_show_lineage(file: PathBuf, config: &OutputConfig) -> Result<()> {
         let lineage_json = if let Some(ref lineage) = manifest.lineage {
             serde_json::json!({
                 "document_id": doc.id().to_string(),
-                "parent": lineage.parent.as_ref().map(|p| p.to_string()),
-                "ancestors": lineage.ancestors.iter().map(|a| a.to_string()).collect::<Vec<_>>(),
+                "parent": lineage.parent.as_ref().map(std::string::ToString::to_string),
+                "ancestors": lineage.ancestors.iter().map(std::string::ToString::to_string).collect::<Vec<_>>(),
                 "version": lineage.version,
                 "depth": lineage.depth,
                 "branch": lineage.branch,
-                "merged_from": lineage.merged_from.iter().map(|m| m.to_string()).collect::<Vec<_>>(),
+                "merged_from": lineage.merged_from.iter().map(std::string::ToString::to_string).collect::<Vec<_>>(),
                 "note": lineage.note,
             })
         } else {
