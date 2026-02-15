@@ -111,6 +111,10 @@ pub struct Signature {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scope: Option<SignatureScope>,
 
+    /// Optional RFC 3161 trusted timestamp token.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub timestamp: Option<TrustedTimestamp>,
+
     /// Optional WebAuthn/FIDO2 signature data.
     ///
     /// When present, this contains the full WebAuthn assertion data
@@ -173,6 +177,18 @@ impl WebAuthnSignature {
             signature: signature.into(),
         }
     }
+}
+
+/// RFC 3161 trusted timestamp token.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TrustedTimestamp {
+    /// Base64-encoded RFC 3161 timestamp token.
+    pub token: String,
+
+    /// TSA (Time Stamping Authority) URL.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tsa: Option<String>,
 }
 
 /// Signature scope for scoped signatures.
@@ -277,6 +293,7 @@ impl Signature {
             value: value.into(),
             certificate_chain: None,
             scope: None,
+            timestamp: None,
             webauthn: None,
         }
     }
@@ -299,6 +316,7 @@ impl Signature {
             value: String::new(),
             certificate_chain: None,
             scope: None,
+            timestamp: None,
             webauthn: Some(webauthn),
         }
     }
@@ -307,6 +325,13 @@ impl Signature {
     #[must_use]
     pub fn with_scope(mut self, scope: SignatureScope) -> Self {
         self.scope = Some(scope);
+        self
+    }
+
+    /// Set the trusted timestamp for this signature.
+    #[must_use]
+    pub fn with_timestamp(mut self, timestamp: TrustedTimestamp) -> Self {
+        self.timestamp = Some(timestamp);
         self
     }
 
@@ -778,5 +803,59 @@ mod tests {
             VerificationStatus::Unknown,
             VerificationStatus::Unknown
         ));
+    }
+
+    #[test]
+    fn test_trusted_timestamp_roundtrip() {
+        let ts = TrustedTimestamp {
+            token: "base64-timestamp-token".to_string(),
+            tsa: Some("https://tsa.example.com".to_string()),
+        };
+        let json = serde_json::to_string(&ts).unwrap();
+        assert!(json.contains("\"token\":"));
+        assert!(json.contains("\"tsa\":"));
+
+        let parsed: TrustedTimestamp = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed, ts);
+    }
+
+    #[test]
+    fn test_trusted_timestamp_without_tsa() {
+        let ts = TrustedTimestamp {
+            token: "base64-timestamp-token".to_string(),
+            tsa: None,
+        };
+        let json = serde_json::to_string(&ts).unwrap();
+        assert!(!json.contains("tsa"));
+
+        let parsed: TrustedTimestamp = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed, ts);
+    }
+
+    #[test]
+    fn test_signature_with_timestamp_builder() {
+        let signer = SignerInfo::new("Test User");
+        let ts = TrustedTimestamp {
+            token: "base64-timestamp-token".to_string(),
+            tsa: Some("https://tsa.example.com".to_string()),
+        };
+        let sig = Signature::new("sig-1", SignatureAlgorithm::ES256, signer, "base64value")
+            .with_timestamp(ts.clone());
+
+        assert_eq!(sig.timestamp, Some(ts));
+    }
+
+    #[test]
+    fn test_signature_backward_compat_no_timestamp() {
+        // JSON without timestamp field should deserialize fine
+        let json = r#"{
+            "id": "sig-1",
+            "algorithm": "ES256",
+            "signedAt": "2024-01-01T00:00:00Z",
+            "signer": { "name": "Test User" },
+            "value": "base64value"
+        }"#;
+        let sig: Signature = serde_json::from_str(json).unwrap();
+        assert!(sig.timestamp.is_none());
     }
 }

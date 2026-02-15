@@ -68,7 +68,7 @@ pub use annotations::{Annotation, AnnotationType, AnnotationsFile};
 pub use certificate::{eku, CertificateChain, CertificateInfo, CertificateValidation, KeyUsage};
 pub use signature::{
     Signature, SignatureAlgorithm, SignatureFile, SignatureScope, SignatureVerification,
-    SignerInfo, WebAuthnSignature,
+    SignerInfo, TrustedTimestamp, WebAuthnSignature,
 };
 pub use signer::{EcdsaSigner, EcdsaVerifier, Signer, Verifier};
 
@@ -90,7 +90,7 @@ pub use ml_dsa::{MlDsaSigner, MlDsaVerifier};
 #[cfg(feature = "encryption")]
 pub use encryption::{
     Aes256GcmEncryptor, EncryptedData, EncryptionAlgorithm, EncryptionMetadata, KdfAlgorithm,
-    KeyDerivation, Recipient,
+    KeyDerivation, KeyManagementAlgorithm, Recipient,
 };
 
 #[cfg(feature = "encryption-chacha")]

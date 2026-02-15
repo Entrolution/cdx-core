@@ -64,9 +64,27 @@ pub struct EncryptionMetadata {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub wrapped_key: Option<String>,
 
+    /// Key management algorithm (for key wrapping).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub key_management: Option<KeyManagementAlgorithm>,
+
     /// Recipients who can decrypt (for multi-recipient encryption).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub recipients: Vec<Recipient>,
+}
+
+/// Key management algorithm for key wrapping.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum KeyManagementAlgorithm {
+    /// ECDH-ES with AES-256 Key Wrap.
+    #[serde(rename = "ECDH-ES+A256KW")]
+    EcdhEsA256kw,
+    /// RSA-OAEP with SHA-256.
+    #[serde(rename = "RSA-OAEP-256")]
+    RsaOaep256,
+    /// PBES2-HS256 with AES-256 Key Wrap (password-based).
+    #[serde(rename = "PBES2-HS256+A256KW")]
+    Pbes2HsA256kw,
 }
 
 /// Key derivation function parameters.
@@ -115,6 +133,10 @@ pub struct Recipient {
     /// Key encryption algorithm.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub algorithm: Option<String>,
+
+    /// Ephemeral public key (base64-encoded, for ECDH-ES key agreement).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ephemeral_public_key: Option<String>,
 }
 
 /// Result of encryption operation.
@@ -458,6 +480,7 @@ mod tests {
                 parallelism: Some(4),
             }),
             wrapped_key: None,
+            key_management: None,
             recipients: vec![],
         };
 
@@ -467,6 +490,66 @@ mod tests {
 
         let deserialized: EncryptionMetadata = serde_json::from_str(&json).unwrap();
         assert_eq!(deserialized.algorithm, metadata.algorithm);
+    }
+
+    #[test]
+    fn test_key_management_algorithm_roundtrip() {
+        let variants = [
+            (KeyManagementAlgorithm::EcdhEsA256kw, "\"ECDH-ES+A256KW\""),
+            (KeyManagementAlgorithm::RsaOaep256, "\"RSA-OAEP-256\""),
+            (
+                KeyManagementAlgorithm::Pbes2HsA256kw,
+                "\"PBES2-HS256+A256KW\"",
+            ),
+        ];
+        for (alg, expected_json) in &variants {
+            let json = serde_json::to_string(alg).unwrap();
+            assert_eq!(&json, expected_json);
+            let parsed: KeyManagementAlgorithm = serde_json::from_str(&json).unwrap();
+            assert_eq!(&parsed, alg);
+        }
+    }
+
+    #[test]
+    fn test_encryption_metadata_with_key_management() {
+        let metadata = EncryptionMetadata {
+            algorithm: EncryptionAlgorithm::Aes256Gcm,
+            kdf: None,
+            wrapped_key: Some("wrapped-key-base64".to_string()),
+            key_management: Some(KeyManagementAlgorithm::EcdhEsA256kw),
+            recipients: vec![Recipient {
+                id: "recipient-1".to_string(),
+                encrypted_key: "enc-key-base64".to_string(),
+                algorithm: Some("ECDH-ES+A256KW".to_string()),
+                ephemeral_public_key: Some("ephemeral-pk-base64".to_string()),
+            }],
+        };
+
+        let json = serde_json::to_string_pretty(&metadata).unwrap();
+        assert!(json.contains("ECDH-ES+A256KW"));
+        assert!(json.contains("ephemeralPublicKey"));
+
+        let parsed: EncryptionMetadata = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.key_management, metadata.key_management);
+        assert_eq!(
+            parsed.recipients[0].ephemeral_public_key,
+            Some("ephemeral-pk-base64".to_string())
+        );
+    }
+
+    #[test]
+    fn test_encryption_metadata_backward_compat() {
+        // JSON without key_management or ephemeral_public_key should deserialize fine
+        let json = r#"{
+            "algorithm": "AES-256-GCM",
+            "recipients": [{
+                "id": "r1",
+                "encryptedKey": "key-data"
+            }]
+        }"#;
+        let metadata: EncryptionMetadata = serde_json::from_str(json).unwrap();
+        assert!(metadata.key_management.is_none());
+        assert!(metadata.recipients[0].ephemeral_public_key.is_none());
     }
 }
 
