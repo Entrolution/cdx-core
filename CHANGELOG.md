@@ -41,7 +41,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Collaborator.color` field for real-time cursor coloring
 - `with_color()` builder method
 
+#### Spec Compliance: Core Struct Fields (PR #66)
+- `PhantomsRef` struct and `phantoms` field on `Manifest`
+- `KeyManagementAlgorithm` enum and `key_management` field on `EncryptionMetadata`
+- `ephemeral_public_key` field on `Recipient`
+- `TrustedTimestamp` struct and `timestamp` field on `Signature`
+
+#### Spec Compliance: Content & Extension Fields (PR #67)
+- `CodeToken` struct, `highlighting` and `tokens` fields on `CodeBlock`
+- `FigureNumbering` enum, `Subfigure` struct, `numbering` and `subfigures` fields on `FigureBlock`
+- `uses` and `restate` fields on `Theorem`
+- `StructuralInduction`, `Counting`, `Probabilistic` variants on `ProofMethod`
+- `start_line` field on `Algorithm`
+- `docket` field on `Caption`
+
+#### Spec Compliance: Key Wrapping (PR #71)
+- `EcdhEsKeyWrapper` and `EcdhEsKeyUnwrapper` for ECDH-ES+A256KW key agreement (RFC 7518 / RFC 3394)
+- `WrappedKeyData` struct for wrapped content encryption keys
+- New `key-wrapping` feature flag (depends on `encryption`, adds `aes-kw` and `hkdf`)
+
 ### Changed
+
+#### Spec Compliance: Validation Fixes (PR #70)
+- Relax lineage validation: root (non-forked) documents can now reach Frozen/Published without lineage
+- Enforce manifest-first ordering in archive reader (error instead of silent acceptance)
+- Add decompression bomb protection: 256 MiB file size limit with declared-size pre-check and bounded reads
+- Add `is_url_safe_path()` utility for spec SHOULD-level asset path validation
+- Add `FileTooLarge` and `InvalidArchiveStructure` error variants
 
 #### Dependencies
 - Bump `zip` from 7.2 to 8.0 (resolves yanked 7.4.0; no code changes required)
