@@ -2,6 +2,9 @@
 //!
 //! A command-line tool for working with Codex Document Format (.cdx) files.
 
+#![warn(clippy::pedantic)]
+#![allow(clippy::module_name_repetitions)]
+
 mod commands;
 mod output;
 

@@ -197,12 +197,8 @@ struct Schema {
 }
 
 #[derive(Debug, Clone)]
-#[allow(dead_code)] // Some variants are for future use
 enum PropertySchema {
     String,
-    Integer,
-    Number,
-    Boolean,
     Object,
     Array,
     Any,
@@ -264,30 +260,6 @@ fn validate_property(
                 errors.push(SchemaValidationError {
                     path: path.to_string(),
                     message: format!("expected string, got {}", value_type_name(value)),
-                });
-            }
-        }
-        PropertySchema::Integer => {
-            if !value.is_i64() && !value.is_u64() {
-                errors.push(SchemaValidationError {
-                    path: path.to_string(),
-                    message: format!("expected integer, got {}", value_type_name(value)),
-                });
-            }
-        }
-        PropertySchema::Number => {
-            if !value.is_number() {
-                errors.push(SchemaValidationError {
-                    path: path.to_string(),
-                    message: format!("expected number, got {}", value_type_name(value)),
-                });
-            }
-        }
-        PropertySchema::Boolean => {
-            if !value.is_boolean() {
-                errors.push(SchemaValidationError {
-                    path: path.to_string(),
-                    message: format!("expected boolean, got {}", value_type_name(value)),
                 });
             }
         }
