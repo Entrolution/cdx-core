@@ -148,12 +148,10 @@ impl Manifest {
             });
         }
 
-        if self.state.requires_lineage() && self.lineage.is_none() {
-            return Err(crate::Error::StateRequirementNotMet {
-                state: self.state,
-                requirement: "lineage information".to_string(),
-            });
-        }
+        // Note: requires_lineage() indicates lineage *may* be required (for forked documents).
+        // Per spec, lineage is only mandatory for forked documents (those with a parent).
+        // Root documents can transition directly to Frozen/Published without lineage.
+        // Enforcement for forked documents is handled at the Document level.
 
         if self.state.requires_computed_id() && self.id.is_pending() {
             return Err(crate::Error::StateRequirementNotMet {
@@ -833,6 +831,107 @@ mod tests {
         assert_eq!(ext.id, "codex.legal");
         assert_eq!(ext.version, "0.1");
         assert!(!ext.required);
+    }
+
+    #[test]
+    fn test_root_document_frozen_without_lineage() {
+        // Per spec, root documents (non-forked) can go to Frozen without lineage
+        let content = ContentRef {
+            path: "content/document.json".to_string(),
+            hash: test_hash(),
+            compression: None,
+            merkle_root: None,
+            block_count: None,
+        };
+        let metadata = Metadata {
+            dublin_core: "metadata/dublin-core.json".to_string(),
+            custom: None,
+        };
+
+        let mut manifest = Manifest::new(content, metadata);
+        manifest.id = test_hash();
+        manifest.state = DocumentState::Frozen;
+        manifest.security = Some(SecurityRef {
+            signatures: Some("security/signatures.json".to_string()),
+            encryption: None,
+        });
+        // No lineage set — this is a root document
+        manifest.presentation.push(PresentationRef {
+            presentation_type: "precise".to_string(),
+            path: "presentation/layouts/letter.json".to_string(),
+            hash: test_hash(),
+            default: false,
+        });
+
+        // Root document in Frozen state without lineage should be valid
+        assert!(manifest.validate().is_ok());
+    }
+
+    #[test]
+    fn test_root_document_published_without_lineage() {
+        // Per spec, root documents can also go to Published without lineage
+        let content = ContentRef {
+            path: "content/document.json".to_string(),
+            hash: test_hash(),
+            compression: None,
+            merkle_root: None,
+            block_count: None,
+        };
+        let metadata = Metadata {
+            dublin_core: "metadata/dublin-core.json".to_string(),
+            custom: None,
+        };
+
+        let mut manifest = Manifest::new(content, metadata);
+        manifest.id = test_hash();
+        manifest.state = DocumentState::Published;
+        manifest.security = Some(SecurityRef {
+            signatures: Some("security/signatures.json".to_string()),
+            encryption: None,
+        });
+        manifest.presentation.push(PresentationRef {
+            presentation_type: "precise".to_string(),
+            path: "presentation/layouts/letter.json".to_string(),
+            hash: test_hash(),
+            default: false,
+        });
+
+        assert!(manifest.validate().is_ok());
+    }
+
+    #[test]
+    fn test_forked_document_frozen_with_lineage() {
+        // Forked document with lineage in Frozen state should still pass
+        let content = ContentRef {
+            path: "content/document.json".to_string(),
+            hash: test_hash(),
+            compression: None,
+            merkle_root: None,
+            block_count: None,
+        };
+        let metadata = Metadata {
+            dublin_core: "metadata/dublin-core.json".to_string(),
+            custom: None,
+        };
+
+        let mut manifest = Manifest::new(content, metadata);
+        manifest.id = test_hash();
+        manifest.state = DocumentState::Frozen;
+        manifest.security = Some(SecurityRef {
+            signatures: Some("security/signatures.json".to_string()),
+            encryption: None,
+        });
+        let mut lineage = Lineage::root();
+        lineage.parent = Some(test_hash());
+        manifest.lineage = Some(lineage);
+        manifest.presentation.push(PresentationRef {
+            presentation_type: "precise".to_string(),
+            path: "presentation/layouts/letter.json".to_string(),
+            hash: test_hash(),
+            default: false,
+        });
+
+        assert!(manifest.validate().is_ok());
     }
 
     #[test]

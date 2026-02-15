@@ -68,10 +68,12 @@ impl DocumentState {
         matches!(self, Self::Frozen | Self::Published)
     }
 
-    /// Returns whether lineage is required in this state.
+    /// Returns whether lineage *may* be required in this state.
     ///
-    /// Note: The `lineage.parent` field is only required for forked documents.
-    /// Root documents (first version) can have lineage with `parent: None`.
+    /// Per spec, lineage is mandatory for forked documents (those with a parent)
+    /// in Frozen/Published states. Root documents can transition to these states
+    /// without lineage. This method indicates the state where lineage requirements
+    /// apply; actual enforcement depends on whether the document is forked.
     #[must_use]
     pub const fn requires_lineage(&self) -> bool {
         matches!(self, Self::Frozen | Self::Published)
