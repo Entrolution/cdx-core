@@ -55,6 +55,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Extract shared crypto helpers into `crypto_common` module (PR #57)
 - Fix all pedantic lint warnings across workspace (PR #58)
 - Tighten `cargo-deny` configuration: `yanked = "deny"`, remove unused license allowances
+- Replace `clippy::too_many_arguments` suppressions with parameter structs in CLI (PR #64)
+- Bump `uniffi` from 0.28 to 0.31 in `cdx-swift-bridge` (PR #65)
 
 #### Breaking Changes
 - **Paginated presentation**: `blockRef` renamed to `blockId`, `blockRefs` to `blockIds`
@@ -63,6 +65,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Documentation
 - Clarified lineage requirements: parent only required for forked documents
 - Clarified hash scope: document ID covers semantic content only, not layout
+- Fix MSRV in CONTRIBUTING.md (1.85 → 1.88)
+- Add security audit documentation (`cargo audit`, `cargo deny`) to CONTRIBUTING.md
 
 ## [0.3.0] - 2025-01-25
 
