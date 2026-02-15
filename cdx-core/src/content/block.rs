@@ -179,6 +179,14 @@ pub enum Block {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         language: Option<String>,
 
+        /// Syntax highlighting theme.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        highlighting: Option<String>,
+
+        /// Pre-tokenized syntax highlighting.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        tokens: Option<Vec<CodeToken>>,
+
         /// Code content (single text node, no marks).
         children: Vec<Text>,
 
@@ -848,6 +856,14 @@ pub struct FigureBlock {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
 
+    /// Figure numbering mode.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub numbering: Option<FigureNumbering>,
+
+    /// Subfigures within this figure.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub subfigures: Option<Vec<Subfigure>>,
+
     /// Figure contents (usually image, svg, or other visual block).
     pub children: Vec<Block>,
 
@@ -862,10 +878,56 @@ impl FigureBlock {
     pub fn new(children: Vec<Block>) -> Self {
         Self {
             id: None,
+            numbering: None,
+            subfigures: None,
             children,
             attributes: BlockAttributes::default(),
         }
     }
+}
+
+/// Figure numbering mode.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum FigureNumbering {
+    /// Automatic numbering.
+    Auto,
+    /// No numbering.
+    #[serde(rename = "none")]
+    Unnumbered,
+    /// Explicit number.
+    #[serde(untagged)]
+    Number(u32),
+}
+
+/// A subfigure within a figure.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Subfigure {
+    /// Optional unique identifier.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+
+    /// Optional label (e.g., "(a)", "(b)").
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
+
+    /// Subfigure content blocks.
+    pub children: Vec<Block>,
+}
+
+/// A pre-tokenized syntax highlighting token.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CodeToken {
+    /// Token type (e.g., "keyword", "string", "comment").
+    pub token_type: String,
+
+    /// Token value text.
+    pub value: String,
+
+    /// Optional scope name for the token.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scope: Option<String>,
 }
 
 /// Figure caption block.
@@ -1080,6 +1142,8 @@ impl Block {
         Self::CodeBlock {
             id: None,
             language,
+            highlighting: None,
+            tokens: None,
             children: vec![Text::plain(code)],
             attributes: BlockAttributes::default(),
         }
@@ -1946,6 +2010,133 @@ mod proptests {
         #[test]
         fn heading_block_type(heading in arb_heading()) {
             prop_assert_eq!(heading.block_type(), "heading");
+        }
+    }
+
+    #[test]
+    fn code_block_highlighting_and_tokens_roundtrip() {
+        let json = serde_json::json!({
+            "type": "codeBlock",
+            "value": "let x = 1;",
+            "language": "rust",
+            "children": [],
+            "highlighting": "monokai",
+            "tokens": [
+                { "tokenType": "keyword", "value": "let" },
+                { "tokenType": "identifier", "value": "x", "scope": "variable" }
+            ]
+        });
+        let block: Block = serde_json::from_value(json).unwrap();
+        if let Block::CodeBlock {
+            highlighting,
+            tokens,
+            ..
+        } = &block
+        {
+            assert_eq!(highlighting.as_deref(), Some("monokai"));
+            let toks = tokens.as_ref().unwrap();
+            assert_eq!(toks.len(), 2);
+            assert_eq!(toks[0].token_type, "keyword");
+            assert_eq!(toks[1].scope.as_deref(), Some("variable"));
+        } else {
+            panic!("Expected CodeBlock");
+        }
+        // Roundtrip
+        let serialized = serde_json::to_value(&block).unwrap();
+        let parsed: Block = serde_json::from_value(serialized).unwrap();
+        assert_eq!(block, parsed);
+    }
+
+    #[test]
+    fn code_block_without_new_fields_defaults_to_none() {
+        let json = serde_json::json!({
+            "type": "codeBlock",
+            "value": "print('hello')",
+            "language": "python",
+            "children": []
+        });
+        let block: Block = serde_json::from_value(json).unwrap();
+        if let Block::CodeBlock {
+            highlighting,
+            tokens,
+            ..
+        } = &block
+        {
+            assert!(highlighting.is_none());
+            assert!(tokens.is_none());
+        } else {
+            panic!("Expected CodeBlock");
+        }
+    }
+
+    #[test]
+    fn figure_numbering_serialization() {
+        // Auto
+        let json = serde_json::to_value(FigureNumbering::Auto).unwrap();
+        assert_eq!(json, serde_json::json!("auto"));
+
+        // Unnumbered
+        let json = serde_json::to_value(FigureNumbering::Unnumbered).unwrap();
+        assert_eq!(json, serde_json::json!("none"));
+
+        // Number
+        let json = serde_json::to_value(FigureNumbering::Number(3)).unwrap();
+        assert_eq!(json, serde_json::json!(3));
+
+        // Roundtrip
+        let auto: FigureNumbering = serde_json::from_str("\"auto\"").unwrap();
+        assert_eq!(auto, FigureNumbering::Auto);
+        let unnumbered: FigureNumbering = serde_json::from_str("\"none\"").unwrap();
+        assert_eq!(unnumbered, FigureNumbering::Unnumbered);
+        let num: FigureNumbering = serde_json::from_str("3").unwrap();
+        assert_eq!(num, FigureNumbering::Number(3));
+    }
+
+    #[test]
+    fn figure_with_numbering_and_subfigures_roundtrip() {
+        let json = serde_json::json!({
+            "type": "figure",
+            "children": [
+                { "type": "image", "src": "fig1.png", "alt": "Figure 1" }
+            ],
+            "numbering": "auto",
+            "subfigures": [
+                {
+                    "id": "sub-a",
+                    "label": "(a)",
+                    "children": [
+                        { "type": "paragraph", "children": [{ "type": "text", "value": "Sub A" }] }
+                    ]
+                }
+            ]
+        });
+        let block: Block = serde_json::from_value(json).unwrap();
+        if let Block::Figure(fig) = &block {
+            assert_eq!(fig.numbering, Some(FigureNumbering::Auto));
+            let subs = fig.subfigures.as_ref().unwrap();
+            assert_eq!(subs.len(), 1);
+            assert_eq!(subs[0].id.as_deref(), Some("sub-a"));
+            assert_eq!(subs[0].label.as_deref(), Some("(a)"));
+        } else {
+            panic!("Expected Figure block");
+        }
+        let serialized = serde_json::to_value(&block).unwrap();
+        let parsed: Block = serde_json::from_value(serialized).unwrap();
+        assert_eq!(block, parsed);
+    }
+
+    #[test]
+    fn figure_without_new_fields_defaults_to_none() {
+        let json = serde_json::json!({
+            "type": "figure",
+            "children": []
+        });
+        let block: Block = serde_json::from_value(json).unwrap();
+        if let Block::Figure(fig) = &block {
+            assert!(fig.numbering.is_none());
+            assert!(fig.subfigures.is_none());
+        } else {
+            panic!("Expected Figure block");
         }
     }
 }

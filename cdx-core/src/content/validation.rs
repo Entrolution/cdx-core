@@ -543,6 +543,8 @@ mod tests {
         let content = Content::new(vec![Block::CodeBlock {
             id: None,
             language: Some("rust".to_string()),
+            highlighting: None,
+            tokens: None,
             children: vec![Text::with_marks("code", vec![Mark::Bold])],
             attributes: BlockAttributes::default(),
         }]);

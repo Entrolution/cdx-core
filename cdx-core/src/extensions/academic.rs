@@ -140,6 +140,14 @@ pub struct Theorem {
     /// Citation reference.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub citation: Option<String>,
+
+    /// Content Anchor URIs of theorems this depends on.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub uses: Option<Vec<String>>,
+
+    /// Whether this restates an existing theorem.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub restate: Option<bool>,
 }
 
 impl Theorem {
@@ -154,6 +162,8 @@ impl Theorem {
             children,
             attribution: None,
             citation: None,
+            uses: None,
+            restate: None,
         }
     }
 
@@ -296,6 +306,12 @@ pub enum ProofMethod {
     Uniqueness,
     /// Proof sketch.
     Sketch,
+    /// Structural induction.
+    StructuralInduction,
+    /// Counting argument.
+    Counting,
+    /// Probabilistic argument.
+    Probabilistic,
 }
 
 // ============================================================================
@@ -616,6 +632,10 @@ pub struct Algorithm {
     /// Whether to show line numbers.
     #[serde(default = "default_true")]
     pub line_numbers: bool,
+
+    /// Starting line number (default: 1).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub start_line: Option<u32>,
 }
 
 impl Algorithm {
@@ -631,6 +651,7 @@ impl Algorithm {
             outputs: Vec::new(),
             body,
             line_numbers: true,
+            start_line: None,
         }
     }
 
@@ -1204,5 +1225,86 @@ mod tests {
         assert!(json.contains("\"target\":\"#alg-sort\""));
         assert!(json.contains("\"line\":\"pivot\""));
         assert!(json.contains("\"format\":\"line {line}\""));
+    }
+
+    #[test]
+    fn test_theorem_uses_and_restate_roundtrip() {
+        let thm = Theorem {
+            id: Some("thm-2".to_string()),
+            variant: TheoremVariant::Corollary,
+            label: None,
+            number: None,
+            children: vec![],
+            attribution: None,
+            citation: None,
+            uses: Some(vec!["#thm-1".to_string(), "#lemma-1".to_string()]),
+            restate: Some(true),
+        };
+        let json = serde_json::to_string(&thm).unwrap();
+        assert!(json.contains("\"uses\":[\"#thm-1\",\"#lemma-1\"]"));
+        assert!(json.contains("\"restate\":true"));
+
+        let parsed: Theorem = serde_json::from_str(&json).unwrap();
+        assert_eq!(
+            parsed.uses,
+            Some(vec!["#thm-1".to_string(), "#lemma-1".to_string()])
+        );
+        assert_eq!(parsed.restate, Some(true));
+    }
+
+    #[test]
+    fn test_theorem_without_new_fields_defaults_to_none() {
+        let json = r#"{
+            "variant": "theorem",
+            "children": []
+        }"#;
+        let thm: Theorem = serde_json::from_str(json).unwrap();
+        assert!(thm.uses.is_none());
+        assert!(thm.restate.is_none());
+    }
+
+    #[test]
+    fn test_new_proof_method_variants() {
+        let methods = [
+            (ProofMethod::StructuralInduction, "structuralinduction"),
+            (ProofMethod::Counting, "counting"),
+            (ProofMethod::Probabilistic, "probabilistic"),
+        ];
+        for (method, expected_str) in methods {
+            let json = serde_json::to_string(&method).unwrap();
+            assert_eq!(json, format!("\"{expected_str}\""));
+            let parsed: ProofMethod = serde_json::from_str(&json).unwrap();
+            assert_eq!(parsed, method);
+        }
+    }
+
+    #[test]
+    fn test_algorithm_start_line_roundtrip() {
+        let alg = Algorithm {
+            id: None,
+            name: Some("BFS".to_string()),
+            number: None,
+            caption: None,
+            inputs: Vec::new(),
+            outputs: Vec::new(),
+            body: vec![],
+            line_numbers: true,
+            start_line: Some(10),
+        };
+        let json = serde_json::to_string(&alg).unwrap();
+        assert!(json.contains("\"startLine\":10"));
+
+        let parsed: Algorithm = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.start_line, Some(10));
+    }
+
+    #[test]
+    fn test_algorithm_without_start_line_defaults_to_none() {
+        let json = r#"{
+            "body": [],
+            "lineNumbers": true
+        }"#;
+        let alg: Algorithm = serde_json::from_str(json).unwrap();
+        assert!(alg.start_line.is_none());
     }
 }
