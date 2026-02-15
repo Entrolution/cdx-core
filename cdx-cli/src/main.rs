@@ -558,18 +558,20 @@ fn run_command(command: Commands, output_config: &output::OutputConfig) -> Resul
             language,
             rights,
             output,
-        } => commands::metadata::run_set_metadata(
-            file,
-            title,
-            &creator,
-            &subject,
-            description,
-            publisher,
-            language,
-            rights,
-            output,
-            output_config,
-        ),
+        } => {
+            let params = commands::metadata::SetMetadataParams {
+                file,
+                title,
+                creator,
+                subject,
+                description,
+                publisher,
+                language,
+                rights,
+                output,
+            };
+            commands::metadata::run_set_metadata(&params, output_config)
+        }
 
         Commands::Pack {
             input,
@@ -595,16 +597,18 @@ fn run_command(command: Commands, output_config: &output::OutputConfig) -> Resul
             time,
             transaction_id,
             output,
-        } => commands::timestamp::run_add_timestamp(
-            &file,
-            &method,
-            authority,
-            token,
-            time,
-            transaction_id,
-            output,
-            output_config,
-        ),
+        } => {
+            let params = commands::timestamp::AddTimestampParams {
+                file,
+                method,
+                authority,
+                token,
+                time,
+                transaction_id,
+                _output: output,
+            };
+            commands::timestamp::run_add_timestamp(&params, output_config)
+        }
 
         Commands::TimestampAcquire {
             file,

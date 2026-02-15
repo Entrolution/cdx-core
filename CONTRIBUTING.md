@@ -21,7 +21,7 @@ This project follows the [Rust Code of Conduct](https://www.rust-lang.org/polici
 
 ### Prerequisites
 
-- Rust 1.85 or later (install via [rustup](https://rustup.rs/))
+- Rust 1.88 or later (install via [rustup](https://rustup.rs/))
 - Cargo (included with Rust)
 
 ### Building
@@ -67,6 +67,23 @@ cargo clippy --all-features -- -D warnings
 # Check documentation
 cargo doc --no-deps --all-features
 ```
+
+### Security Audits
+
+Run dependency audits before submitting PRs:
+
+```bash
+# Install audit tools (one-time)
+cargo install cargo-audit cargo-deny
+
+# Check for known vulnerabilities
+cargo audit --ignore RUSTSEC-2023-0071
+
+# Check licenses and advisories
+cargo deny check
+```
+
+The `RUSTSEC-2023-0071` ignore is for an unmaintained dependency (`rsa` crate) that has no replacement yet.
 
 ## Pull Request Guidelines
 

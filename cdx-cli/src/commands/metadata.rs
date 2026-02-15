@@ -128,37 +128,38 @@ pub fn run_get_metadata(file: &Path, config: &OutputConfig) -> Result<()> {
     Ok(())
 }
 
-/// Set document metadata fields.
-#[allow(clippy::too_many_arguments)]
-pub fn run_set_metadata(
-    file: PathBuf,
-    title: Option<String>,
-    creator: &[String],
-    subject: &[String],
-    description: Option<String>,
-    publisher: Option<String>,
-    language: Option<String>,
-    rights: Option<String>,
-    output: Option<PathBuf>,
-    config: &OutputConfig,
-) -> Result<()> {
-    config.verbose(&format!("Updating metadata in: {}", file.display()));
+/// Parameters for the set-metadata command.
+pub struct SetMetadataParams {
+    pub file: PathBuf,
+    pub title: Option<String>,
+    pub creator: Vec<String>,
+    pub subject: Vec<String>,
+    pub description: Option<String>,
+    pub publisher: Option<String>,
+    pub language: Option<String>,
+    pub rights: Option<String>,
+    pub output: Option<PathBuf>,
+}
 
-    let mut doc = Document::open(&file)
-        .with_context(|| format!("Failed to open document: {}", file.display()))?;
+/// Set document metadata fields.
+pub fn run_set_metadata(params: &SetMetadataParams, config: &OutputConfig) -> Result<()> {
+    config.verbose(&format!("Updating metadata in: {}", params.file.display()));
+
+    let mut doc = Document::open(&params.file)
+        .with_context(|| format!("Failed to open document: {}", params.file.display()))?;
 
     // Check if anything to update
-    let has_changes = title.is_some()
-        || !creator.is_empty()
-        || !subject.is_empty()
-        || description.is_some()
-        || publisher.is_some()
-        || language.is_some()
-        || rights.is_some();
+    let has_changes = params.title.is_some()
+        || !params.creator.is_empty()
+        || !params.subject.is_empty()
+        || params.description.is_some()
+        || params.publisher.is_some()
+        || params.language.is_some()
+        || params.rights.is_some();
 
     if !has_changes {
         config.info("No metadata changes specified. Use --help to see available options.");
-        return run_get_metadata(&file, config);
+        return run_get_metadata(&params.file, config);
     }
 
     // Get mutable access to dublin core
@@ -169,32 +170,36 @@ pub fn run_set_metadata(
     // Track what was changed
     let mut changes = Vec::new();
 
-    if let Some(new_title) = title {
-        dc.set_title(&new_title);
+    if let Some(ref new_title) = params.title {
+        dc.set_title(new_title);
         changes.push(format!("title=\"{new_title}\""));
     }
 
-    if !creator.is_empty() {
-        dc.set_creators(creator.to_vec());
-        changes.push(format!("creator={creator:?}"));
+    if !params.creator.is_empty() {
+        dc.set_creators(params.creator.clone());
+        changes.push(format!("creator={:?}", params.creator));
     }
 
-    if !subject.is_empty() {
-        dc.set_subjects(subject.to_vec());
-        changes.push(format!("subject={subject:?}"));
+    if !params.subject.is_empty() {
+        dc.set_subjects(params.subject.clone());
+        changes.push(format!("subject={:?}", params.subject));
     }
 
-    if let Some(desc) = description {
+    if let Some(ref desc) = params.description {
         let display = if desc.is_empty() {
             "(cleared)".to_string()
         } else {
             desc.clone()
         };
-        dc.set_description(if desc.is_empty() { None } else { Some(desc) });
+        dc.set_description(if desc.is_empty() {
+            None
+        } else {
+            Some(desc.clone())
+        });
         changes.push(format!("description=\"{display}\""));
     }
 
-    if let Some(pub_val) = publisher {
+    if let Some(ref pub_val) = params.publisher {
         let display = if pub_val.is_empty() {
             "(cleared)".to_string()
         } else {
@@ -203,22 +208,26 @@ pub fn run_set_metadata(
         dc.set_publisher(if pub_val.is_empty() {
             None
         } else {
-            Some(pub_val)
+            Some(pub_val.clone())
         });
         changes.push(format!("publisher=\"{display}\""));
     }
 
-    if let Some(lang) = language {
+    if let Some(ref lang) = params.language {
         let display = if lang.is_empty() {
             "(cleared)".to_string()
         } else {
             lang.clone()
         };
-        dc.set_language(if lang.is_empty() { None } else { Some(lang) });
+        dc.set_language(if lang.is_empty() {
+            None
+        } else {
+            Some(lang.clone())
+        });
         changes.push(format!("language=\"{display}\""));
     }
 
-    if let Some(rights_val) = rights {
+    if let Some(ref rights_val) = params.rights {
         let display = if rights_val.is_empty() {
             "(cleared)".to_string()
         } else {
@@ -227,12 +236,12 @@ pub fn run_set_metadata(
         dc.set_rights(if rights_val.is_empty() {
             None
         } else {
-            Some(rights_val)
+            Some(rights_val.clone())
         });
         changes.push(format!("rights=\"{display}\""));
     }
 
-    let output_path = output.unwrap_or(file);
+    let output_path = params.output.clone().unwrap_or_else(|| params.file.clone());
     doc.save(&output_path)
         .with_context(|| format!("Failed to save document: {}", output_path.display()))?;
 
