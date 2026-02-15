@@ -188,25 +188,26 @@ pub fn run_verify_timestamps(file: &Path, config: &OutputConfig) -> Result<()> {
     Ok(())
 }
 
+/// Parameters for the add-timestamp command.
+pub struct AddTimestampParams {
+    pub file: PathBuf,
+    pub method: String,
+    pub authority: String,
+    pub token: String,
+    pub time: Option<String>,
+    pub transaction_id: Option<String>,
+    pub _output: Option<PathBuf>,
+}
+
 /// Add a timestamp record to a document.
 ///
 /// Note: This adds a pre-existing timestamp record. To acquire a new timestamp
 /// from a TSA, use `cdx timestamp-acquire` (requires network features).
-#[allow(clippy::too_many_arguments)]
-pub fn run_add_timestamp(
-    file: &Path,
-    method: &str,
-    authority: String,
-    token: String,
-    time: Option<String>,
-    transaction_id: Option<String>,
-    _output: Option<PathBuf>,
-    config: &OutputConfig,
-) -> Result<()> {
-    config.verbose(&format!("Adding timestamp to: {}", file.display()));
+pub fn run_add_timestamp(params: &AddTimestampParams, config: &OutputConfig) -> Result<()> {
+    config.verbose(&format!("Adding timestamp to: {}", params.file.display()));
 
-    let doc = Document::open(file)
-        .with_context(|| format!("Failed to open document: {}", file.display()))?;
+    let doc = Document::open(&params.file)
+        .with_context(|| format!("Failed to open document: {}", params.file.display()))?;
 
     // Check document state
     if doc.state().is_immutable() {
@@ -214,19 +215,20 @@ pub fn run_add_timestamp(
     }
 
     // Parse method
-    let ts_method = match method.to_lowercase().as_str() {
+    let ts_method = match params.method.to_lowercase().as_str() {
         "rfc3161" => TimestampMethod::Rfc3161,
         "bitcoin" => TimestampMethod::Bitcoin,
         "ethereum" => TimestampMethod::Ethereum,
         "opentimestamps" | "ots" => TimestampMethod::OpenTimestamps,
         _ => anyhow::bail!(
-            "Unknown timestamp method: {method}. Valid options: rfc3161, bitcoin, ethereum, opentimestamps"
+            "Unknown timestamp method: {}. Valid options: rfc3161, bitcoin, ethereum, opentimestamps",
+            params.method
         ),
     };
 
     // Parse time
-    let ts_time = if let Some(time_str) = time {
-        DateTime::parse_from_rfc3339(&time_str)
+    let ts_time = if let Some(ref time_str) = params.time {
+        DateTime::parse_from_rfc3339(time_str)
             .with_context(|| format!("Invalid timestamp format: {time_str}"))?
             .with_timezone(&Utc)
     } else {
@@ -236,10 +238,10 @@ pub fn run_add_timestamp(
     // Create timestamp record
     let timestamp = TimestampRecord {
         method: ts_method,
-        authority,
+        authority: params.authority.clone(),
         time: ts_time,
-        token,
-        transaction_id,
+        token: params.token.clone(),
+        transaction_id: params.transaction_id.clone(),
     };
 
     // For now, we can't actually add the timestamp to the document

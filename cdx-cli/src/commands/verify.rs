@@ -107,16 +107,16 @@ pub fn run(file: &Path, key_paths: &[PathBuf], config: &OutputConfig) -> Result<
     if config.json {
         display_json_verification(&doc, file, all_valid, &verification_results)?;
     } else {
-        display_text_verification(
-            &doc,
+        let ctx = VerificationDisplay {
+            doc: &doc,
             file,
-            &report,
-            &signature_results,
-            &loaded_keys,
+            report: &report,
+            signature_results: &signature_results,
+            loaded_keys: &loaded_keys,
             key_paths,
             all_valid,
-            config,
-        );
+        };
+        display_text_verification(&ctx, config);
     }
 
     if all_valid {
@@ -225,45 +225,45 @@ fn display_json_verification(
     Ok(())
 }
 
-#[allow(clippy::too_many_arguments)]
-fn display_text_verification(
-    doc: &Document,
-    file: &Path,
-    report: &cdx_core::VerificationReport,
-    signature_results: &[SignatureVerificationResult],
-    loaded_keys: &[LoadedKey],
-    key_paths: &[PathBuf],
+struct VerificationDisplay<'a> {
+    doc: &'a Document,
+    file: &'a Path,
+    report: &'a cdx_core::VerificationReport,
+    signature_results: &'a [SignatureVerificationResult],
+    loaded_keys: &'a [LoadedKey],
+    key_paths: &'a [PathBuf],
     all_valid: bool,
-    config: &OutputConfig,
-) {
-    config.field("File", &file.display().to_string());
-    config.field("Document ID", &doc.id().to_string());
+}
+
+fn display_text_verification(ctx: &VerificationDisplay<'_>, config: &OutputConfig) {
+    config.field("File", &ctx.file.display().to_string());
+    config.field("Document ID", &ctx.doc.id().to_string());
 
     config.section("Integrity");
-    if report.id_valid {
+    if ctx.report.id_valid {
         println!("{} Document ID verified", "✓".green());
     } else {
         println!("{} Document ID verification failed", "✗".red());
     }
-    if report.content_valid {
+    if ctx.report.content_valid {
         println!("{} Content verified", "✓".green());
     } else {
         println!("{} Content verification failed", "✗".red());
     }
-    for error in &report.errors {
+    for error in &ctx.report.errors {
         println!("  {} {}", "•".red(), error);
     }
 
-    let signatures = doc.signatures();
+    let signatures = ctx.doc.signatures();
     if !signatures.is_empty() {
         config.section("Signatures");
         println!(
             "  {} signature(s) found, {} key(s) provided",
             signatures.len(),
-            loaded_keys.len()
+            ctx.loaded_keys.len()
         );
 
-        for result in signature_results {
+        for result in ctx.signature_results {
             let status = if result.valid {
                 format!("{} Valid", "✓".green())
             } else {
@@ -280,14 +280,14 @@ fn display_text_verification(
                 println!("      {}", error.red());
             }
         }
-    } else if !key_paths.is_empty() {
+    } else if !ctx.key_paths.is_empty() {
         config.section("Signatures");
         println!("  No signatures found in document");
     }
 
     println!();
 
-    if all_valid {
+    if ctx.all_valid {
         if signatures.is_empty() {
             config.success("Document integrity verified (no signatures present)");
         } else {
