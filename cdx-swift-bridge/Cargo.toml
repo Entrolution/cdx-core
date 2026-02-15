@@ -17,7 +17,7 @@ encryption = ["cdx-core/encryption", "dep:argon2", "dep:base64", "dep:rand_core"
 
 [dependencies]
 cdx-core = { path = "../cdx-core" }
-uniffi = { version = "0.28", features = ["cli"] }
+uniffi = { version = "0.31", features = ["cli"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 chrono = { version = "0.4", features = ["serde", "now"], default-features = false }
