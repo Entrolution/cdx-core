@@ -97,6 +97,10 @@ pub use encryption::{
 #[cfg_attr(docsrs, doc(cfg(feature = "encryption-chacha")))]
 pub use encryption::ChaCha20Poly1305Encryptor;
 
+#[cfg(feature = "key-wrapping")]
+#[cfg_attr(docsrs, doc(cfg(feature = "key-wrapping")))]
+pub use encryption::{EcdhEsKeyUnwrapper, EcdhEsKeyWrapper, WrappedKeyData};
+
 #[cfg(feature = "ocsp")]
 #[cfg_attr(docsrs, doc(cfg(feature = "ocsp")))]
 pub use revocation::{
