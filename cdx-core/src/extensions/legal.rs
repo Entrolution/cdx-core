@@ -361,7 +361,7 @@ pub struct LegalSigner {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub firm: Option<String>,
 
-    /// Address (single string, replaces Vec<String>).
+    /// Address (single string, replaces `Vec<String>`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub address: Option<String>,
 
