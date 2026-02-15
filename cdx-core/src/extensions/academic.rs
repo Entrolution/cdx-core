@@ -526,34 +526,25 @@ pub struct EquationGroup {
     /// Environment type.
     pub environment: EquationEnvironment,
 
-    /// Equations in the group.
-    pub equations: Vec<Equation>,
-
-    /// Whether to number equations.
-    #[serde(default = "default_true")]
-    pub numbered: bool,
-}
-
-fn default_true() -> bool {
-    true
+    /// Equation lines in the group.
+    pub lines: Vec<EquationLine>,
 }
 
 impl EquationGroup {
     /// Create a new equation group.
     #[must_use]
-    pub fn new(environment: EquationEnvironment, equations: Vec<Equation>) -> Self {
+    pub fn new(environment: EquationEnvironment, lines: Vec<EquationLine>) -> Self {
         Self {
             id: None,
             environment,
-            equations,
-            numbered: true,
+            lines,
         }
     }
 
-    /// Make the equations unnumbered.
+    /// Set the ID.
     #[must_use]
-    pub fn unnumbered(mut self) -> Self {
-        self.numbered = false;
+    pub fn with_id(mut self, id: impl Into<String>) -> Self {
+        self.id = Some(id.into());
         self
     }
 }
@@ -572,31 +563,71 @@ pub enum EquationEnvironment {
     Split,
     /// Cases environment.
     Cases,
+    /// Alignat environment (multiple alignment points).
+    Alignat,
 }
 
-/// A single equation in a group.
+/// A single equation line in a group.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Equation {
+pub struct EquationLine {
     /// Optional unique identifier for referencing.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
+
+    /// Equation content (LaTeX or other notation).
+    pub value: String,
 
     /// Equation number (auto-generated or explicit).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub number: Option<String>,
 
-    /// LaTeX content.
-    pub latex: String,
-
-    /// Optional label for referencing.
+    /// Custom tag instead of a number.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub label: Option<String>,
+    pub tag: Option<String>,
+}
+
+impl EquationLine {
+    /// Create a new equation line.
+    #[must_use]
+    pub fn new(value: impl Into<String>) -> Self {
+        Self {
+            id: None,
+            value: value.into(),
+            number: None,
+            tag: None,
+        }
+    }
+
+    /// Set the equation number.
+    #[must_use]
+    pub fn with_number(mut self, number: impl Into<String>) -> Self {
+        self.number = Some(number.into());
+        self
+    }
+
+    /// Set a custom tag.
+    #[must_use]
+    pub fn with_tag(mut self, tag: impl Into<String>) -> Self {
+        self.tag = Some(tag.into());
+        self
+    }
+
+    /// Set the ID.
+    #[must_use]
+    pub fn with_id(mut self, id: impl Into<String>) -> Self {
+        self.id = Some(id.into());
+        self
+    }
 }
 
 // ============================================================================
 // Algorithm
 // ============================================================================
+
+fn default_true() -> bool {
+    true
+}
 
 /// A pseudocode algorithm block.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -1103,17 +1134,82 @@ mod tests {
 
     #[test]
     fn test_equation_group() {
-        let eq = Equation {
-            id: Some("eq1".to_string()),
-            number: Some("(1)".to_string()),
-            latex: "E = mc^2".to_string(),
-            label: None,
-        };
-        let group = EquationGroup::new(EquationEnvironment::Align, vec![eq]);
+        let line = EquationLine::new("E = mc^2")
+            .with_id("eq1")
+            .with_number("(1)");
+        let group = EquationGroup::new(EquationEnvironment::Align, vec![line]);
 
         assert_eq!(group.environment, EquationEnvironment::Align);
-        assert!(group.numbered);
-        assert_eq!(group.equations.len(), 1);
+        assert_eq!(group.lines.len(), 1);
+        assert_eq!(group.lines[0].value, "E = mc^2");
+        assert_eq!(group.lines[0].id, Some("eq1".to_string()));
+        assert_eq!(group.lines[0].number, Some("(1)".to_string()));
+    }
+
+    #[test]
+    fn test_equation_line_with_tag() {
+        let line = EquationLine::new("a^2 + b^2 = c^2").with_tag("*");
+        assert_eq!(line.tag, Some("*".to_string()));
+        assert!(line.number.is_none());
+    }
+
+    #[test]
+    fn test_equation_line_serde_roundtrip() {
+        let line = EquationLine::new("f(x) = ax + b")
+            .with_id("eq-fx")
+            .with_number("2.1")
+            .with_tag("linear");
+        let json = serde_json::to_string(&line).unwrap();
+        assert!(json.contains("\"value\":\"f(x) = ax + b\""));
+        assert!(json.contains("\"number\":\"2.1\""));
+        assert!(json.contains("\"tag\":\"linear\""));
+
+        let parsed: EquationLine = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.value, "f(x) = ax + b");
+        assert_eq!(parsed.number, Some("2.1".to_string()));
+        assert_eq!(parsed.tag, Some("linear".to_string()));
+    }
+
+    #[test]
+    fn test_equation_line_without_tag_defaults_to_none() {
+        let json = r#"{"value": "x + y"}"#;
+        let line: EquationLine = serde_json::from_str(json).unwrap();
+        assert!(line.tag.is_none());
+        assert!(line.number.is_none());
+        assert!(line.id.is_none());
+    }
+
+    #[test]
+    fn test_equation_group_with_lines_serde() {
+        let group = EquationGroup::new(
+            EquationEnvironment::Gather,
+            vec![
+                EquationLine::new("a = b").with_number("1"),
+                EquationLine::new("c = d").with_number("2"),
+            ],
+        )
+        .with_id("eq-group-1");
+
+        let json = serde_json::to_string(&group).unwrap();
+        assert!(json.contains("\"lines\""));
+        assert!(json.contains("\"environment\":\"gather\""));
+
+        let parsed: EquationGroup = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.lines.len(), 2);
+        assert_eq!(parsed.id, Some("eq-group-1".to_string()));
+    }
+
+    #[test]
+    fn test_alignat_environment_serialization() {
+        let group = EquationGroup::new(
+            EquationEnvironment::Alignat,
+            vec![EquationLine::new("x &= y &= z")],
+        );
+        let json = serde_json::to_string(&group).unwrap();
+        assert!(json.contains("\"environment\":\"alignat\""));
+
+        let parsed: EquationGroup = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.environment, EquationEnvironment::Alignat);
     }
 
     #[test]
