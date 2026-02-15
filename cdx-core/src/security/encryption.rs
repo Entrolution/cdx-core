@@ -386,6 +386,176 @@ impl ChaCha20Poly1305Encryptor {
     }
 }
 
+// ---------------------------------------------------------------------------
+// ECDH-ES+A256KW key wrapping (RFC 3394 / RFC 7518)
+// ---------------------------------------------------------------------------
+
+/// Result of wrapping a content encryption key.
+#[cfg(feature = "key-wrapping")]
+#[derive(Debug, Clone)]
+pub struct WrappedKeyData {
+    /// The wrapped (encrypted) content encryption key.
+    pub wrapped_key: Vec<u8>,
+    /// The ephemeral public key (SEC1 uncompressed point), for transmission to the recipient.
+    pub ephemeral_public_key: Vec<u8>,
+}
+
+/// ECDH-ES+A256KW key wrapper (sender side).
+///
+/// Generates an ephemeral P-256 keypair, performs ECDH to derive
+/// a shared secret, runs HKDF-SHA256 to derive a 256-bit KEK,
+/// then wraps the content encryption key with AES Key Wrap (RFC 3394).
+#[cfg(feature = "key-wrapping")]
+pub struct EcdhEsKeyWrapper {
+    /// Recipient's P-256 public key.
+    recipient_public_key: p256::PublicKey,
+}
+
+#[cfg(feature = "key-wrapping")]
+impl EcdhEsKeyWrapper {
+    /// Create a key wrapper for the given recipient public key.
+    ///
+    /// The public key should be the recipient's P-256 (secp256r1) public key.
+    #[must_use]
+    pub fn new(recipient_public_key: p256::PublicKey) -> Self {
+        Self {
+            recipient_public_key,
+        }
+    }
+
+    /// Wrap a content encryption key for the recipient.
+    ///
+    /// Performs ECDH-ES+A256KW:
+    /// 1. Generate ephemeral P-256 keypair
+    /// 2. ECDH key agreement with recipient's public key
+    /// 3. HKDF-SHA256 to derive a 256-bit KEK
+    /// 4. AES Key Wrap (RFC 3394) the content encryption key
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the content key length is not a multiple of 8 bytes
+    /// (as required by AES Key Wrap), or if any cryptographic operation fails.
+    pub fn wrap(&self, content_key: &[u8]) -> Result<WrappedKeyData> {
+        use aes_kw::{cipher::KeyInit, KwAes256};
+        use hkdf::Hkdf;
+        use p256::{ecdh::EphemeralSecret, elliptic_curve::sec1::ToEncodedPoint};
+        use sha2::Sha256;
+
+        // 1. Generate ephemeral keypair
+        let ephemeral_secret = EphemeralSecret::random(&mut rand_core::OsRng);
+        let ephemeral_public = p256::PublicKey::from(&ephemeral_secret);
+
+        // 2. ECDH key agreement
+        let shared_secret = ephemeral_secret.diffie_hellman(&self.recipient_public_key);
+
+        // 3. HKDF-SHA256 to derive KEK
+        //    info string per RFC 7518 §4.6.2 "ECDH-ES+A256KW"
+        let hkdf = Hkdf::<Sha256>::new(None, shared_secret.raw_secret_bytes());
+        let mut kek_bytes = [0u8; 32];
+        hkdf.expand(b"ECDH-ES+A256KW", &mut kek_bytes)
+            .map_err(|e| crate::Error::EncryptionError {
+                reason: format!("HKDF expansion failed: {e}"),
+            })?;
+
+        // 4. AES Key Wrap (RFC 3394)
+        let kek = KwAes256::new(&kek_bytes.into());
+        let mut wrapped = vec![0u8; content_key.len() + 8]; // AES-KW adds 8-byte IV
+        kek.wrap_key(content_key, &mut wrapped)
+            .map_err(|e| crate::Error::EncryptionError {
+                reason: format!("AES key wrap failed: {e}"),
+            })?;
+
+        // Encode ephemeral public key as SEC1 uncompressed point
+        let ephemeral_public_bytes = ephemeral_public.to_encoded_point(false).as_bytes().to_vec();
+
+        Ok(WrappedKeyData {
+            wrapped_key: wrapped,
+            ephemeral_public_key: ephemeral_public_bytes,
+        })
+    }
+}
+
+/// ECDH-ES+A256KW key unwrapper (recipient side).
+///
+/// Uses the recipient's private key and the sender's ephemeral public key
+/// to reverse the ECDH-ES+A256KW key wrapping and recover the content
+/// encryption key.
+#[cfg(feature = "key-wrapping")]
+pub struct EcdhEsKeyUnwrapper {
+    /// Recipient's P-256 secret key.
+    recipient_secret: p256::SecretKey,
+}
+
+#[cfg(feature = "key-wrapping")]
+impl EcdhEsKeyUnwrapper {
+    /// Create a key unwrapper with the recipient's secret key.
+    #[must_use]
+    pub fn new(recipient_secret: p256::SecretKey) -> Self {
+        Self { recipient_secret }
+    }
+
+    /// Unwrap a content encryption key.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the ephemeral public key is invalid, the wrapped
+    /// key is corrupted, or any cryptographic operation fails.
+    pub fn unwrap(&self, data: &WrappedKeyData) -> Result<Vec<u8>> {
+        use aes_kw::{cipher::KeyInit, KwAes256};
+        use hkdf::Hkdf;
+        use p256::elliptic_curve::sec1::FromEncodedPoint;
+        use sha2::Sha256;
+
+        // 1. Decode the ephemeral public key
+        let ephemeral_point =
+            p256::EncodedPoint::from_bytes(&data.ephemeral_public_key).map_err(|e| {
+                crate::Error::EncryptionError {
+                    reason: format!("Invalid ephemeral public key encoding: {e}"),
+                }
+            })?;
+        let ephemeral_public =
+            p256::AffinePoint::from_encoded_point(&ephemeral_point).into_option();
+        let ephemeral_public = ephemeral_public.ok_or_else(|| crate::Error::EncryptionError {
+            reason: "Invalid ephemeral public key point".to_string(),
+        })?;
+        let ephemeral_public = p256::PublicKey::from_affine(ephemeral_public).map_err(|e| {
+            crate::Error::EncryptionError {
+                reason: format!("Invalid ephemeral public key: {e}"),
+            }
+        })?;
+
+        // 2. ECDH key agreement using recipient's secret key
+        let shared_secret = p256::ecdh::diffie_hellman(
+            self.recipient_secret.to_nonzero_scalar(),
+            ephemeral_public.as_affine(),
+        );
+
+        // 3. HKDF-SHA256 to derive KEK (same parameters as wrap)
+        let hkdf = Hkdf::<Sha256>::new(None, shared_secret.raw_secret_bytes());
+        let mut kek_bytes = [0u8; 32];
+        hkdf.expand(b"ECDH-ES+A256KW", &mut kek_bytes)
+            .map_err(|e| crate::Error::EncryptionError {
+                reason: format!("HKDF expansion failed: {e}"),
+            })?;
+
+        // 4. AES Key Unwrap (wrapped key is original_len + 8 bytes)
+        let kek = KwAes256::new(&kek_bytes.into());
+        let unwrapped_len =
+            data.wrapped_key
+                .len()
+                .checked_sub(8)
+                .ok_or_else(|| crate::Error::EncryptionError {
+                    reason: "Wrapped key too short".to_string(),
+                })?;
+        let mut unwrapped = vec![0u8; unwrapped_len];
+        kek.unwrap_key(&data.wrapped_key, &mut unwrapped)
+            .map_err(|e| crate::Error::EncryptionError {
+                reason: format!("AES key unwrap failed: {e}"),
+            })?;
+        Ok(unwrapped)
+    }
+}
+
 #[cfg(all(test, feature = "encryption"))]
 mod tests {
     use super::*;
@@ -631,5 +801,204 @@ mod chacha_tests {
 
         let deserialized: EncryptionAlgorithm = serde_json::from_str(&json).unwrap();
         assert_eq!(deserialized, algo);
+    }
+}
+
+#[cfg(all(test, feature = "key-wrapping"))]
+mod key_wrapping_tests {
+    use super::*;
+
+    /// Generate a P-256 keypair for testing.
+    fn generate_keypair() -> (p256::SecretKey, p256::PublicKey) {
+        let secret = p256::SecretKey::random(&mut rand_core::OsRng);
+        let public = secret.public_key();
+        (secret, public)
+    }
+
+    #[test]
+    fn test_wrap_unwrap_roundtrip() {
+        let (secret, public) = generate_keypair();
+
+        // Generate a 32-byte content encryption key
+        let content_key = Aes256GcmEncryptor::generate_key();
+
+        // Wrap
+        let wrapper = EcdhEsKeyWrapper::new(public);
+        let wrapped = wrapper.wrap(&content_key).unwrap();
+
+        // Wrapped key should be 8 bytes longer than original (AES-KW IV)
+        assert_eq!(wrapped.wrapped_key.len(), content_key.len() + 8);
+        // Ephemeral public key should be 65 bytes (uncompressed SEC1 point)
+        assert_eq!(wrapped.ephemeral_public_key.len(), 65);
+
+        // Unwrap
+        let unwrapper = EcdhEsKeyUnwrapper::new(secret);
+        let recovered = unwrapper.unwrap(&wrapped).unwrap();
+
+        assert_eq!(recovered, content_key);
+    }
+
+    #[test]
+    fn test_multi_recipient_wrap() {
+        let (secret_a, public_a) = generate_keypair();
+        let (secret_b, public_b) = generate_keypair();
+
+        let content_key = Aes256GcmEncryptor::generate_key();
+
+        // Wrap for two recipients
+        let wrapper_a = EcdhEsKeyWrapper::new(public_a);
+        let wrapped_a = wrapper_a.wrap(&content_key).unwrap();
+
+        let wrapper_b = EcdhEsKeyWrapper::new(public_b);
+        let wrapped_b = wrapper_b.wrap(&content_key).unwrap();
+
+        // Each should unwrap independently
+        let unwrapper_a = EcdhEsKeyUnwrapper::new(secret_a);
+        let recovered_a = unwrapper_a.unwrap(&wrapped_a).unwrap();
+        assert_eq!(recovered_a, content_key);
+
+        let unwrapper_b = EcdhEsKeyUnwrapper::new(secret_b);
+        let recovered_b = unwrapper_b.unwrap(&wrapped_b).unwrap();
+        assert_eq!(recovered_b, content_key);
+
+        // Cross-unwrap should fail (wrong key)
+        assert!(unwrapper_a.unwrap(&wrapped_b).is_err());
+        assert!(unwrapper_b.unwrap(&wrapped_a).is_err());
+    }
+
+    #[test]
+    fn test_wrong_private_key_fails() {
+        let (_secret, public) = generate_keypair();
+        let (wrong_secret, _wrong_public) = generate_keypair();
+
+        let content_key = Aes256GcmEncryptor::generate_key();
+
+        let wrapper = EcdhEsKeyWrapper::new(public);
+        let wrapped = wrapper.wrap(&content_key).unwrap();
+
+        // Unwrapping with wrong key should fail
+        let unwrapper = EcdhEsKeyUnwrapper::new(wrong_secret);
+        let result = unwrapper.unwrap(&wrapped);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_tampered_wrapped_key_fails() {
+        let (secret, public) = generate_keypair();
+
+        let content_key = Aes256GcmEncryptor::generate_key();
+
+        let wrapper = EcdhEsKeyWrapper::new(public);
+        let mut wrapped = wrapper.wrap(&content_key).unwrap();
+
+        // Tamper with the wrapped key
+        if !wrapped.wrapped_key.is_empty() {
+            wrapped.wrapped_key[0] ^= 0xFF;
+        }
+
+        let unwrapper = EcdhEsKeyUnwrapper::new(secret);
+        let result = unwrapper.unwrap(&wrapped);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_tampered_ephemeral_key_fails() {
+        let (secret, public) = generate_keypair();
+
+        let content_key = Aes256GcmEncryptor::generate_key();
+
+        let wrapper = EcdhEsKeyWrapper::new(public);
+        let mut wrapped = wrapper.wrap(&content_key).unwrap();
+
+        // Tamper with the ephemeral public key (change a coordinate byte)
+        // Byte 0 is the tag (0x04 for uncompressed), skip it
+        if wrapped.ephemeral_public_key.len() > 1 {
+            wrapped.ephemeral_public_key[1] ^= 0xFF;
+        }
+
+        let unwrapper = EcdhEsKeyUnwrapper::new(secret);
+        let result = unwrapper.unwrap(&wrapped);
+        // Should either fail to decode the point or produce wrong shared secret
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_integration_encrypt_wrap_unwrap_decrypt() {
+        let (secret, public) = generate_keypair();
+
+        // 1. Generate content encryption key and encrypt content
+        let content_key = Aes256GcmEncryptor::generate_key();
+        let encryptor = Aes256GcmEncryptor::new(&content_key).unwrap();
+        let plaintext = b"Codex document content for encryption";
+        let encrypted = encryptor.encrypt(plaintext).unwrap();
+
+        // 2. Wrap the content key for the recipient
+        let wrapper = EcdhEsKeyWrapper::new(public);
+        let wrapped = wrapper.wrap(&content_key).unwrap();
+
+        // 3. Build metadata (as would be serialized in the archive)
+        let metadata = EncryptionMetadata {
+            algorithm: EncryptionAlgorithm::Aes256Gcm,
+            kdf: None,
+            wrapped_key: None,
+            key_management: Some(KeyManagementAlgorithm::EcdhEsA256kw),
+            recipients: vec![Recipient {
+                id: "recipient-1".to_string(),
+                encrypted_key: base64::Engine::encode(
+                    &base64::engine::general_purpose::STANDARD,
+                    &wrapped.wrapped_key,
+                ),
+                algorithm: Some("ECDH-ES+A256KW".to_string()),
+                ephemeral_public_key: Some(base64::Engine::encode(
+                    &base64::engine::general_purpose::STANDARD,
+                    &wrapped.ephemeral_public_key,
+                )),
+            }],
+        };
+
+        // 4. Serialize/deserialize metadata (roundtrip)
+        let json = serde_json::to_string(&metadata).unwrap();
+        let parsed: EncryptionMetadata = serde_json::from_str(&json).unwrap();
+
+        // 5. Recipient unwraps the key
+        let recipient = &parsed.recipients[0];
+        let wrapped_data = WrappedKeyData {
+            wrapped_key: base64::Engine::decode(
+                &base64::engine::general_purpose::STANDARD,
+                &recipient.encrypted_key,
+            )
+            .unwrap(),
+            ephemeral_public_key: base64::Engine::decode(
+                &base64::engine::general_purpose::STANDARD,
+                recipient.ephemeral_public_key.as_ref().unwrap(),
+            )
+            .unwrap(),
+        };
+
+        let unwrapper = EcdhEsKeyUnwrapper::new(secret);
+        let recovered_key = unwrapper.unwrap(&wrapped_data).unwrap();
+
+        // 6. Decrypt the content
+        let decryptor = Aes256GcmEncryptor::new(&recovered_key).unwrap();
+        let decrypted = decryptor
+            .decrypt(&encrypted.ciphertext, &encrypted.nonce)
+            .unwrap();
+
+        assert_eq!(decrypted, plaintext);
+    }
+
+    #[test]
+    fn test_wrap_16_byte_key() {
+        // AES Key Wrap works with any key that's a multiple of 8 bytes
+        let (secret, public) = generate_keypair();
+        let content_key = [0x42u8; 16]; // 128-bit key
+
+        let wrapper = EcdhEsKeyWrapper::new(public);
+        let wrapped = wrapper.wrap(&content_key).unwrap();
+        assert_eq!(wrapped.wrapped_key.len(), 24); // 16 + 8
+
+        let unwrapper = EcdhEsKeyUnwrapper::new(secret);
+        let recovered = unwrapper.unwrap(&wrapped).unwrap();
+        assert_eq!(recovered, content_key);
     }
 }

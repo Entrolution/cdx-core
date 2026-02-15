@@ -23,6 +23,7 @@ signatures-es384 = ["dep:p384", "dep:ecdsa", "dep:base64", "dep:rand_core"]
 signatures-rsa = ["dep:rsa", "dep:base64", "dep:rand_core"]
 encryption = ["signatures", "dep:aes-gcm", "dep:rand_core"]
 encryption-chacha = ["encryption", "dep:chacha20poly1305", "dep:rand_core"]
+key-wrapping = ["encryption", "dep:aes-kw", "dep:hkdf", "p256/ecdh"]
 eddsa = ["dep:ed25519-dalek", "dep:rand_core"]
 ml-dsa = ["dep:fips204", "dep:base64", "dep:rand_core"]
 wasm = ["getrandom/wasm_js"]
@@ -41,7 +42,7 @@ webauthn = ["signatures"]
 # timestamps-bitcoin = []               # Bitcoin anchoring
 # timestamps-ethereum = []              # Ethereum anchoring
 
-full = ["zstd", "signatures", "signatures-es384", "signatures-rsa", "encryption", "encryption-chacha", "eddsa", "ml-dsa", "webauthn", "timestamps-ots", "timestamps-rfc3161", "ocsp"]
+full = ["zstd", "signatures", "signatures-es384", "signatures-rsa", "encryption", "encryption-chacha", "key-wrapping", "eddsa", "ml-dsa", "webauthn", "timestamps-ots", "timestamps-rfc3161", "ocsp"]
 
 [dependencies]
 # Serialization
@@ -74,6 +75,10 @@ fips204 = { version = "0.4", optional = true }
 # Encryption (optional)
 aes-gcm = { version = "0.11.0-rc.3", optional = true }
 chacha20poly1305 = { version = "0.11.0-rc.3", optional = true }
+
+# Key wrapping (optional)
+aes-kw = { version = "0.3.0-rc.2", optional = true }
+hkdf = { version = "0.12", optional = true }
 
 # HTTP client for timestamps (optional)
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"], optional = true }
