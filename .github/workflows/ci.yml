@@ -13,7 +13,7 @@ env:
 jobs:
   test:
     name: Test
-    runs-on: [self-hosted, macos]
+    runs-on: macos-14
 
     steps:
       - uses: actions/checkout@v6
@@ -101,7 +101,7 @@ jobs:
 
   cli-tests:
     name: CLI Integration Tests
-    runs-on: [self-hosted, macos]
+    runs-on: macos-14
     steps:
       - uses: actions/checkout@v6
 
@@ -119,7 +119,7 @@ jobs:
 
   coverage:
     name: Coverage
-    runs-on: [self-hosted, macos]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
 
@@ -144,7 +144,7 @@ jobs:
 
   swift-bridge:
     name: Swift Bridge
-    runs-on: [self-hosted, macos]
+    runs-on: macos-14
     steps:
       - uses: actions/checkout@v6
 
@@ -167,7 +167,7 @@ jobs:
 
   security:
     name: Security Audit
-    runs-on: [self-hosted, macos]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
 
@@ -191,7 +191,7 @@ jobs:
 
   benchmark:
     name: Benchmark
-    runs-on: [self-hosted, macos]
+    runs-on: macos-14
     steps:
       - uses: actions/checkout@v6
 
