@@ -725,6 +725,8 @@ pub fn convert_block_to_core(block: &CdxBlock) -> Result<cdx_core::content::Bloc
                     .map(convert_text_to_core)
                     .collect(),
                 attributes: convert_block_attributes_to_core(&block.attributes),
+                highlighting: None,
+                tokens: None,
             })
         }
         CdxBlockType::HorizontalRule => Ok(cdx_core::content::Block::HorizontalRule { id }),
@@ -844,6 +846,8 @@ pub fn convert_block_to_core(block: &CdxBlock) -> Result<cdx_core::content::Bloc
                     .map(convert_block_to_core)
                     .collect::<Result<Vec<_>, _>>()?,
                 attributes: convert_block_attributes_to_core(&block.attributes),
+                numbering: None,
+                subfigures: None,
             },
         )),
         CdxBlockType::FigCaption => Ok(cdx_core::content::Block::FigCaption(

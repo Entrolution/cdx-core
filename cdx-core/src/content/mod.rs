@@ -62,10 +62,10 @@ mod validation;
 
 pub use block::{
     AdmonitionBlock, AdmonitionVariant, BarcodeBlock, BarcodeFormat, BarcodeSize, Block,
-    BlockAttributes, BlockSignatureType, CellAlign, Content, DefinitionListBlock,
-    ErrorCorrectionLevel, FigCaptionBlock, FigureBlock, ImageBlock, MathBlock, MathFormat,
-    MeasurementBlock, SignatureBlock, SignaturePurpose, SignerDetails, SvgBlock, TableCellBlock,
-    UncertaintyNotation, WritingMode,
+    BlockAttributes, BlockSignatureType, CellAlign, CodeToken, Content, DefinitionListBlock,
+    ErrorCorrectionLevel, FigCaptionBlock, FigureBlock, FigureNumbering, ImageBlock, MathBlock,
+    MathFormat, MeasurementBlock, SignatureBlock, SignaturePurpose, SignerDetails, Subfigure,
+    SvgBlock, TableCellBlock, UncertaintyNotation, WritingMode,
 };
 pub use text::{ExtensionMark, Mark, MarkType, Text};
 pub use validation::{validate_content, ValidationError};

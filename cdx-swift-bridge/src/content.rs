@@ -513,6 +513,7 @@ impl From<&cdx_core::content::Block> for CdxBlock {
                 language,
                 children,
                 attributes,
+                ..
             } => CdxBlock {
                 id: id.clone().unwrap_or_default(),
                 block_type: CdxBlockType::CodeBlock,

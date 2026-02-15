@@ -13,7 +13,7 @@ env:
 jobs:
   test:
     name: Test
-    runs-on: macos-14
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v6
@@ -101,7 +101,7 @@ jobs:
 
   cli-tests:
     name: CLI Integration Tests
-    runs-on: macos-14
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
 
@@ -144,7 +144,7 @@ jobs:
 
   swift-bridge:
     name: Swift Bridge
-    runs-on: macos-14
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
 
@@ -191,7 +191,7 @@ jobs:
 
   benchmark:
     name: Benchmark
-    runs-on: macos-14
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
 

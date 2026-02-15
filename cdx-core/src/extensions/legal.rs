@@ -148,6 +148,10 @@ pub struct Caption {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub case_number: Option<String>,
 
+    /// Docket identifier.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub docket: Option<String>,
+
     /// Plaintiffs/appellants.
     pub plaintiffs: Vec<Party>,
 
@@ -179,6 +183,7 @@ impl Caption {
             id: None,
             court: court.into(),
             case_number: None,
+            docket: None,
             plaintiffs: Vec::new(),
             defendants: Vec::new(),
             title: None,
@@ -806,5 +811,31 @@ mod tests {
         assert_eq!(CitationSignal::See.to_string(), "See");
         assert_eq!(CitationSignal::ButSee.to_string(), "But see");
         assert_eq!(CitationSignal::None.to_string(), "");
+    }
+
+    #[test]
+    fn test_caption_docket_roundtrip() {
+        let caption = Caption::new("District Court").with_case_number("No. 24-1234");
+        // Manually set docket
+        let mut caption = caption;
+        caption.docket = Some("DKT-2024-5678".to_string());
+
+        let json = serde_json::to_string(&caption).unwrap();
+        assert!(json.contains("\"docket\":\"DKT-2024-5678\""));
+
+        let parsed: Caption = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.docket, Some("DKT-2024-5678".to_string()));
+    }
+
+    #[test]
+    fn test_caption_without_docket_defaults_to_none() {
+        let json = r#"{
+            "court": "Supreme Court",
+            "plaintiffs": [],
+            "defendants": [],
+            "style": "federal"
+        }"#;
+        let caption: Caption = serde_json::from_str(json).unwrap();
+        assert!(caption.docket.is_none());
     }
 }
