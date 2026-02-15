@@ -118,6 +118,14 @@ impl From<cdx_core::Error> for CdxError {
             cdx_core::Error::ValidationFailed { reason } => CdxError::ValidationFailed(reason),
             cdx_core::Error::SignatureError { reason } => CdxError::SignatureError(reason),
             cdx_core::Error::EncryptionError { reason } => CdxError::EncryptionError(reason),
+            cdx_core::Error::FileTooLarge { path, size, limit } => {
+                CdxError::IoError(format!(
+                    "file too large: {path} is {size} bytes (limit: {limit} bytes)"
+                ))
+            }
+            cdx_core::Error::InvalidArchiveStructure { reason } => {
+                CdxError::IoError(format!("invalid archive structure: {reason}"))
+            }
         }
     }
 }

@@ -114,11 +114,14 @@ impl<R: Read + Seek> CdxReader<R> {
             }
         }
 
-        // Check that manifest is the first file (as per spec)
+        // Manifest must be the first file in the archive (per spec)
         if let Some(first_file) = archive.file_names().next() {
             if first_file != MANIFEST_PATH {
-                // This is a warning per spec, but we allow it for compatibility
-                // Future: could add a warnings collection
+                return Err(Error::InvalidArchiveStructure {
+                    reason: format!(
+                        "manifest.json must be the first file in the archive (found '{first_file}')"
+                    ),
+                });
             }
         }
 
@@ -132,16 +135,39 @@ impl<R: Read + Seek> CdxReader<R> {
         Ok(manifest)
     }
 
+    /// Maximum allowed file size for decompression (256 MiB).
+    ///
+    /// This limit protects against decompression bombs (zip bombs) where a small
+    /// compressed file expands to a very large size.
+    const MAX_FILE_SIZE: u64 = 256 * 1024 * 1024;
+
     /// Internal file reading without path validation (for known-safe paths).
     fn read_file_internal(archive: &mut ZipArchive<R>, path: &str) -> Result<Vec<u8>> {
-        let mut file = archive.by_name(path).map_err(|_| Error::MissingFile {
+        let file = archive.by_name(path).map_err(|_| Error::MissingFile {
             path: path.to_string(),
         })?;
+
+        // Check declared size before allocating (catches honest oversized files)
+        if file.size() > Self::MAX_FILE_SIZE {
+            return Err(Error::FileTooLarge {
+                path: path.to_string(),
+                size: file.size(),
+                limit: Self::MAX_FILE_SIZE,
+            });
+        }
 
         // Use try_from with fallback to 0 for platforms with smaller usize
         let capacity = usize::try_from(file.size()).unwrap_or(0);
         let mut data = Vec::with_capacity(capacity);
-        file.read_to_end(&mut data)?;
+        // Bounded read to catch spoofed/mismatched declared sizes
+        let bytes_read = file.take(Self::MAX_FILE_SIZE + 1).read_to_end(&mut data)?;
+        if bytes_read as u64 > Self::MAX_FILE_SIZE {
+            return Err(Error::FileTooLarge {
+                path: path.to_string(),
+                size: bytes_read as u64,
+                limit: Self::MAX_FILE_SIZE,
+            });
+        }
         Ok(data)
     }
 
@@ -688,5 +714,54 @@ mod tests {
         // No phantoms file in the test archive
         let result = reader.read_phantoms().unwrap();
         assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_manifest_must_be_first_file() {
+        // Create a ZIP where manifest is NOT the first file
+        let buffer = Cursor::new(Vec::new());
+        let mut writer = zip::ZipWriter::new(buffer);
+
+        // Write content BEFORE manifest
+        writer
+            .start_file::<&str, ()>(CONTENT_PATH, Default::default())
+            .unwrap();
+        writer
+            .write_all(br#"{"version":"0.1","blocks":[]}"#)
+            .unwrap();
+
+        // Now write manifest (not first)
+        let manifest_json = r#"{
+            "codex": "0.1",
+            "id": "pending",
+            "state": "draft",
+            "created": "2024-01-01T00:00:00Z",
+            "modified": "2024-01-01T00:00:00Z",
+            "content": { "path": "content/document.json", "hash": "pending" },
+            "metadata": { "dublinCore": "metadata/dublin-core.json" }
+        }"#;
+        writer
+            .start_file::<&str, ()>(MANIFEST_PATH, Default::default())
+            .unwrap();
+        writer.write_all(manifest_json.as_bytes()).unwrap();
+
+        writer
+            .start_file::<&str, ()>(DUBLIN_CORE_PATH, Default::default())
+            .unwrap();
+        writer.write_all(br#"{"title":"Test"}"#).unwrap();
+
+        let data = writer.finish().unwrap().into_inner();
+        let result = CdxReader::from_bytes(data);
+
+        let err = result.err().expect("should be an error");
+        assert!(matches!(err, Error::InvalidArchiveStructure { .. }));
+    }
+
+    #[test]
+    fn test_manifest_first_file_passes() {
+        // Normal archive created by CdxWriter should have manifest first
+        let data = create_test_archive();
+        let result = CdxReader::from_bytes(data);
+        assert!(result.is_ok());
     }
 }

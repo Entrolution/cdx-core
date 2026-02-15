@@ -68,6 +68,20 @@ pub const JSONLD_PATH: &str = "metadata/jsonld.json";
 /// ZIP comment for Codex documents.
 pub const ZIP_COMMENT: &str = "Codex Document Format v0.1";
 
+/// Check whether an asset path contains only URL-safe characters.
+///
+/// Per the Codex spec, asset paths SHOULD use only URL-safe characters:
+/// alphanumerics, `.`, `-`, `_`, and `/`. This function returns `true` if
+/// the path is compliant.
+///
+/// This is a SHOULD-level requirement — non-compliant paths are still valid
+/// but may cause interoperability issues.
+#[must_use]
+pub fn is_url_safe_path(path: &str) -> bool {
+    path.bytes()
+        .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'-' | b'_' | b'/'))
+}
+
 /// Validate that a path is safe (no path traversal).
 ///
 /// # Errors
@@ -126,5 +140,27 @@ mod tests {
     fn test_validate_path_backslash() {
         assert!(validate_path("foo\\bar").is_err());
         assert!(validate_path("..\\secret").is_err());
+    }
+
+    #[test]
+    fn test_url_safe_path_valid() {
+        assert!(is_url_safe_path("assets/image-01.png"));
+        assert!(is_url_safe_path("assets/photo_2024.jpg"));
+        assert!(is_url_safe_path("content/document.json"));
+        assert!(is_url_safe_path("a-z_0-9/file.ext"));
+    }
+
+    #[test]
+    fn test_url_safe_path_invalid() {
+        // Spaces are not URL-safe
+        assert!(!is_url_safe_path("assets/file name.png"));
+        // Percent encoding characters
+        assert!(!is_url_safe_path("assets/file%20name.png"));
+        // Unicode characters
+        assert!(!is_url_safe_path("assets/文档.txt"));
+        // Special characters
+        assert!(!is_url_safe_path("assets/file@2x.png"));
+        assert!(!is_url_safe_path("assets/file#1.png"));
+        assert!(!is_url_safe_path("assets/file(1).png"));
     }
 }

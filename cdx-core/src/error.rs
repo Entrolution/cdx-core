@@ -165,6 +165,24 @@ pub enum Error {
         /// Description of the encryption issue.
         reason: String,
     },
+
+    /// File exceeds the maximum allowed size (decompression bomb protection).
+    #[error("file too large: {path} is {size} bytes (limit: {limit} bytes)")]
+    FileTooLarge {
+        /// Path of the oversized file.
+        path: String,
+        /// Actual or declared size in bytes.
+        size: u64,
+        /// Maximum allowed size in bytes.
+        limit: u64,
+    },
+
+    /// Archive structure is invalid.
+    #[error("invalid archive structure: {reason}")]
+    InvalidArchiveStructure {
+        /// Description of the structural issue.
+        reason: String,
+    },
 }
 
 #[cfg(test)]
@@ -359,5 +377,28 @@ mod tests {
             reason: "wrong password".to_string(),
         };
         assert_eq!(err.to_string(), "encryption error: wrong password");
+    }
+
+    #[test]
+    fn display_file_too_large() {
+        let err = Error::FileTooLarge {
+            path: "assets/huge.bin".to_string(),
+            size: 512 * 1024 * 1024,
+            limit: 256 * 1024 * 1024,
+        };
+        let msg = err.to_string();
+        assert!(msg.contains("file too large"));
+        assert!(msg.contains("assets/huge.bin"));
+    }
+
+    #[test]
+    fn display_invalid_archive_structure() {
+        let err = Error::InvalidArchiveStructure {
+            reason: "manifest not first".to_string(),
+        };
+        assert_eq!(
+            err.to_string(),
+            "invalid archive structure: manifest not first"
+        );
     }
 }
