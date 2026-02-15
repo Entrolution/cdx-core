@@ -703,12 +703,7 @@ impl Pbes2KeyWrapper {
 
         // Derive KEK via PBKDF2-HMAC-SHA256
         let mut kek_bytes = [0u8; 32];
-        pbkdf2::pbkdf2_hmac::<sha2::Sha256>(
-            &self.password,
-            &salt,
-            self.iterations,
-            &mut kek_bytes,
-        );
+        pbkdf2::pbkdf2_hmac::<sha2::Sha256>(&self.password, &salt, self.iterations, &mut kek_bytes);
 
         // AES Key Wrap
         let kek = KwAes256::new(&kek_bytes.into());
@@ -1346,7 +1341,10 @@ mod rsa_oaep_tests {
         assert!(!json.contains("ephemeralPublicKey"));
 
         let parsed: EncryptionMetadata = serde_json::from_str(&json).unwrap();
-        assert_eq!(parsed.key_management, Some(KeyManagementAlgorithm::RsaOaep256));
+        assert_eq!(
+            parsed.key_management,
+            Some(KeyManagementAlgorithm::RsaOaep256)
+        );
     }
 }
 

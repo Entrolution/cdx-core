@@ -817,7 +817,10 @@ mod tests {
 
         let data = writer.finish().unwrap().into_inner();
         let reader = CdxReader::from_bytes(data);
-        assert!(reader.is_ok(), "BOM-prefixed manifest should parse correctly");
+        assert!(
+            reader.is_ok(),
+            "BOM-prefixed manifest should parse correctly"
+        );
         assert_eq!(reader.unwrap().manifest().codex, "0.1");
     }
 
