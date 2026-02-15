@@ -51,6 +51,10 @@ pub struct Manifest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub security: Option<SecurityRef>,
 
+    /// Phantom clusters reference.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub phantoms: Option<PhantomsRef>,
+
     /// Active extensions.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub extensions: Vec<Extension>,
@@ -82,6 +86,7 @@ impl Manifest {
             presentation: Vec::new(),
             assets: None,
             security: None,
+            phantoms: None,
             extensions: Vec::new(),
             lineage: None,
         }
@@ -288,6 +293,17 @@ pub struct AssetCategory {
 
     /// Path to asset index file.
     pub index: String,
+}
+
+/// Phantom clusters reference.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PhantomsRef {
+    /// Path to phantoms file within the archive.
+    pub path: String,
+
+    /// Hash of the phantoms file contents.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hash: Option<DocumentId>,
 }
 
 /// Security layer reference.
@@ -817,5 +833,61 @@ mod tests {
         assert_eq!(ext.id, "codex.legal");
         assert_eq!(ext.version, "0.1");
         assert!(!ext.required);
+    }
+
+    #[test]
+    fn test_phantoms_ref_roundtrip_present() {
+        let phantoms = PhantomsRef {
+            path: "phantoms/clusters.json".to_string(),
+            hash: Some(test_hash()),
+        };
+        let json = serde_json::to_string(&phantoms).unwrap();
+        let parsed: PhantomsRef = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed, phantoms);
+    }
+
+    #[test]
+    fn test_phantoms_ref_roundtrip_no_hash() {
+        let phantoms = PhantomsRef {
+            path: "phantoms/clusters.json".to_string(),
+            hash: None,
+        };
+        let json = serde_json::to_string(&phantoms).unwrap();
+        assert!(!json.contains("hash"));
+        let parsed: PhantomsRef = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed, phantoms);
+    }
+
+    #[test]
+    fn test_manifest_phantoms_default_none() {
+        let content = ContentRef {
+            path: "content/document.json".to_string(),
+            hash: DocumentId::pending(),
+            compression: None,
+            merkle_root: None,
+            block_count: None,
+        };
+        let metadata = Metadata {
+            dublin_core: "metadata/dublin-core.json".to_string(),
+            custom: None,
+        };
+        let manifest = Manifest::new(content, metadata);
+        assert!(manifest.phantoms.is_none());
+    }
+
+    #[test]
+    fn test_manifest_backward_compat_no_phantoms() {
+        // Deserializing a manifest without the phantoms field should default to None
+        let json = r#"{
+            "codex": "0.1",
+            "id": "pending",
+            "state": "draft",
+            "created": "2024-01-01T00:00:00Z",
+            "modified": "2024-01-01T00:00:00Z",
+            "content": { "path": "content/document.json", "hash": "pending" },
+            "metadata": { "dublinCore": "metadata/dublin-core.json" }
+        }"#;
+        let manifest: Manifest = serde_json::from_str(json).unwrap();
+        assert!(manifest.phantoms.is_none());
     }
 }

@@ -476,6 +476,7 @@ impl CdxDocument {
                     parallelism: Some(4),
                 }),
                 wrapped_key: None,
+                key_management: None,
                 recipients: vec![],
             };
 
