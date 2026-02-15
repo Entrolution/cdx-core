@@ -50,7 +50,7 @@ serde_json = "1.0"
 json-canon = "0.1"  # RFC 8785 JSON Canonicalization
 
 # ZIP handling
-zip = { version = "7.2", default-features = false, features = ["deflate"] }
+zip = { version = "8.0", default-features = false, features = ["deflate"] }
 
 # Cryptography
 sha2 = "0.10"
