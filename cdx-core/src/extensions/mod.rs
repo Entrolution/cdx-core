@@ -39,9 +39,9 @@ pub use collaboration::{
     TextCrdtPosition, TextRange, TrackedChange,
 };
 pub use forms::{
-    CheckboxField, DatePickerField, DropdownField, DropdownOption, FormData, FormField,
-    FormValidation, RadioGroupField, RadioOption, SignatureField, TextAreaField, TextInputField,
-    ValidationRule,
+    CheckboxField, Condition, ConditionalAction, ConditionalValidation, ConditionOperator,
+    DatePickerField, DropdownField, DropdownOption, FormData, FormField, FormValidation,
+    RadioGroupField, RadioOption, SignatureField, TextAreaField, TextInputField, ValidationRule,
 };
 pub use phantom::{
     ConnectionStyle, Phantom, PhantomCluster, PhantomClusters, PhantomConnection, PhantomContent,
