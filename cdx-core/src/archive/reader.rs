@@ -128,11 +128,24 @@ impl<R: Read + Seek> CdxReader<R> {
         Ok(())
     }
 
+    /// Strip a UTF-8 BOM (byte order mark) prefix if present.
+    fn strip_utf8_bom(data: &[u8]) -> &[u8] {
+        data.strip_prefix(&[0xEF, 0xBB, 0xBF]).unwrap_or(data)
+    }
+
+    /// Read a file and parse it as JSON, stripping any UTF-8 BOM prefix.
+    fn read_json_file<T: serde::de::DeserializeOwned>(
+        archive: &mut ZipArchive<R>,
+        path: &str,
+    ) -> Result<T> {
+        let data = Self::read_file_internal(archive, path)?;
+        let json_data = Self::strip_utf8_bom(&data);
+        Ok(serde_json::from_slice(json_data)?)
+    }
+
     /// Read and parse the manifest.
     fn read_manifest(archive: &mut ZipArchive<R>) -> Result<Manifest> {
-        let manifest_data = Self::read_file_internal(archive, MANIFEST_PATH)?;
-        let manifest: Manifest = serde_json::from_slice(&manifest_data)?;
-        Ok(manifest)
+        Self::read_json_file(archive, MANIFEST_PATH)
     }
 
     /// Maximum allowed file size for decompression (256 MiB).
@@ -285,8 +298,8 @@ impl<R: Read + Seek> CdxReader<R> {
             return Ok(None);
         }
 
-        let data = Self::read_file_internal(&mut self.archive, PHANTOMS_PATH)?;
-        let phantoms: crate::extensions::PhantomClusters = serde_json::from_slice(&data)?;
+        let phantoms: crate::extensions::PhantomClusters =
+            Self::read_json_file(&mut self.archive, PHANTOMS_PATH)?;
         Ok(Some(phantoms))
     }
 
@@ -763,5 +776,59 @@ mod tests {
         let data = create_test_archive();
         let result = CdxReader::from_bytes(data);
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_utf8_bom_stripped_from_manifest() {
+        // Create a ZIP with BOM-prefixed manifest JSON
+        let buffer = Cursor::new(Vec::new());
+        let mut writer = zip::ZipWriter::new(buffer);
+
+        // Manifest with UTF-8 BOM prefix
+        let manifest_json = r#"{
+            "codex": "0.1",
+            "id": "pending",
+            "state": "draft",
+            "created": "2024-01-01T00:00:00Z",
+            "modified": "2024-01-01T00:00:00Z",
+            "hashAlgorithm": "sha256",
+            "content": { "path": "content/document.json", "hash": "pending" },
+            "metadata": { "dublinCore": "metadata/dublin-core.json" }
+        }"#;
+        let mut bom_manifest = vec![0xEF, 0xBB, 0xBF];
+        bom_manifest.extend_from_slice(manifest_json.as_bytes());
+
+        writer
+            .start_file::<&str, ()>(MANIFEST_PATH, Default::default())
+            .unwrap();
+        writer.write_all(&bom_manifest).unwrap();
+
+        writer
+            .start_file::<&str, ()>(CONTENT_PATH, Default::default())
+            .unwrap();
+        writer
+            .write_all(br#"{"version":"0.1","blocks":[]}"#)
+            .unwrap();
+
+        writer
+            .start_file::<&str, ()>(DUBLIN_CORE_PATH, Default::default())
+            .unwrap();
+        writer.write_all(br#"{"title":"Test"}"#).unwrap();
+
+        let data = writer.finish().unwrap().into_inner();
+        let reader = CdxReader::from_bytes(data);
+        assert!(
+            reader.is_ok(),
+            "BOM-prefixed manifest should parse correctly"
+        );
+        assert_eq!(reader.unwrap().manifest().codex, "0.1");
+    }
+
+    #[test]
+    fn test_utf8_bom_not_required() {
+        // Regular archive without BOM should still work fine
+        let data = create_test_archive();
+        let reader = CdxReader::from_bytes(data);
+        assert!(reader.is_ok());
     }
 }
