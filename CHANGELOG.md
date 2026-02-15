@@ -43,6 +43,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+#### Dependencies
+- Bump `zip` from 7.2 to 8.0 (resolves yanked 7.4.0; no code changes required)
+- Bump `assert_cmd` from 2.0 to 2.1.2
+- Update `keccak` from 0.1.5 (yanked) to 0.1.6
+
+#### Code Quality
+- Enable `clippy::pedantic` in `cdx-cli` (already zero warnings; prevents regressions)
+- Remove unused `PropertySchema` variants (`Integer`, `Number`, `Boolean`) and their match arms
+- Replace `strum` derive macros for ~10 enum Display implementations (PR #55)
+- Extract shared crypto helpers into `crypto_common` module (PR #57)
+- Fix all pedantic lint warnings across workspace (PR #58)
+- Tighten `cargo-deny` configuration: `yanked = "deny"`, remove unused license allowances
+
 #### Breaking Changes
 - **Paginated presentation**: `blockRef` renamed to `blockId`, `blockRefs` to `blockIds`
 - **Forms**: Removed `ValidationRule::Custom` (executable expressions prohibited per DD-010/DD-019)
