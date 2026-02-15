@@ -556,6 +556,233 @@ impl EcdhEsKeyUnwrapper {
     }
 }
 
+// ---------------------------------------------------------------------------
+// RSA-OAEP-256 key wrapping
+// ---------------------------------------------------------------------------
+
+/// Result of wrapping a content encryption key with RSA-OAEP.
+#[cfg(feature = "key-wrapping-rsa")]
+#[derive(Debug, Clone)]
+pub struct RsaWrappedKeyData {
+    /// The wrapped (encrypted) content encryption key.
+    pub wrapped_key: Vec<u8>,
+}
+
+/// RSA-OAEP-256 key wrapper (sender side).
+///
+/// Encrypts a content encryption key using the recipient's RSA public key
+/// with OAEP padding and SHA-256 as the hash function.
+#[cfg(feature = "key-wrapping-rsa")]
+pub struct RsaOaepKeyWrapper {
+    recipient_public_key: rsa::RsaPublicKey,
+}
+
+#[cfg(feature = "key-wrapping-rsa")]
+impl RsaOaepKeyWrapper {
+    /// Create a key wrapper for the given recipient RSA public key.
+    #[must_use]
+    pub fn new(recipient_public_key: rsa::RsaPublicKey) -> Self {
+        Self {
+            recipient_public_key,
+        }
+    }
+
+    /// Wrap a content encryption key for the recipient.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if RSA-OAEP encryption fails (e.g., key too small for payload).
+    pub fn wrap(&self, content_key: &[u8]) -> Result<RsaWrappedKeyData> {
+        use rsa::oaep::EncryptingKey;
+        use rsa::traits::RandomizedEncryptor;
+        use sha2::Sha256;
+
+        let encrypting_key = EncryptingKey::<Sha256>::new(self.recipient_public_key.clone());
+        let wrapped_key = encrypting_key
+            .encrypt_with_rng(&mut rand_core::OsRng, content_key)
+            .map_err(|e| crate::Error::EncryptionError {
+                reason: format!("RSA-OAEP wrap failed: {e}"),
+            })?;
+
+        Ok(RsaWrappedKeyData { wrapped_key })
+    }
+}
+
+/// RSA-OAEP-256 key unwrapper (recipient side).
+///
+/// Decrypts a content encryption key using the recipient's RSA private key.
+#[cfg(feature = "key-wrapping-rsa")]
+pub struct RsaOaepKeyUnwrapper {
+    recipient_private_key: rsa::RsaPrivateKey,
+}
+
+#[cfg(feature = "key-wrapping-rsa")]
+impl RsaOaepKeyUnwrapper {
+    /// Create a key unwrapper with the recipient's RSA private key.
+    #[must_use]
+    pub fn new(recipient_private_key: rsa::RsaPrivateKey) -> Self {
+        Self {
+            recipient_private_key,
+        }
+    }
+
+    /// Unwrap a content encryption key.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if RSA-OAEP decryption fails (wrong key or tampered data).
+    pub fn unwrap(&self, data: &RsaWrappedKeyData) -> Result<Vec<u8>> {
+        use rsa::oaep::DecryptingKey;
+        use rsa::traits::Decryptor;
+        use sha2::Sha256;
+
+        let decrypting_key = DecryptingKey::<Sha256>::new(self.recipient_private_key.clone());
+        decrypting_key
+            .decrypt(&data.wrapped_key)
+            .map_err(|e| crate::Error::EncryptionError {
+                reason: format!("RSA-OAEP unwrap failed: {e}"),
+            })
+    }
+}
+
+// ---------------------------------------------------------------------------
+// PBES2-HS256+A256KW password-based key wrapping
+// ---------------------------------------------------------------------------
+
+/// Result of wrapping a content encryption key with PBES2.
+#[cfg(feature = "key-wrapping-pbes2")]
+#[derive(Debug, Clone)]
+pub struct Pbes2WrappedKeyData {
+    /// The wrapped (encrypted) content encryption key.
+    pub wrapped_key: Vec<u8>,
+    /// The salt used for key derivation.
+    pub salt: Vec<u8>,
+    /// The PBKDF2 iteration count.
+    pub iterations: u32,
+}
+
+/// PBES2-HS256+A256KW key wrapper (password-based).
+///
+/// Derives a 256-bit KEK from a password using PBKDF2-HMAC-SHA256,
+/// then wraps the content encryption key with AES Key Wrap (RFC 3394).
+#[cfg(feature = "key-wrapping-pbes2")]
+pub struct Pbes2KeyWrapper {
+    password: Vec<u8>,
+    iterations: u32,
+}
+
+#[cfg(feature = "key-wrapping-pbes2")]
+impl Pbes2KeyWrapper {
+    /// Default PBKDF2 iteration count (600,000).
+    pub const DEFAULT_ITERATIONS: u32 = 600_000;
+
+    /// Create a key wrapper with the given password and iteration count.
+    #[must_use]
+    pub fn new(password: impl AsRef<[u8]>, iterations: u32) -> Self {
+        Self {
+            password: password.as_ref().to_vec(),
+            iterations,
+        }
+    }
+
+    /// Wrap a content encryption key.
+    ///
+    /// Generates a random 16-byte salt, derives a KEK via PBKDF2-HMAC-SHA256,
+    /// then wraps the content key with AES-256 Key Wrap.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if AES key wrapping fails.
+    pub fn wrap(&self, content_key: &[u8]) -> Result<Pbes2WrappedKeyData> {
+        use aes_kw::{cipher::KeyInit, KwAes256};
+        use rand_core::RngCore;
+
+        // Generate random 16-byte salt
+        let mut salt = [0u8; 16];
+        rand_core::OsRng.fill_bytes(&mut salt);
+
+        // Derive KEK via PBKDF2-HMAC-SHA256
+        let mut kek_bytes = [0u8; 32];
+        pbkdf2::pbkdf2_hmac::<sha2::Sha256>(
+            &self.password,
+            &salt,
+            self.iterations,
+            &mut kek_bytes,
+        );
+
+        // AES Key Wrap
+        let kek = KwAes256::new(&kek_bytes.into());
+        let mut wrapped = vec![0u8; content_key.len() + 8];
+        kek.wrap_key(content_key, &mut wrapped)
+            .map_err(|e| crate::Error::EncryptionError {
+                reason: format!("PBES2 AES key wrap failed: {e}"),
+            })?;
+
+        Ok(Pbes2WrappedKeyData {
+            wrapped_key: wrapped,
+            salt: salt.to_vec(),
+            iterations: self.iterations,
+        })
+    }
+}
+
+/// PBES2-HS256+A256KW key unwrapper (password-based).
+///
+/// Derives the same KEK from the password and salt/iterations stored
+/// in the wrapped data, then unwraps the content encryption key.
+#[cfg(feature = "key-wrapping-pbes2")]
+pub struct Pbes2KeyUnwrapper {
+    password: Vec<u8>,
+}
+
+#[cfg(feature = "key-wrapping-pbes2")]
+impl Pbes2KeyUnwrapper {
+    /// Create a key unwrapper with the given password.
+    #[must_use]
+    pub fn new(password: impl AsRef<[u8]>) -> Self {
+        Self {
+            password: password.as_ref().to_vec(),
+        }
+    }
+
+    /// Unwrap a content encryption key.
+    ///
+    /// Uses the salt and iteration count from the wrapped data to derive the KEK,
+    /// then unwraps the content key.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the password is wrong or the wrapped data is tampered.
+    pub fn unwrap(&self, data: &Pbes2WrappedKeyData) -> Result<Vec<u8>> {
+        use aes_kw::{cipher::KeyInit, KwAes256};
+
+        // Derive KEK via PBKDF2-HMAC-SHA256 (same params as wrap)
+        let mut kek_bytes = [0u8; 32];
+        pbkdf2::pbkdf2_hmac::<sha2::Sha256>(
+            &self.password,
+            &data.salt,
+            data.iterations,
+            &mut kek_bytes,
+        );
+
+        // AES Key Unwrap
+        let kek = KwAes256::new(&kek_bytes.into());
+        let unwrapped_len =
+            data.wrapped_key
+                .len()
+                .checked_sub(8)
+                .ok_or_else(|| crate::Error::EncryptionError {
+                    reason: "Wrapped key too short".to_string(),
+                })?;
+        let mut unwrapped = vec![0u8; unwrapped_len];
+        kek.unwrap_key(&data.wrapped_key, &mut unwrapped)
+            .map_err(|e| crate::Error::EncryptionError {
+                reason: format!("PBES2 AES key unwrap failed: {e}"),
+            })?;
+        Ok(unwrapped)
+    }
+}
+
 #[cfg(all(test, feature = "encryption"))]
 mod tests {
     use super::*;
@@ -1000,5 +1227,241 @@ mod key_wrapping_tests {
         let unwrapper = EcdhEsKeyUnwrapper::new(secret);
         let recovered = unwrapper.unwrap(&wrapped).unwrap();
         assert_eq!(recovered, content_key);
+    }
+}
+
+#[cfg(all(test, feature = "key-wrapping-rsa"))]
+mod rsa_oaep_tests {
+    use super::*;
+
+    fn generate_rsa_keypair(bits: usize) -> (rsa::RsaPrivateKey, rsa::RsaPublicKey) {
+        let private_key = rsa::RsaPrivateKey::new(&mut rand_core::OsRng, bits).unwrap();
+        let public_key = rsa::RsaPublicKey::from(&private_key);
+        (private_key, public_key)
+    }
+
+    #[test]
+    fn test_rsa_oaep_roundtrip_2048() {
+        let (private_key, public_key) = generate_rsa_keypair(2048);
+        let content_key = Aes256GcmEncryptor::generate_key();
+
+        let wrapper = RsaOaepKeyWrapper::new(public_key);
+        let wrapped = wrapper.wrap(&content_key).unwrap();
+
+        let unwrapper = RsaOaepKeyUnwrapper::new(private_key);
+        let recovered = unwrapper.unwrap(&wrapped).unwrap();
+
+        assert_eq!(recovered, content_key);
+    }
+
+    #[test]
+    fn test_rsa_oaep_roundtrip_4096() {
+        let (private_key, public_key) = generate_rsa_keypair(4096);
+        let content_key = Aes256GcmEncryptor::generate_key();
+
+        let wrapper = RsaOaepKeyWrapper::new(public_key);
+        let wrapped = wrapper.wrap(&content_key).unwrap();
+
+        let unwrapper = RsaOaepKeyUnwrapper::new(private_key);
+        let recovered = unwrapper.unwrap(&wrapped).unwrap();
+
+        assert_eq!(recovered, content_key);
+    }
+
+    #[test]
+    fn test_rsa_oaep_wrong_key_fails() {
+        let (_private_key, public_key) = generate_rsa_keypair(2048);
+        let (wrong_private_key, _wrong_public_key) = generate_rsa_keypair(2048);
+        let content_key = Aes256GcmEncryptor::generate_key();
+
+        let wrapper = RsaOaepKeyWrapper::new(public_key);
+        let wrapped = wrapper.wrap(&content_key).unwrap();
+
+        let unwrapper = RsaOaepKeyUnwrapper::new(wrong_private_key);
+        let result = unwrapper.unwrap(&wrapped);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_rsa_oaep_tampered_data_fails() {
+        let (private_key, public_key) = generate_rsa_keypair(2048);
+        let content_key = Aes256GcmEncryptor::generate_key();
+
+        let wrapper = RsaOaepKeyWrapper::new(public_key);
+        let mut wrapped = wrapper.wrap(&content_key).unwrap();
+
+        if !wrapped.wrapped_key.is_empty() {
+            wrapped.wrapped_key[0] ^= 0xFF;
+        }
+
+        let unwrapper = RsaOaepKeyUnwrapper::new(private_key);
+        let result = unwrapper.unwrap(&wrapped);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_rsa_oaep_integration_encrypt_wrap_unwrap_decrypt() {
+        let (private_key, public_key) = generate_rsa_keypair(2048);
+
+        // Encrypt content
+        let content_key = Aes256GcmEncryptor::generate_key();
+        let encryptor = Aes256GcmEncryptor::new(&content_key).unwrap();
+        let plaintext = b"Codex document encrypted with RSA-OAEP key wrapping";
+        let encrypted = encryptor.encrypt(plaintext).unwrap();
+
+        // Wrap the content key
+        let wrapper = RsaOaepKeyWrapper::new(public_key);
+        let wrapped = wrapper.wrap(&content_key).unwrap();
+
+        // Unwrap and decrypt
+        let unwrapper = RsaOaepKeyUnwrapper::new(private_key);
+        let recovered_key = unwrapper.unwrap(&wrapped).unwrap();
+
+        let decryptor = Aes256GcmEncryptor::new(&recovered_key).unwrap();
+        let decrypted = decryptor
+            .decrypt(&encrypted.ciphertext, &encrypted.nonce)
+            .unwrap();
+
+        assert_eq!(decrypted, plaintext);
+    }
+
+    #[test]
+    fn test_rsa_oaep_metadata_serialization() {
+        let metadata = EncryptionMetadata {
+            algorithm: EncryptionAlgorithm::Aes256Gcm,
+            kdf: None,
+            wrapped_key: None,
+            key_management: Some(KeyManagementAlgorithm::RsaOaep256),
+            recipients: vec![Recipient {
+                id: "rsa-recipient".to_string(),
+                encrypted_key: "wrapped-key-base64".to_string(),
+                algorithm: Some("RSA-OAEP-256".to_string()),
+                ephemeral_public_key: None,
+            }],
+        };
+
+        let json = serde_json::to_string_pretty(&metadata).unwrap();
+        assert!(json.contains("RSA-OAEP-256"));
+        // RSA-OAEP doesn't use ephemeral keys
+        assert!(!json.contains("ephemeralPublicKey"));
+
+        let parsed: EncryptionMetadata = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.key_management, Some(KeyManagementAlgorithm::RsaOaep256));
+    }
+}
+
+#[cfg(all(test, feature = "key-wrapping-pbes2"))]
+mod pbes2_tests {
+    use super::*;
+
+    #[test]
+    fn test_pbes2_roundtrip() {
+        let password = b"correct horse battery staple";
+        let content_key = Aes256GcmEncryptor::generate_key();
+
+        let wrapper = Pbes2KeyWrapper::new(password, Pbes2KeyWrapper::DEFAULT_ITERATIONS);
+        let wrapped = wrapper.wrap(&content_key).unwrap();
+
+        assert_eq!(wrapped.wrapped_key.len(), content_key.len() + 8);
+        assert_eq!(wrapped.salt.len(), 16);
+        assert_eq!(wrapped.iterations, Pbes2KeyWrapper::DEFAULT_ITERATIONS);
+
+        let unwrapper = Pbes2KeyUnwrapper::new(password);
+        let recovered = unwrapper.unwrap(&wrapped).unwrap();
+
+        assert_eq!(recovered, content_key);
+    }
+
+    #[test]
+    fn test_pbes2_wrong_password_fails() {
+        let content_key = Aes256GcmEncryptor::generate_key();
+
+        let wrapper = Pbes2KeyWrapper::new(b"correct password", 1000);
+        let wrapped = wrapper.wrap(&content_key).unwrap();
+
+        let unwrapper = Pbes2KeyUnwrapper::new(b"wrong password");
+        let result = unwrapper.unwrap(&wrapped);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_pbes2_tampered_salt_fails() {
+        let password = b"my password";
+        let content_key = Aes256GcmEncryptor::generate_key();
+
+        let wrapper = Pbes2KeyWrapper::new(password, 1000);
+        let mut wrapped = wrapper.wrap(&content_key).unwrap();
+
+        // Tamper with the salt
+        if !wrapped.salt.is_empty() {
+            wrapped.salt[0] ^= 0xFF;
+        }
+
+        let unwrapper = Pbes2KeyUnwrapper::new(password);
+        let result = unwrapper.unwrap(&wrapped);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_pbes2_different_iteration_counts() {
+        let password = b"shared password";
+        let content_key = Aes256GcmEncryptor::generate_key();
+
+        // Wrap with different iteration counts
+        for &iterations in &[1000u32, 10_000, 100_000] {
+            let wrapper = Pbes2KeyWrapper::new(password, iterations);
+            let wrapped = wrapper.wrap(&content_key).unwrap();
+            assert_eq!(wrapped.iterations, iterations);
+
+            let unwrapper = Pbes2KeyUnwrapper::new(password);
+            let recovered = unwrapper.unwrap(&wrapped).unwrap();
+            assert_eq!(recovered, content_key);
+        }
+    }
+
+    #[test]
+    fn test_pbes2_integration_encrypt_wrap_unwrap_decrypt() {
+        let password = b"document encryption password";
+
+        // Encrypt content
+        let content_key = Aes256GcmEncryptor::generate_key();
+        let encryptor = Aes256GcmEncryptor::new(&content_key).unwrap();
+        let plaintext = b"Codex document with password-based key wrapping";
+        let encrypted = encryptor.encrypt(plaintext).unwrap();
+
+        // Wrap the content key with password
+        let wrapper = Pbes2KeyWrapper::new(password, 1000);
+        let wrapped = wrapper.wrap(&content_key).unwrap();
+
+        // Unwrap and decrypt
+        let unwrapper = Pbes2KeyUnwrapper::new(password);
+        let recovered_key = unwrapper.unwrap(&wrapped).unwrap();
+
+        let decryptor = Aes256GcmEncryptor::new(&recovered_key).unwrap();
+        let decrypted = decryptor
+            .decrypt(&encrypted.ciphertext, &encrypted.nonce)
+            .unwrap();
+
+        assert_eq!(decrypted, plaintext);
+    }
+
+    #[test]
+    fn test_pbes2_metadata_serialization() {
+        let metadata = EncryptionMetadata {
+            algorithm: EncryptionAlgorithm::Aes256Gcm,
+            kdf: None,
+            wrapped_key: None,
+            key_management: Some(KeyManagementAlgorithm::Pbes2HsA256kw),
+            recipients: vec![],
+        };
+
+        let json = serde_json::to_string(&metadata).unwrap();
+        assert!(json.contains("PBES2-HS256+A256KW"));
+
+        let parsed: EncryptionMetadata = serde_json::from_str(&json).unwrap();
+        assert_eq!(
+            parsed.key_management,
+            Some(KeyManagementAlgorithm::Pbes2HsA256kw)
+        );
     }
 }
