@@ -291,12 +291,12 @@ pub struct LegalSignatureBlock {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
 
-    /// Signatory information.
-    pub signatory: Signatory,
-
-    /// Firm/organization information.
+    /// Role of the signer (e.g., "Attorney for Plaintiff").
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub firm: Option<FirmInfo>,
+    pub role: Option<String>,
+
+    /// Signer information.
+    pub signer: LegalSigner,
 
     /// Date signed.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -310,20 +310,20 @@ pub struct LegalSignatureBlock {
 impl LegalSignatureBlock {
     /// Create a new legal signature block.
     #[must_use]
-    pub fn new(signatory: Signatory) -> Self {
+    pub fn new(signer: LegalSigner) -> Self {
         Self {
             id: None,
-            signatory,
-            firm: None,
+            role: None,
+            signer,
             date: None,
             certificate_of_service: false,
         }
     }
 
-    /// Set the firm.
+    /// Set the role.
     #[must_use]
-    pub fn with_firm(mut self, firm: FirmInfo) -> Self {
-        self.firm = Some(firm);
+    pub fn with_role(mut self, role: impl Into<String>) -> Self {
+        self.role = Some(role.into());
         self
     }
 
@@ -342,120 +342,80 @@ impl LegalSignatureBlock {
     }
 }
 
-/// Information about the signatory.
+/// A legal signer with flattened personal and firm information.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Signatory {
-    /// Name.
+pub struct LegalSigner {
+    /// Name of the signer.
     pub name: String,
-
-    /// Bar number.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub bar_number: Option<String>,
-
-    /// State(s) admitted.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub states_admitted: Vec<String>,
 
     /// Title/position.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
 
-    /// Email address.
+    /// Bar number.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub email: Option<String>,
+    pub bar_number: Option<String>,
 
-    /// Phone number.
+    /// Firm or organization name.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub phone: Option<String>,
+    pub firm: Option<String>,
+
+    /// Address (single string, replaces Vec<String>).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub address: Option<String>,
+
+    /// Telephone number.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub telephone: Option<String>,
 }
 
-impl Signatory {
-    /// Create a new signatory.
+impl LegalSigner {
+    /// Create a new legal signer.
     #[must_use]
     pub fn new(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
-            bar_number: None,
-            states_admitted: Vec::new(),
             title: None,
-            email: None,
-            phone: None,
+            bar_number: None,
+            firm: None,
+            address: None,
+            telephone: None,
         }
     }
 
-    /// Set bar number.
-    #[must_use]
-    pub fn with_bar_number(mut self, bar_number: impl Into<String>) -> Self {
-        self.bar_number = Some(bar_number.into());
-        self
-    }
-
-    /// Add state admitted.
-    #[must_use]
-    pub fn admitted_in(mut self, state: impl Into<String>) -> Self {
-        self.states_admitted.push(state.into());
-        self
-    }
-
-    /// Set title.
+    /// Set the title.
     #[must_use]
     pub fn with_title(mut self, title: impl Into<String>) -> Self {
         self.title = Some(title.into());
         self
     }
 
-    /// Set email.
+    /// Set the bar number.
     #[must_use]
-    pub fn with_email(mut self, email: impl Into<String>) -> Self {
-        self.email = Some(email.into());
-        self
-    }
-}
-
-/// Law firm information.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct FirmInfo {
-    /// Firm name.
-    pub name: String,
-
-    /// Address lines.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub address: Vec<String>,
-
-    /// Phone number.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub phone: Option<String>,
-
-    /// Fax number.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub fax: Option<String>,
-}
-
-impl FirmInfo {
-    /// Create new firm info.
-    #[must_use]
-    pub fn new(name: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-            address: Vec::new(),
-            phone: None,
-            fax: None,
-        }
-    }
-
-    /// Add address line.
-    #[must_use]
-    pub fn with_address_line(mut self, line: impl Into<String>) -> Self {
-        self.address.push(line.into());
+    pub fn with_bar_number(mut self, bar_number: impl Into<String>) -> Self {
+        self.bar_number = Some(bar_number.into());
         self
     }
 
-    /// Set phone.
+    /// Set the firm name.
     #[must_use]
-    pub fn with_phone(mut self, phone: impl Into<String>) -> Self {
-        self.phone = Some(phone.into());
+    pub fn with_firm(mut self, firm: impl Into<String>) -> Self {
+        self.firm = Some(firm.into());
+        self
+    }
+
+    /// Set the address.
+    #[must_use]
+    pub fn with_address(mut self, address: impl Into<String>) -> Self {
+        self.address = Some(address.into());
+        self
+    }
+
+    /// Set the telephone number.
+    #[must_use]
+    pub fn with_telephone(mut self, telephone: impl Into<String>) -> Self {
+        self.telephone = Some(telephone.into());
         self
     }
 }
@@ -569,6 +529,26 @@ impl LegalCitation {
     pub fn subsequent(mut self) -> Self {
         self.first_reference = false;
         self
+    }
+
+    /// Convert to an extension mark for use in inline text.
+    #[must_use]
+    pub fn to_extension_mark(&self) -> crate::content::ExtensionMark {
+        let attrs = serde_json::to_value(self).unwrap_or_default();
+        crate::content::ExtensionMark::new("legal", "cite").with_attributes(attrs)
+    }
+
+    /// Try to create a `LegalCitation` from an extension mark.
+    ///
+    /// Returns `None` if the mark is not a `legal:cite` type or if
+    /// the attributes cannot be deserialized.
+    #[must_use]
+    pub fn from_extension_mark(mark: &crate::content::ExtensionMark) -> Option<Self> {
+        if mark.is_type("legal", "cite") {
+            serde_json::from_value(mark.attributes.clone()).ok()
+        } else {
+            None
+        }
     }
 }
 
@@ -766,15 +746,62 @@ mod tests {
     }
 
     #[test]
-    fn test_signatory() {
-        let sig = Signatory::new("Jane Doe")
+    fn test_legal_signer() {
+        let signer = LegalSigner::new("Jane Doe")
             .with_bar_number("123456")
-            .admitted_in("New York")
-            .admitted_in("California")
-            .with_email("jane.doe@lawfirm.com");
+            .with_firm("Smith & Associates")
+            .with_address("123 Legal Way, Suite 100, New York, NY 10001")
+            .with_telephone("(555) 123-4567")
+            .with_title("Partner");
 
-        assert_eq!(sig.bar_number, Some("123456".to_string()));
-        assert_eq!(sig.states_admitted.len(), 2);
+        assert_eq!(signer.bar_number, Some("123456".to_string()));
+        assert_eq!(signer.firm, Some("Smith & Associates".to_string()));
+        assert_eq!(signer.telephone, Some("(555) 123-4567".to_string()));
+        assert_eq!(signer.title, Some("Partner".to_string()));
+    }
+
+    #[test]
+    fn test_legal_signer_serde_roundtrip() {
+        let signer = LegalSigner::new("John Smith")
+            .with_bar_number("789012")
+            .with_firm("Law Corp");
+        let json = serde_json::to_string(&signer).unwrap();
+        assert!(json.contains("\"barNumber\":\"789012\""));
+        assert!(json.contains("\"firm\":\"Law Corp\""));
+
+        let parsed: LegalSigner = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.name, "John Smith");
+        assert_eq!(parsed.bar_number, Some("789012".to_string()));
+    }
+
+    #[test]
+    fn test_legal_signature_block_with_role() {
+        let block = LegalSignatureBlock::new(LegalSigner::new("Jane Doe"))
+            .with_role("Attorney for Plaintiff")
+            .with_date("2024-01-15")
+            .with_certificate_of_service();
+
+        assert_eq!(block.role, Some("Attorney for Plaintiff".to_string()));
+        assert_eq!(block.date, Some("2024-01-15".to_string()));
+        assert!(block.certificate_of_service);
+
+        let json = serde_json::to_string(&block).unwrap();
+        assert!(json.contains("\"role\":\"Attorney for Plaintiff\""));
+
+        let parsed: LegalSignatureBlock = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.role, Some("Attorney for Plaintiff".to_string()));
+    }
+
+    #[test]
+    fn test_legal_signature_block_backward_compat() {
+        // JSON without role should deserialize fine
+        let json = r#"{
+            "signer": { "name": "Test Lawyer" },
+            "certificateOfService": false
+        }"#;
+        let block: LegalSignatureBlock = serde_json::from_str(json).unwrap();
+        assert!(block.role.is_none());
+        assert_eq!(block.signer.name, "Test Lawyer");
     }
 
     #[test]
@@ -837,5 +864,38 @@ mod tests {
         }"#;
         let caption: Caption = serde_json::from_str(json).unwrap();
         assert!(caption.docket.is_none());
+    }
+
+    #[test]
+    fn test_legal_citation_to_extension_mark() {
+        let cite = LegalCitation::case("Brown v. Board of Education", "347 U.S. 483", 1954);
+        let mark = cite.to_extension_mark();
+
+        assert_eq!(mark.namespace, "legal");
+        assert_eq!(mark.mark_type, "cite");
+        assert_eq!(
+            mark.get_string_attribute("citation"),
+            Some("Brown v. Board of Education")
+        );
+        assert_eq!(mark.get_string_attribute("cite"), Some("347 U.S. 483"));
+    }
+
+    #[test]
+    fn test_legal_citation_mark_roundtrip() {
+        let original = LegalCitation::case("Miranda v. Arizona", "384 U.S. 436", 1966)
+            .with_signal(CitationSignal::See);
+        let mark = original.to_extension_mark();
+        let recovered = LegalCitation::from_extension_mark(&mark).unwrap();
+
+        assert_eq!(recovered.citation, "Miranda v. Arizona");
+        assert_eq!(recovered.cite, Some("384 U.S. 436".to_string()));
+        assert_eq!(recovered.year, Some(1966));
+        assert_eq!(recovered.signal, Some(CitationSignal::See));
+    }
+
+    #[test]
+    fn test_legal_citation_from_wrong_mark_returns_none() {
+        let mark = crate::content::ExtensionMark::new("academic", "equation-ref");
+        assert!(LegalCitation::from_extension_mark(&mark).is_none());
     }
 }
