@@ -915,6 +915,68 @@ mod round_trip_tests {
 
         Ok(())
     }
+
+    /// Test citation marks (single and multi-ref) survive archive roundtrip.
+    #[test]
+    fn test_citation_marks_archive_roundtrip() -> Result<()> {
+        use cdx_core::content::{Block, ExtensionMark, Mark, Text};
+
+        let temp_dir = tempfile::tempdir().unwrap();
+        let file_path = temp_dir.path().join("citation.cdx");
+
+        // Build a document with single-ref and multi-ref citation marks
+        let single_cite = Text::with_marks(
+            "Smith (2023)",
+            vec![Mark::Extension(ExtensionMark::citation("smith2023"))],
+        );
+        let multi_cite = Text::with_marks(
+            "Smith & Jones",
+            vec![Mark::Extension(ExtensionMark::multi_citation(&[
+                "smith2023".to_string(),
+                "jones2024".to_string(),
+            ]))],
+        );
+        let plain = Text::plain(" discuss this topic.");
+
+        let doc = Document::builder()
+            .title("Citation Roundtrip Test")
+            .creator("Test")
+            .add_block(Block::paragraph(vec![single_cite, multi_cite, plain]))
+            .build()?;
+
+        doc.save(&file_path)?;
+        let reopened = Document::open(&file_path)?;
+
+        // Find the paragraph block
+        let para = &reopened.content().blocks[0];
+        if let Block::Paragraph { children, .. } = para {
+            assert_eq!(children.len(), 3);
+
+            // Verify single-ref citation mark attributes survived
+            if let Mark::Extension(ext) = &children[0].marks[0] {
+                let refs = ext
+                    .get_string_array_attribute("refs")
+                    .expect("single cite should have refs");
+                assert_eq!(refs, vec!["smith2023"]);
+            } else {
+                panic!("Expected extension mark on single citation");
+            }
+
+            // Verify multi-ref citation mark attributes survived
+            if let Mark::Extension(ext) = &children[1].marks[0] {
+                let refs = ext
+                    .get_string_array_attribute("refs")
+                    .expect("multi cite should have refs");
+                assert_eq!(refs, vec!["smith2023", "jones2024"]);
+            } else {
+                panic!("Expected extension mark on multi citation");
+            }
+        } else {
+            panic!("Expected paragraph block");
+        }
+
+        Ok(())
+    }
 }
 
 /// Certificate revocation tests.

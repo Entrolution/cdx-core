@@ -228,3 +228,32 @@ jobs:
         with:
           path: target/criterion
           key: benchmark-baseline-main
+
+  feature-matrix:
+    name: Feature Matrix (${{ matrix.features || 'no features' }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        features:
+          - ""
+          - "zstd"
+          - "signatures"
+          - "zstd,signatures"
+          - "signatures,encryption"
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: features-${{ matrix.features }}
+
+      - name: Build
+        run: cargo build -p cdx-core --no-default-features --features "${{ matrix.features }}"
+
+      - name: Test
+        run: cargo test -p cdx-core --no-default-features --features "${{ matrix.features }}"
