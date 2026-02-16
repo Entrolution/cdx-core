@@ -46,7 +46,11 @@ impl EddsaSigner {
     pub fn generate(signer_info: SignerInfo) -> Result<(Self, String)> {
         use ed25519_dalek::pkcs8::spki::{der::pem::LineEnding, EncodePublicKey};
 
-        let signing_key = ed25519_dalek::SigningKey::generate(&mut rand_core::OsRng);
+        let mut key_bytes = [0u8; 32];
+        getrandom::fill(&mut key_bytes).map_err(|e| crate::Error::InvalidManifest {
+            reason: format!("System RNG failed: {e}"),
+        })?;
+        let signing_key = ed25519_dalek::SigningKey::from_bytes(&key_bytes);
         let verifying_key = signing_key.verifying_key();
         let public_key_pem = verifying_key
             .to_public_key_pem(LineEnding::LF)

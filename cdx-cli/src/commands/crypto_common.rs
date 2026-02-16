@@ -27,9 +27,8 @@ pub fn prompt_password(prompt: &str) -> Result<String> {
 /// Generate a random 16-byte salt for key derivation.
 #[cfg(feature = "encryption")]
 pub fn generate_salt() -> [u8; 16] {
-    use rand_core::RngCore;
     let mut salt = [0u8; 16];
-    rand_core::OsRng.fill_bytes(&mut salt);
+    getrandom::fill(&mut salt).expect("system RNG failed");
     salt
 }
 

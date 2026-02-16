@@ -328,7 +328,8 @@ mod tests {
     #[test]
     fn test_verifier_rejects_non_webauthn() {
         // Generate a test key pair
-        let signing_key = p256::ecdsa::SigningKey::random(&mut rand_core::OsRng);
+        use p256::elliptic_curve::Generate;
+        let signing_key = p256::ecdsa::SigningKey::generate();
         let verifying_key = signing_key.verifying_key();
         let public_key = verifying_key.to_sec1_bytes();
 

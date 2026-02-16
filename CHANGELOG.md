@@ -88,6 +88,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `FileTooLarge` and `InvalidArchiveStructure` error variants
 
 #### Dependencies
+- Coordinated RustCrypto ecosystem upgrade:
+  - `rand_core` 0.6 → 0.10 (stable); `der` 0.7 → 0.8 (stable)
+  - `p256` 0.13 → 0.14.0-rc; `p384` 0.13 → 0.14.0-rc; `ecdsa` 0.16 → 0.17.0-rc
+  - `rsa` 0.9 → 0.10.0-rc; `x509-cert` 0.2 → 0.3.0-rc
+  - Migrate from `OsRng` / `fill_bytes` to `getrandom::fill` and `Generate` trait
+  - Use `rsa::sha2::Sha256` for RSA operations (sha2 0.10 → 0.11 split)
+  - Use `PublicKey::from_sec1_bytes` for P-256 key parsing (replaces `EncodedPoint` chain)
+  - Use `tbs_certificate()` / `serial_number()` / `extensions()` accessors (x509-cert 0.3 made fields private)
 - Bump `zip` from 7.2 to 8.0 (resolves yanked 7.4.0; no code changes required)
 - Bump `assert_cmd` from 2.0 to 2.1.2
 - Update `keccak` from 0.1.5 (yanked) to 0.1.6
