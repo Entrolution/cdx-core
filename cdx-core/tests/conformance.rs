@@ -1,8 +1,16 @@
 //! Spec conformance tests.
 //!
-//! These tests verify that cdx-core's JSON wire format matches the Codex file
-//! format specification. Each test compares serialization output against spec
-//! examples and verifies backward-compatible deserialization of old formats.
+//! These tests verify that cdx-core's behavior matches the Codex file format
+//! specification. This includes:
+//!
+//! - **Wire format**: JSON serialization matches spec examples
+//! - **Hash boundary**: Document ID includes/excludes the correct data
+//! - **Block types**: All block types use correct `type` strings
+//! - **State machine**: State transitions enforce spec requirements
+//! - **Manifest**: Manifest fields match spec constraints
+//! - **Provenance**: Lineage and Merkle structures follow spec
+//! - **Metadata**: Dublin Core requirements enforced
+//! - **Extensions**: Extension validation follows spec rules
 
 use cdx_core::content::{Block, Mark, MathFormat, Text};
 use cdx_core::extensions::ExtensionBlock;
@@ -395,4 +403,594 @@ fn extension_mark_roundtrip_preserves_format() {
     let val1: serde_json::Value = serde_json::from_str(&json1).unwrap();
     let val2: serde_json::Value = serde_json::from_str(&json2).unwrap();
     assert_eq!(val1, val2);
+}
+
+// ============================================================================
+// Document hashing boundary tests (Phase 1A)
+// Per spec §06-document-hashing.md §4.1
+// ============================================================================
+
+/// Per spec §06 §4.1 — Hash INCLUDES content blocks.
+#[test]
+fn test_hash_changes_with_content() {
+    let doc1 = cdx_core::Document::builder()
+        .title("Same Title")
+        .creator("Same Creator")
+        .add_paragraph("Content version A")
+        .build()
+        .unwrap();
+
+    let doc2 = cdx_core::Document::builder()
+        .title("Same Title")
+        .creator("Same Creator")
+        .add_paragraph("Content version B")
+        .build()
+        .unwrap();
+
+    let id1 = doc1.compute_id().unwrap();
+    let id2 = doc2.compute_id().unwrap();
+    assert_ne!(id1, id2, "Different content must produce different IDs");
+}
+
+/// Per spec §06 §4.1 — Hash INCLUDES title metadata.
+#[test]
+fn test_hash_changes_with_title() {
+    let doc1 = cdx_core::Document::builder()
+        .title("Title A")
+        .creator("Author")
+        .add_paragraph("Same content")
+        .build()
+        .unwrap();
+
+    let doc2 = cdx_core::Document::builder()
+        .title("Title B")
+        .creator("Author")
+        .add_paragraph("Same content")
+        .build()
+        .unwrap();
+
+    let id1 = doc1.compute_id().unwrap();
+    let id2 = doc2.compute_id().unwrap();
+    assert_ne!(id1, id2, "Different titles must produce different IDs");
+}
+
+/// Per spec §06 §4.1 — Hash INCLUDES creator metadata.
+#[test]
+fn test_hash_changes_with_creator() {
+    let doc1 = cdx_core::Document::builder()
+        .title("Title")
+        .creator("Author A")
+        .add_paragraph("Same content")
+        .build()
+        .unwrap();
+
+    let doc2 = cdx_core::Document::builder()
+        .title("Title")
+        .creator("Author B")
+        .add_paragraph("Same content")
+        .build()
+        .unwrap();
+
+    let id1 = doc1.compute_id().unwrap();
+    let id2 = doc2.compute_id().unwrap();
+    assert_ne!(id1, id2, "Different creators must produce different IDs");
+}
+
+/// Per spec §06 §4.1 — Hash INCLUDES subject metadata.
+#[test]
+fn test_hash_changes_with_subject() {
+    use cdx_core::metadata::DublinCore;
+
+    let mut dc_a = DublinCore::new("Title", "Author");
+    dc_a.set_subjects(vec!["Science".to_string()]);
+
+    let mut dc_b = DublinCore::new("Title", "Author");
+    dc_b.set_subjects(vec!["Mathematics".to_string()]);
+
+    let doc1 = cdx_core::Document::builder()
+        .title("Title")
+        .creator("Author")
+        .add_paragraph("Same content")
+        .with_dublin_core(dc_a)
+        .build()
+        .unwrap();
+
+    let doc2 = cdx_core::Document::builder()
+        .title("Title")
+        .creator("Author")
+        .add_paragraph("Same content")
+        .with_dublin_core(dc_b)
+        .build()
+        .unwrap();
+
+    let id1 = doc1.compute_id().unwrap();
+    let id2 = doc2.compute_id().unwrap();
+    assert_ne!(id1, id2, "Different subjects must produce different IDs");
+}
+
+/// Per spec §06 §4.1 — Hash INCLUDES description metadata.
+#[test]
+fn test_hash_changes_with_description() {
+    let doc1 = cdx_core::Document::builder()
+        .title("Title")
+        .creator("Author")
+        .description("Description A")
+        .add_paragraph("Same content")
+        .build()
+        .unwrap();
+
+    let doc2 = cdx_core::Document::builder()
+        .title("Title")
+        .creator("Author")
+        .description("Description B")
+        .add_paragraph("Same content")
+        .build()
+        .unwrap();
+
+    let id1 = doc1.compute_id().unwrap();
+    let id2 = doc2.compute_id().unwrap();
+    assert_ne!(
+        id1, id2,
+        "Different descriptions must produce different IDs"
+    );
+}
+
+/// Per spec §06 §4.1 — Hash INCLUDES language metadata.
+#[test]
+fn test_hash_changes_with_language() {
+    let doc1 = cdx_core::Document::builder()
+        .title("Title")
+        .creator("Author")
+        .language("en")
+        .add_paragraph("Same content")
+        .build()
+        .unwrap();
+
+    let doc2 = cdx_core::Document::builder()
+        .title("Title")
+        .creator("Author")
+        .language("fr")
+        .add_paragraph("Same content")
+        .build()
+        .unwrap();
+
+    let id1 = doc1.compute_id().unwrap();
+    let id2 = doc2.compute_id().unwrap();
+    assert_ne!(id1, id2, "Different languages must produce different IDs");
+}
+
+/// Per spec §06 §4.1 — Hash EXCLUDES presentation layers.
+#[test]
+fn test_hash_unchanged_by_presentation() {
+    let doc1 = cdx_core::Document::builder()
+        .title("Title")
+        .creator("Author")
+        .add_paragraph("Content")
+        .build()
+        .unwrap();
+
+    let mut doc2 = cdx_core::Document::builder()
+        .title("Title")
+        .creator("Author")
+        .add_paragraph("Content")
+        .build()
+        .unwrap();
+
+    // Add a presentation reference to doc2
+    let test_hash: cdx_core::DocumentId =
+        "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+            .parse()
+            .unwrap();
+    doc2.manifest_mut()
+        .presentation
+        .push(cdx_core::PresentationRef {
+            presentation_type: "paginated".to_string(),
+            path: "presentation/paginated.json".to_string(),
+            hash: test_hash,
+            default: true,
+        });
+
+    let id1 = doc1.compute_id().unwrap();
+    let id2 = doc2.compute_id().unwrap();
+    assert_eq!(id1, id2, "Presentation layers must not affect document ID");
+}
+
+/// Per spec §06 §4.1 — Hash EXCLUDES security/signatures.
+#[test]
+fn test_hash_unchanged_by_signatures() {
+    let doc1 = cdx_core::Document::builder()
+        .title("Title")
+        .creator("Author")
+        .add_paragraph("Content")
+        .build()
+        .unwrap();
+
+    let mut doc2 = cdx_core::Document::builder()
+        .title("Title")
+        .creator("Author")
+        .add_paragraph("Content")
+        .build()
+        .unwrap();
+
+    // Add a security reference to doc2
+    doc2.manifest_mut().security = Some(cdx_core::SecurityRef {
+        signatures: Some("security/signatures.json".to_string()),
+        encryption: None,
+    });
+
+    let id1 = doc1.compute_id().unwrap();
+    let id2 = doc2.compute_id().unwrap();
+    assert_eq!(id1, id2, "Signatures must not affect document ID");
+}
+
+/// Per spec §06 §4.1 — Hash EXCLUDES phantom data.
+#[test]
+fn test_hash_unchanged_by_phantoms() {
+    use cdx_core::anchor::ContentAnchor;
+    use cdx_core::extensions::{
+        Phantom, PhantomCluster, PhantomClusters, PhantomContent, PhantomPosition,
+    };
+
+    let doc1 = cdx_core::Document::builder()
+        .title("Title")
+        .creator("Author")
+        .add_paragraph("Content")
+        .build()
+        .unwrap();
+
+    let mut doc2 = cdx_core::Document::builder()
+        .title("Title")
+        .creator("Author")
+        .add_paragraph("Content")
+        .build()
+        .unwrap();
+
+    // Add phantom clusters to doc2
+    let mut clusters = PhantomClusters::new();
+    let position = PhantomPosition::new(100.0, 200.0);
+    let content = PhantomContent::paragraph("Ghost text");
+    let phantom = Phantom::new("p1", position, content);
+    let cluster =
+        PhantomCluster::new("c1", ContentAnchor::block("block-1"), "Test").with_phantom(phantom);
+    clusters.add_cluster(cluster);
+    doc2.set_phantom_clusters(clusters).unwrap();
+
+    let id1 = doc1.compute_id().unwrap();
+    let id2 = doc2.compute_id().unwrap();
+    assert_eq!(id1, id2, "Phantom data must not affect document ID");
+}
+
+/// Per spec §06 §4.1 — Hash EXCLUDES form data.
+#[test]
+fn test_hash_unchanged_by_forms() {
+    use cdx_core::extensions::FormData;
+
+    let doc1 = cdx_core::Document::builder()
+        .title("Title")
+        .creator("Author")
+        .add_paragraph("Content")
+        .build()
+        .unwrap();
+
+    let mut doc2 = cdx_core::Document::builder()
+        .title("Title")
+        .creator("Author")
+        .add_paragraph("Content")
+        .build()
+        .unwrap();
+
+    // Add form data to doc2
+    let mut form_data = FormData::new();
+    form_data.set("name", serde_json::json!("John Doe"));
+    doc2.set_form_data(form_data).unwrap();
+
+    let id1 = doc1.compute_id().unwrap();
+    let id2 = doc2.compute_id().unwrap();
+    assert_eq!(id1, id2, "Form data must not affect document ID");
+}
+
+/// Per spec §06 §4.1 — Hash EXCLUDES collaboration data (comments).
+#[test]
+fn test_hash_unchanged_by_comments() {
+    use cdx_core::extensions::{Collaborator, Comment, CommentThread};
+
+    let doc1 = cdx_core::Document::builder()
+        .title("Title")
+        .creator("Author")
+        .add_paragraph("Content")
+        .build()
+        .unwrap();
+
+    let mut doc2 = cdx_core::Document::builder()
+        .title("Title")
+        .creator("Author")
+        .add_paragraph("Content")
+        .build()
+        .unwrap();
+
+    // Add comments to doc2
+    let mut thread = CommentThread::new();
+    let author = Collaborator::new("Alice");
+    thread.add(Comment::new("c1", "block-1", author, "A comment"));
+    doc2.set_comments(thread).unwrap();
+
+    let id1 = doc1.compute_id().unwrap();
+    let id2 = doc2.compute_id().unwrap();
+    assert_eq!(id1, id2, "Collaboration data must not affect document ID");
+}
+
+/// Per spec §06 §4.3 — Hash determinism: same content always produces same hash.
+#[test]
+fn test_hash_determinism() {
+    let build_doc = || {
+        cdx_core::Document::builder()
+            .title("Determinism Test")
+            .creator("Author")
+            .description("A test document")
+            .language("en")
+            .add_heading(1, "Introduction")
+            .add_paragraph("First paragraph.")
+            .add_paragraph("Second paragraph.")
+            .build()
+            .unwrap()
+    };
+
+    let id1 = build_doc().compute_id().unwrap();
+    let id2 = build_doc().compute_id().unwrap();
+    let id3 = build_doc().compute_id().unwrap();
+
+    assert_eq!(id1, id2, "Identical documents must produce identical IDs");
+    assert_eq!(id2, id3, "Hash must be deterministic across invocations");
+}
+
+/// Per spec §06 §7.1 — Draft documents may have `pending` ID.
+#[test]
+fn test_draft_pending_id() {
+    let doc = cdx_core::Document::builder()
+        .title("Draft Document")
+        .creator("Author")
+        .add_paragraph("Draft content")
+        .build()
+        .unwrap();
+
+    assert_eq!(doc.state(), cdx_core::DocumentState::Draft);
+    assert!(
+        doc.id().is_pending(),
+        "Draft documents should have a pending ID"
+    );
+}
+
+// ============================================================================
+// Block type wire-format tests (Phase 1B)
+// Per spec §03-content-blocks.md
+// ============================================================================
+
+/// Verify all core block types serialize with the correct `type` string.
+#[test]
+fn test_core_block_type_strings() {
+    let cases: Vec<(Block, &str)> = vec![
+        (Block::paragraph(vec![Text::plain("text")]), "paragraph"),
+        (Block::heading(1, vec![Text::plain("title")]), "heading"),
+        (
+            Block::unordered_list(vec![Block::list_item(vec![Block::paragraph(vec![
+                Text::plain("item"),
+            ])])]),
+            "list",
+        ),
+        (
+            Block::list_item(vec![Block::paragraph(vec![Text::plain("item")])]),
+            "listItem",
+        ),
+        (
+            Block::blockquote(vec![Block::paragraph(vec![Text::plain("quote")])]),
+            "blockquote",
+        ),
+        (
+            Block::code_block("fn main() {}", Some("rust".to_string())),
+            "codeBlock",
+        ),
+        (Block::horizontal_rule(), "horizontalRule"),
+        (Block::image("photo.png", "A photo"), "image"),
+        (
+            Block::table(vec![Block::table_row(
+                vec![Block::table_cell(vec![Text::plain("cell")])],
+                false,
+            )]),
+            "table",
+        ),
+        (
+            Block::table_row(vec![Block::table_cell(vec![Text::plain("cell")])], false),
+            "tableRow",
+        ),
+        (Block::table_cell(vec![Text::plain("cell")]), "tableCell"),
+        (Block::math("E=mc^2", MathFormat::Latex, true), "math"),
+        (Block::line_break(), "break"),
+    ];
+
+    for (block, expected_type) in cases {
+        let json = serde_json::to_string(&block).unwrap();
+        let val: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(
+            val["type"],
+            expected_type,
+            "Block {:?} should serialize with type \"{expected_type}\", got {:?}",
+            block.block_type(),
+            val["type"]
+        );
+    }
+}
+
+/// Verify definition list block types serialize with the correct `type` string.
+#[test]
+fn test_definition_block_type_strings() {
+    use cdx_core::content::DefinitionListBlock;
+
+    let term = Block::DefinitionTerm {
+        id: None,
+        children: vec![Text::plain("Term")],
+        attributes: Default::default(),
+    };
+    let description = Block::DefinitionDescription {
+        id: None,
+        children: vec![Block::paragraph(vec![Text::plain("Description")])],
+        attributes: Default::default(),
+    };
+    let item = Block::DefinitionItem {
+        id: None,
+        children: vec![term.clone(), description.clone()],
+        attributes: Default::default(),
+    };
+    let list = Block::DefinitionList(DefinitionListBlock {
+        id: None,
+        children: vec![item.clone()],
+        attributes: Default::default(),
+    });
+
+    let cases: Vec<(&Block, &str)> = vec![
+        (&list, "definitionList"),
+        (&item, "definitionItem"),
+        (&term, "definitionTerm"),
+        (&description, "definitionDescription"),
+    ];
+
+    for (block, expected_type) in cases {
+        let json = serde_json::to_string(block).unwrap();
+        let val: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(
+            val["type"], expected_type,
+            "{expected_type} block has wrong type string: {:?}",
+            val["type"]
+        );
+    }
+}
+
+/// Verify special block types serialize with the correct `type` string.
+#[test]
+fn test_special_block_type_strings() {
+    use cdx_core::content::{
+        AdmonitionVariant, BarcodeBlock, BarcodeFormat, FigureBlock, MeasurementBlock,
+        SignatureBlock, SvgBlock,
+    };
+
+    let measurement =
+        Block::Measurement(MeasurementBlock::new(9.81, "9.81 m/s²").with_unit("m/s²"));
+
+    let signature = Block::Signature(
+        SignatureBlock::new(cdx_core::content::BlockSignatureType::Handwritten)
+            .with_signer(cdx_core::content::SignerDetails::new("John Doe"))
+            .with_purpose(cdx_core::content::SignaturePurpose::Approval),
+    );
+
+    let svg = Block::Svg(SvgBlock::from_content("<svg></svg>"));
+
+    let barcode = Block::Barcode(BarcodeBlock::new(
+        BarcodeFormat::Qr,
+        "https://example.com",
+        "QR code link",
+    ));
+
+    let admonition = Block::admonition(
+        AdmonitionVariant::Note,
+        vec![Block::paragraph(vec![Text::plain("Note text")])],
+    );
+
+    let figure = Block::Figure(FigureBlock::new(vec![Block::image("img.png", "An image")]));
+
+    let figcaption = Block::figcaption(vec![Text::plain("Caption")]);
+
+    let cases: Vec<(&Block, &str)> = vec![
+        (&measurement, "measurement"),
+        (&signature, "signature"),
+        (&svg, "svg"),
+        (&barcode, "barcode"),
+        (&admonition, "admonition"),
+        (&figure, "figure"),
+        (&figcaption, "figcaption"),
+    ];
+
+    for (block, expected_type) in cases {
+        let json = serde_json::to_string(block).unwrap();
+        let val: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(
+            val["type"], expected_type,
+            "{expected_type} block has wrong type string: {:?}",
+            val["type"]
+        );
+    }
+}
+
+/// Verify all block types round-trip through serialize → deserialize with correct type.
+#[test]
+fn test_block_type_round_trips() {
+    use cdx_core::content::{
+        AdmonitionVariant, BarcodeBlock, BarcodeFormat, DefinitionListBlock, FigureBlock,
+        MeasurementBlock, SignatureBlock, SignerDetails, SvgBlock,
+    };
+
+    let blocks: Vec<Block> = vec![
+        Block::paragraph(vec![Text::plain("text")]),
+        Block::heading(2, vec![Text::plain("heading")]),
+        Block::unordered_list(vec![Block::list_item(vec![Block::paragraph(vec![
+            Text::plain("item"),
+        ])])]),
+        Block::list_item(vec![Block::paragraph(vec![Text::plain("item")])]),
+        Block::blockquote(vec![Block::paragraph(vec![Text::plain("quote")])]),
+        Block::code_block("code", None),
+        Block::horizontal_rule(),
+        Block::image("img.png", "alt"),
+        Block::table(vec![Block::table_row(
+            vec![Block::table_cell(vec![Text::plain("cell")])],
+            false,
+        )]),
+        Block::table_row(vec![Block::table_cell(vec![Text::plain("cell")])], false),
+        Block::table_cell(vec![Text::plain("cell")]),
+        Block::math("x^2", MathFormat::Latex, true),
+        Block::line_break(),
+        Block::DefinitionList(DefinitionListBlock {
+            id: None,
+            children: vec![Block::DefinitionItem {
+                id: None,
+                children: vec![
+                    Block::DefinitionTerm {
+                        id: None,
+                        children: vec![Text::plain("Term")],
+                        attributes: Default::default(),
+                    },
+                    Block::DefinitionDescription {
+                        id: None,
+                        children: vec![Block::paragraph(vec![Text::plain("Desc")])],
+                        attributes: Default::default(),
+                    },
+                ],
+                attributes: Default::default(),
+            }],
+            attributes: Default::default(),
+        }),
+        Block::Measurement(MeasurementBlock::new(1.0, "1.0 kg").with_unit("kg")),
+        Block::Signature(
+            SignatureBlock::new(cdx_core::content::BlockSignatureType::Electronic)
+                .with_signer(SignerDetails::new("Signer"))
+                .with_purpose(cdx_core::content::SignaturePurpose::Approval),
+        ),
+        Block::Svg(SvgBlock::from_content("<svg></svg>")),
+        Block::Barcode(BarcodeBlock::new(BarcodeFormat::Qr, "data", "alt")),
+        Block::Figure(FigureBlock::new(vec![Block::image("img.png", "alt")])),
+        Block::figcaption(vec![Text::plain("Caption")]),
+        Block::admonition(
+            AdmonitionVariant::Warning,
+            vec![Block::paragraph(vec![Text::plain("Warn")])],
+        ),
+        Block::extension("test", "widget"),
+    ];
+
+    for block in blocks {
+        let original_type = block.block_type().to_string();
+        let json = serde_json::to_string(&block).unwrap();
+        let deserialized: Block = serde_json::from_str(&json).unwrap();
+        assert_eq!(
+            deserialized.block_type().as_ref(),
+            original_type,
+            "Round-trip failed for block type \"{original_type}\""
+        );
+    }
 }

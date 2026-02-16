@@ -4,20 +4,40 @@ use crate::{DocumentId, Hasher, Result};
 use super::Document;
 
 impl Document {
-    /// Compute the document ID from content.
+    /// Compute the document ID from content and identity metadata.
     ///
-    /// The document ID is computed by hashing the canonicalized semantic content layer.
-    /// This covers only the content blocks and their structure, not presentation/layout
-    /// information. Presentation layers have their own hashes in the manifest.
+    /// Per spec §06 §4.1, the document ID is computed by hashing the canonicalized
+    /// semantic identity of the document. This includes:
+    ///
+    /// - **Content blocks** (the document's structural content)
+    /// - **Identity metadata**: title, creator, subject, description, language
+    ///
+    /// The hash explicitly **excludes** presentation layers, signatures, phantom
+    /// data, form data, and collaboration data — these are non-identity concerns
+    /// with their own integrity mechanisms.
     ///
     /// # Errors
     ///
     /// Returns an error if canonicalization fails.
     pub fn compute_id(&self) -> Result<DocumentId> {
-        // Serialize content to canonical JSON
-        let content_json = serde_json::to_vec(&self.content)?;
-        let canonical =
-            json_canon::to_string(&serde_json::from_slice::<serde_json::Value>(&content_json)?)?;
+        // Build a hashable structure combining content + identity metadata.
+        // Per spec §06 §4.1, the hash boundary includes content blocks and
+        // the subset of Dublin Core metadata that defines document identity.
+        let content_value = serde_json::to_value(&self.content)?;
+        let metadata_value = serde_json::json!({
+            "title": self.dublin_core.terms.title,
+            "creator": serde_json::to_value(&self.dublin_core.terms.creator)?,
+            "subject": serde_json::to_value(&self.dublin_core.terms.subject)?,
+            "description": self.dublin_core.terms.description,
+            "language": self.dublin_core.terms.language,
+        });
+
+        let hashable = serde_json::json!({
+            "content": content_value,
+            "metadata": metadata_value,
+        });
+
+        let canonical = json_canon::to_string(&hashable)?;
 
         Ok(Hasher::hash(
             self.manifest.hash_algorithm,
