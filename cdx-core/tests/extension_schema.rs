@@ -117,13 +117,14 @@ fn schema_entity_emits_uri_and_entity_type() {
 // ===== Glossary =====
 
 #[test]
-fn schema_glossary_emits_term_id() {
+fn schema_glossary_emits_ref() {
     let mark = ExtensionMark::glossary("ai");
     let json = mark_to_json(&mark);
 
     assert_eq!(json["type"], "semantic:glossary");
-    assert_string_field(&json, "termId", "glossary");
-    assert_eq!(json["termId"], "ai");
+    assert_string_field(&json, "ref", "glossary");
+    assert_eq!(json["ref"], "ai");
+    assert_field_absent(&json, "termId", "glossary must not emit legacy 'termId'");
 }
 
 // ===== Index =====

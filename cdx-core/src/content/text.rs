@@ -299,6 +299,29 @@ impl ExtensionMark {
         }
     }
 
+    /// Get glossary term ref, supporting both `"ref"` and legacy `"termId"`.
+    ///
+    /// Returns `None` if neither key is present.
+    #[must_use]
+    pub fn get_glossary_ref(&self) -> Option<&str> {
+        self.get_string_attribute("ref")
+            .or_else(|| self.get_string_attribute("termId"))
+    }
+
+    /// Rewrite legacy `"termId"` → `"ref"` in the attributes map.
+    ///
+    /// No-op if `"ref"` already exists or `"termId"` is absent.
+    pub fn normalize_glossary_attrs(&mut self) {
+        if let Some(obj) = self.attributes.as_object_mut() {
+            if obj.contains_key("ref") {
+                return;
+            }
+            if let Some(val) = obj.remove("termId") {
+                obj.insert("ref".to_string(), val);
+            }
+        }
+    }
+
     // ===== Convenience constructors for common extension marks =====
 
     /// Create a citation mark (semantic extension).
@@ -340,7 +363,7 @@ impl ExtensionMark {
     #[must_use]
     pub fn glossary(term_id: impl Into<String>) -> Self {
         Self::new("semantic", "glossary").with_attributes(serde_json::json!({
-            "termId": term_id.into()
+            "ref": term_id.into()
         }))
     }
 
@@ -1176,7 +1199,31 @@ mod tests {
     fn test_glossary_convenience() {
         let ext = ExtensionMark::glossary("api-term");
         assert!(ext.is_type("semantic", "glossary"));
-        assert_eq!(ext.get_string_attribute("termId"), Some("api-term"));
+        assert_eq!(ext.get_string_attribute("ref"), Some("api-term"));
+        assert_eq!(ext.get_glossary_ref(), Some("api-term"));
+    }
+
+    #[test]
+    fn test_get_glossary_ref_legacy() {
+        let ext = ExtensionMark::new("semantic", "glossary")
+            .with_attributes(serde_json::json!({"termId": "api-term"}));
+        assert_eq!(ext.get_glossary_ref(), Some("api-term"));
+    }
+
+    #[test]
+    fn test_normalize_glossary_attrs() {
+        let mut ext = ExtensionMark::new("semantic", "glossary")
+            .with_attributes(serde_json::json!({"termId": "api-term"}));
+        ext.normalize_glossary_attrs();
+        assert_eq!(ext.get_string_attribute("ref"), Some("api-term"));
+        assert!(ext.get_string_attribute("termId").is_none());
+    }
+
+    #[test]
+    fn test_normalize_glossary_attrs_noop_when_ref_exists() {
+        let mut ext = ExtensionMark::glossary("api-term");
+        ext.normalize_glossary_attrs();
+        assert_eq!(ext.get_string_attribute("ref"), Some("api-term"));
     }
 
     #[test]

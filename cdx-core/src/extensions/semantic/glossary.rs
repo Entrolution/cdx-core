@@ -146,9 +146,9 @@ impl GlossaryTerm {
 
 /// A reference to a glossary term in the document.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct GlossaryRef {
     /// ID of the glossary term.
+    #[serde(rename = "ref", alias = "termId")]
     pub term_id: String,
 
     /// Display text (if different from term).
