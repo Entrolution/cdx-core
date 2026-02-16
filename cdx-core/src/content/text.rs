@@ -492,10 +492,7 @@ impl Serialize for Mark {
             // Extension marks: type is "namespace:markType", attributes flattened
             Self::Extension(ext) => {
                 let type_str = ext.full_type();
-                let attr_count = ext
-                    .attributes
-                    .as_object()
-                    .map_or(0, serde_json::Map::len);
+                let attr_count = ext.attributes.as_object().map_or(0, serde_json::Map::len);
                 let mut map = serializer.serialize_map(Some(1 + attr_count))?;
                 map.serialize_entry("type", &type_str)?;
                 if let Some(obj) = ext.attributes.as_object() {
@@ -558,8 +555,7 @@ impl<'de> Deserialize<'de> for Mark {
                     }
                 }
 
-                let type_str =
-                    type_str.ok_or_else(|| de::Error::missing_field("type"))?;
+                let type_str = type_str.ok_or_else(|| de::Error::missing_field("type"))?;
 
                 match type_str.as_str() {
                     // Simple marks in object form
@@ -648,15 +644,11 @@ impl<'de> Deserialize<'de> for Mark {
 
                     // Colon-delimited extension type or unknown type
                     other => {
-                        let (namespace, mark_type) =
-                            if let Some((ns, mt)) = other.split_once(':') {
-                                (ns.to_string(), mt.to_string())
-                            } else {
-                                (
-                                    infer_mark_namespace(other).to_string(),
-                                    other.to_string(),
-                                )
-                            };
+                        let (namespace, mark_type) = if let Some((ns, mt)) = other.split_once(':') {
+                            (ns.to_string(), mt.to_string())
+                        } else {
+                            (infer_mark_namespace(other).to_string(), other.to_string())
+                        };
                         let attributes = if fields.is_empty() {
                             serde_json::Value::Null
                         } else {

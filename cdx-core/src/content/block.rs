@@ -1156,33 +1156,95 @@ impl Serialize for Block {
         use serde::ser::Error;
 
         match self {
-            Self::Paragraph { id, children, attributes } => {
-                let inner = InlineParagraph { id, children, attributes };
+            Self::Paragraph {
+                id,
+                children,
+                attributes,
+            } => {
+                let inner = InlineParagraph {
+                    id,
+                    children,
+                    attributes,
+                };
                 let val = serde_json::to_value(&inner).map_err(S::Error::custom)?;
                 serialize_block_as_map("paragraph", &val, serializer)
             }
-            Self::Heading { id, level, children, attributes } => {
-                let inner = InlineHeading { id, level: *level, children, attributes };
+            Self::Heading {
+                id,
+                level,
+                children,
+                attributes,
+            } => {
+                let inner = InlineHeading {
+                    id,
+                    level: *level,
+                    children,
+                    attributes,
+                };
                 let val = serde_json::to_value(&inner).map_err(S::Error::custom)?;
                 serialize_block_as_map("heading", &val, serializer)
             }
-            Self::List { id, ordered, start, children, attributes } => {
-                let inner = InlineList { id, ordered: *ordered, start, children, attributes };
+            Self::List {
+                id,
+                ordered,
+                start,
+                children,
+                attributes,
+            } => {
+                let inner = InlineList {
+                    id,
+                    ordered: *ordered,
+                    start,
+                    children,
+                    attributes,
+                };
                 let val = serde_json::to_value(&inner).map_err(S::Error::custom)?;
                 serialize_block_as_map("list", &val, serializer)
             }
-            Self::ListItem { id, checked, children, attributes } => {
-                let inner = InlineListItem { id, checked, children, attributes };
+            Self::ListItem {
+                id,
+                checked,
+                children,
+                attributes,
+            } => {
+                let inner = InlineListItem {
+                    id,
+                    checked,
+                    children,
+                    attributes,
+                };
                 let val = serde_json::to_value(&inner).map_err(S::Error::custom)?;
                 serialize_block_as_map("listItem", &val, serializer)
             }
-            Self::Blockquote { id, children, attributes } => {
-                let inner = InlineContainer { id, children, attributes };
+            Self::Blockquote {
+                id,
+                children,
+                attributes,
+            } => {
+                let inner = InlineContainer {
+                    id,
+                    children,
+                    attributes,
+                };
                 let val = serde_json::to_value(&inner).map_err(S::Error::custom)?;
                 serialize_block_as_map("blockquote", &val, serializer)
             }
-            Self::CodeBlock { id, language, highlighting, tokens, children, attributes } => {
-                let inner = InlineCodeBlock { id, language, highlighting, tokens, children, attributes };
+            Self::CodeBlock {
+                id,
+                language,
+                highlighting,
+                tokens,
+                children,
+                attributes,
+            } => {
+                let inner = InlineCodeBlock {
+                    id,
+                    language,
+                    highlighting,
+                    tokens,
+                    children,
+                    attributes,
+                };
                 let val = serde_json::to_value(&inner).map_err(S::Error::custom)?;
                 serialize_block_as_map("codeBlock", &val, serializer)
             }
@@ -1195,13 +1257,31 @@ impl Serialize for Block {
                 let val = serde_json::to_value(img).map_err(S::Error::custom)?;
                 serialize_block_as_map("image", &val, serializer)
             }
-            Self::Table { id, children, attributes } => {
-                let inner = InlineContainer { id, children, attributes };
+            Self::Table {
+                id,
+                children,
+                attributes,
+            } => {
+                let inner = InlineContainer {
+                    id,
+                    children,
+                    attributes,
+                };
                 let val = serde_json::to_value(&inner).map_err(S::Error::custom)?;
                 serialize_block_as_map("table", &val, serializer)
             }
-            Self::TableRow { id, header, children, attributes } => {
-                let inner = InlineTableRow { id, header: *header, children, attributes };
+            Self::TableRow {
+                id,
+                header,
+                children,
+                attributes,
+            } => {
+                let inner = InlineTableRow {
+                    id,
+                    header: *header,
+                    children,
+                    attributes,
+                };
                 let val = serde_json::to_value(&inner).map_err(S::Error::custom)?;
                 serialize_block_as_map("tableRow", &val, serializer)
             }
@@ -1222,18 +1302,42 @@ impl Serialize for Block {
                 let val = serde_json::to_value(dl).map_err(S::Error::custom)?;
                 serialize_block_as_map("definitionList", &val, serializer)
             }
-            Self::DefinitionItem { id, children, attributes } => {
-                let inner = InlineContainer { id, children, attributes };
+            Self::DefinitionItem {
+                id,
+                children,
+                attributes,
+            } => {
+                let inner = InlineContainer {
+                    id,
+                    children,
+                    attributes,
+                };
                 let val = serde_json::to_value(&inner).map_err(S::Error::custom)?;
                 serialize_block_as_map("definitionItem", &val, serializer)
             }
-            Self::DefinitionTerm { id, children, attributes } => {
-                let inner = InlineTextContainer { id, children, attributes };
+            Self::DefinitionTerm {
+                id,
+                children,
+                attributes,
+            } => {
+                let inner = InlineTextContainer {
+                    id,
+                    children,
+                    attributes,
+                };
                 let val = serde_json::to_value(&inner).map_err(S::Error::custom)?;
                 serialize_block_as_map("definitionTerm", &val, serializer)
             }
-            Self::DefinitionDescription { id, children, attributes } => {
-                let inner = InlineContainer { id, children, attributes };
+            Self::DefinitionDescription {
+                id,
+                children,
+                attributes,
+            } => {
+                let inner = InlineContainer {
+                    id,
+                    children,
+                    attributes,
+                };
                 let val = serde_json::to_value(&inner).map_err(S::Error::custom)?;
                 serialize_block_as_map("definitionDescription", &val, serializer)
             }
@@ -1270,9 +1374,15 @@ impl Serialize for Block {
                 let type_str = ext.full_type();
                 let attr_count = ext.attributes.as_object().map_or(0, serde_json::Map::len);
                 let mut count = 1; // type
-                if ext.id.is_some() { count += 1; }
-                if !ext.children.is_empty() { count += 1; }
-                if ext.fallback.is_some() { count += 1; }
+                if ext.id.is_some() {
+                    count += 1;
+                }
+                if !ext.children.is_empty() {
+                    count += 1;
+                }
+                if ext.fallback.is_some() {
+                    count += 1;
+                }
                 count += attr_count;
 
                 let mut map = serializer.serialize_map(Some(count))?;
@@ -1328,7 +1438,11 @@ impl<'de> Deserialize<'de> for Block {
                     attributes: BlockAttributes,
                 }
                 let inner: Inner = serde_json::from_value(value).map_err(de::Error::custom)?;
-                Ok(Block::Paragraph { id: inner.id, children: inner.children, attributes: inner.attributes })
+                Ok(Block::Paragraph {
+                    id: inner.id,
+                    children: inner.children,
+                    attributes: inner.attributes,
+                })
             }
             "heading" => {
                 #[derive(Deserialize)]
@@ -1342,7 +1456,12 @@ impl<'de> Deserialize<'de> for Block {
                     attributes: BlockAttributes,
                 }
                 let inner: Inner = serde_json::from_value(value).map_err(de::Error::custom)?;
-                Ok(Block::Heading { id: inner.id, level: inner.level, children: inner.children, attributes: inner.attributes })
+                Ok(Block::Heading {
+                    id: inner.id,
+                    level: inner.level,
+                    children: inner.children,
+                    attributes: inner.attributes,
+                })
             }
             "list" => {
                 #[derive(Deserialize)]
@@ -1359,7 +1478,13 @@ impl<'de> Deserialize<'de> for Block {
                     attributes: BlockAttributes,
                 }
                 let inner: Inner = serde_json::from_value(value).map_err(de::Error::custom)?;
-                Ok(Block::List { id: inner.id, ordered: inner.ordered, start: inner.start, children: inner.children, attributes: inner.attributes })
+                Ok(Block::List {
+                    id: inner.id,
+                    ordered: inner.ordered,
+                    start: inner.start,
+                    children: inner.children,
+                    attributes: inner.attributes,
+                })
             }
             "listItem" => {
                 #[derive(Deserialize)]
@@ -1374,7 +1499,12 @@ impl<'de> Deserialize<'de> for Block {
                     attributes: BlockAttributes,
                 }
                 let inner: Inner = serde_json::from_value(value).map_err(de::Error::custom)?;
-                Ok(Block::ListItem { id: inner.id, checked: inner.checked, children: inner.children, attributes: inner.attributes })
+                Ok(Block::ListItem {
+                    id: inner.id,
+                    checked: inner.checked,
+                    children: inner.children,
+                    attributes: inner.attributes,
+                })
             }
             "blockquote" => {
                 #[derive(Deserialize)]
@@ -1387,7 +1517,11 @@ impl<'de> Deserialize<'de> for Block {
                     attributes: BlockAttributes,
                 }
                 let inner: Inner = serde_json::from_value(value).map_err(de::Error::custom)?;
-                Ok(Block::Blockquote { id: inner.id, children: inner.children, attributes: inner.attributes })
+                Ok(Block::Blockquote {
+                    id: inner.id,
+                    children: inner.children,
+                    attributes: inner.attributes,
+                })
             }
             "codeBlock" => {
                 #[derive(Deserialize)]
@@ -1407,13 +1541,20 @@ impl<'de> Deserialize<'de> for Block {
                 }
                 let inner: Inner = serde_json::from_value(value).map_err(de::Error::custom)?;
                 Ok(Block::CodeBlock {
-                    id: inner.id, language: inner.language, highlighting: inner.highlighting,
-                    tokens: inner.tokens, children: inner.children, attributes: inner.attributes,
+                    id: inner.id,
+                    language: inner.language,
+                    highlighting: inner.highlighting,
+                    tokens: inner.tokens,
+                    children: inner.children,
+                    attributes: inner.attributes,
                 })
             }
             "horizontalRule" => {
                 #[derive(Deserialize)]
-                struct Inner { #[serde(default)] id: Option<String> }
+                struct Inner {
+                    #[serde(default)]
+                    id: Option<String>,
+                }
                 let inner: Inner = serde_json::from_value(value).map_err(de::Error::custom)?;
                 Ok(Block::HorizontalRule { id: inner.id })
             }
@@ -1432,7 +1573,11 @@ impl<'de> Deserialize<'de> for Block {
                     attributes: BlockAttributes,
                 }
                 let inner: Inner = serde_json::from_value(value).map_err(de::Error::custom)?;
-                Ok(Block::Table { id: inner.id, children: inner.children, attributes: inner.attributes })
+                Ok(Block::Table {
+                    id: inner.id,
+                    children: inner.children,
+                    attributes: inner.attributes,
+                })
             }
             "tableRow" => {
                 #[derive(Deserialize)]
@@ -1447,10 +1592,16 @@ impl<'de> Deserialize<'de> for Block {
                     attributes: BlockAttributes,
                 }
                 let inner: Inner = serde_json::from_value(value).map_err(de::Error::custom)?;
-                Ok(Block::TableRow { id: inner.id, header: inner.header, children: inner.children, attributes: inner.attributes })
+                Ok(Block::TableRow {
+                    id: inner.id,
+                    header: inner.header,
+                    children: inner.children,
+                    attributes: inner.attributes,
+                })
             }
             "tableCell" => {
-                let cell: TableCellBlock = serde_json::from_value(value).map_err(de::Error::custom)?;
+                let cell: TableCellBlock =
+                    serde_json::from_value(value).map_err(de::Error::custom)?;
                 Ok(Block::TableCell(cell))
             }
             "math" => {
@@ -1459,12 +1610,16 @@ impl<'de> Deserialize<'de> for Block {
             }
             "break" => {
                 #[derive(Deserialize)]
-                struct Inner { #[serde(default)] id: Option<String> }
+                struct Inner {
+                    #[serde(default)]
+                    id: Option<String>,
+                }
                 let inner: Inner = serde_json::from_value(value).map_err(de::Error::custom)?;
                 Ok(Block::Break { id: inner.id })
             }
             "definitionList" => {
-                let dl: DefinitionListBlock = serde_json::from_value(value).map_err(de::Error::custom)?;
+                let dl: DefinitionListBlock =
+                    serde_json::from_value(value).map_err(de::Error::custom)?;
                 Ok(Block::DefinitionList(dl))
             }
             "definitionItem" => {
@@ -1478,7 +1633,11 @@ impl<'de> Deserialize<'de> for Block {
                     attributes: BlockAttributes,
                 }
                 let inner: Inner = serde_json::from_value(value).map_err(de::Error::custom)?;
-                Ok(Block::DefinitionItem { id: inner.id, children: inner.children, attributes: inner.attributes })
+                Ok(Block::DefinitionItem {
+                    id: inner.id,
+                    children: inner.children,
+                    attributes: inner.attributes,
+                })
             }
             "definitionTerm" => {
                 #[derive(Deserialize)]
@@ -1491,7 +1650,11 @@ impl<'de> Deserialize<'de> for Block {
                     attributes: BlockAttributes,
                 }
                 let inner: Inner = serde_json::from_value(value).map_err(de::Error::custom)?;
-                Ok(Block::DefinitionTerm { id: inner.id, children: inner.children, attributes: inner.attributes })
+                Ok(Block::DefinitionTerm {
+                    id: inner.id,
+                    children: inner.children,
+                    attributes: inner.attributes,
+                })
             }
             "definitionDescription" => {
                 #[derive(Deserialize)]
@@ -1504,14 +1667,20 @@ impl<'de> Deserialize<'de> for Block {
                     attributes: BlockAttributes,
                 }
                 let inner: Inner = serde_json::from_value(value).map_err(de::Error::custom)?;
-                Ok(Block::DefinitionDescription { id: inner.id, children: inner.children, attributes: inner.attributes })
+                Ok(Block::DefinitionDescription {
+                    id: inner.id,
+                    children: inner.children,
+                    attributes: inner.attributes,
+                })
             }
             "measurement" => {
-                let m: MeasurementBlock = serde_json::from_value(value).map_err(de::Error::custom)?;
+                let m: MeasurementBlock =
+                    serde_json::from_value(value).map_err(de::Error::custom)?;
                 Ok(Block::Measurement(m))
             }
             "signature" => {
-                let sig: SignatureBlock = serde_json::from_value(value).map_err(de::Error::custom)?;
+                let sig: SignatureBlock =
+                    serde_json::from_value(value).map_err(de::Error::custom)?;
                 Ok(Block::Signature(sig))
             }
             "svg" => {
@@ -1528,26 +1697,34 @@ impl<'de> Deserialize<'de> for Block {
             }
             "figcaption" | "figCaption" => {
                 // Accept both "figcaption" (spec) and "figCaption" (old format)
-                let fc: FigCaptionBlock = serde_json::from_value(value).map_err(de::Error::custom)?;
+                let fc: FigCaptionBlock =
+                    serde_json::from_value(value).map_err(de::Error::custom)?;
                 Ok(Block::FigCaption(fc))
             }
             "admonition" => {
-                let adm: AdmonitionBlock = serde_json::from_value(value).map_err(de::Error::custom)?;
+                let adm: AdmonitionBlock =
+                    serde_json::from_value(value).map_err(de::Error::custom)?;
                 Ok(Block::Admonition(adm))
             }
 
             // Old format backward compat: {"type": "extension", "namespace": "...", "blockType": "..."}
             "extension" => {
-                let ext: ExtensionBlock = serde_json::from_value(value).map_err(de::Error::custom)?;
+                let ext: ExtensionBlock =
+                    serde_json::from_value(value).map_err(de::Error::custom)?;
                 Ok(Block::Extension(ext))
             }
 
             // Colon-delimited extension type (new format)
             other if other.contains(':') => {
                 let (namespace, block_type) = other.split_once(':').unwrap();
-                let obj = value.as_object().ok_or_else(|| de::Error::custom("expected object"))?;
+                let obj = value
+                    .as_object()
+                    .ok_or_else(|| de::Error::custom("expected object"))?;
 
-                let id = obj.get("id").and_then(serde_json::Value::as_str).map(ToString::to_string);
+                let id = obj
+                    .get("id")
+                    .and_then(serde_json::Value::as_str)
+                    .map(ToString::to_string);
                 let children: Vec<Block> = obj
                     .get("children")
                     .map(|v| serde_json::from_value(v.clone()))

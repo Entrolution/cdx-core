@@ -25,7 +25,10 @@ fn simple_marks_serialize_as_strings() {
 
     for (mark, expected) in marks {
         let json = serde_json::to_string(&mark).unwrap();
-        assert_eq!(json, expected, "Mark::{mark:?} should serialize as {expected}");
+        assert_eq!(
+            json, expected,
+            "Mark::{mark:?} should serialize as {expected}"
+        );
     }
 }
 
@@ -43,7 +46,10 @@ fn simple_marks_deserialize_from_string() {
 
     for (json, expected) in cases {
         let mark: Mark = serde_json::from_str(json).unwrap();
-        assert_eq!(mark, expected, "String {json} should deserialize to {expected:?}");
+        assert_eq!(
+            mark, expected,
+            "String {json} should deserialize to {expected:?}"
+        );
     }
 }
 
@@ -58,7 +64,10 @@ fn simple_marks_deserialize_from_object() {
 
     for (json, expected) in cases {
         let mark: Mark = serde_json::from_str(json).unwrap();
-        assert_eq!(mark, expected, "Object {json} should deserialize to {expected:?}");
+        assert_eq!(
+            mark, expected,
+            "Object {json} should deserialize to {expected:?}"
+        );
     }
 }
 
@@ -336,8 +345,7 @@ fn spec_example_figure_with_figcaption() {
 #[test]
 fn spec_example_math_inline_mark() {
     // Spec: inline math mark uses "source" field
-    let spec_json =
-        r#"{"value":"x²","marks":[{"type":"math","format":"latex","source":"x^2"}]}"#;
+    let spec_json = r#"{"value":"x²","marks":[{"type":"math","format":"latex","source":"x^2"}]}"#;
 
     let text: Text = serde_json::from_str(spec_json).unwrap();
     if let Mark::Math { format, source } = &text.marks[0] {
@@ -375,9 +383,10 @@ fn extension_block_roundtrip_preserves_format() {
 fn extension_mark_roundtrip_preserves_format() {
     use cdx_core::content::ExtensionMark;
 
-    let mark = Mark::Extension(
-        ExtensionMark::theorem_ref_formatted("#thm-1", "{variant} {number}"),
-    );
+    let mark = Mark::Extension(ExtensionMark::theorem_ref_formatted(
+        "#thm-1",
+        "{variant} {number}",
+    ));
 
     let json1 = serde_json::to_string(&mark).unwrap();
     let parsed: Mark = serde_json::from_str(&json1).unwrap();
