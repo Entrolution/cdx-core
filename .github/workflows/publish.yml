@@ -89,8 +89,8 @@ jobs:
       - name: Dry run cdx-core
         run: cargo publish --dry-run -p cdx-core
 
-      - name: Dry run cdx-cli
-        run: cargo publish --dry-run -p cdx-cli
+      # Note: cdx-cli dry run is skipped because it depends on cdx-core
+      # being in the crates.io index, which only happens after publish.
 
       - name: Authenticate with crates.io
         uses: rust-lang/crates-io-auth-action@v1
