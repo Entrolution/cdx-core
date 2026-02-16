@@ -39,7 +39,7 @@ pub use collaboration::{
     TextCrdtPosition, TextRange, TrackedChange,
 };
 pub use forms::{
-    CheckboxField, Condition, ConditionalAction, ConditionalValidation, ConditionOperator,
+    CheckboxField, Condition, ConditionOperator, ConditionalAction, ConditionalValidation,
     DatePickerField, DropdownField, DropdownOption, FormData, FormField, FormValidation,
     RadioGroupField, RadioOption, SignatureField, TextAreaField, TextInputField, ValidationRule,
 };

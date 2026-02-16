@@ -1577,8 +1577,7 @@ mod tests {
             ConditionalAction::require(),
         );
 
-        let field = CheckboxField::new("Confirm address")
-            .with_conditional_validation(cv);
+        let field = CheckboxField::new("Confirm address").with_conditional_validation(cv);
 
         let json = serde_json::to_string(&field).unwrap();
         let parsed: CheckboxField = serde_json::from_str(&json).unwrap();
