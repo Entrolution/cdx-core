@@ -36,3 +36,24 @@ path = "fuzz_targets/manifest_parser.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "block_parser"
+path = "fuzz_targets/block_parser.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "mark_parser"
+path = "fuzz_targets/mark_parser.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "content_parser"
+path = "fuzz_targets/content_parser.rs"
+test = false
+doc = false
+bench = false
