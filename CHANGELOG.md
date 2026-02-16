@@ -60,6 +60,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `WrappedKeyData` struct for wrapped content encryption keys
 - New `key-wrapping` feature flag (depends on `encryption`, adds `aes-kw` and `hkdf`)
 
+#### Spec Compliance: Extended Key Wrapping + BOM (PR #73)
+- `RsaOaepKeyWrapper` and `RsaOaepKeyUnwrapper` for RSA-OAEP-256 key wrapping
+- `Pbes2KeyWrapper` and `Pbes2KeyUnwrapper` for PBES2-HS256+A256KW password-based key wrapping
+- New `key-wrapping-rsa` and `key-wrapping-pbes2` feature flags
+- UTF-8 BOM stripping for all JSON files in archive reader
+
+#### Spec Compliance: Form Conditional Validation (PR #75)
+- `ConditionalValidation`, `Condition`, `ConditionOperator`, `ConditionalAction` types
+- `conditional_validation` field on all 7 form field types
+- Supports `equals`, `notEquals`, `isEmpty`, `isNotEmpty` operators
+
+#### Spec Compliance: Advanced Presentation (PR #76)
+- `TypographyConfig` with `LineNumbering`, `BaselineGrid`, `HyphenationConfig`
+- `ColumnLayout` and `GridLayout` with `GridArea` for multi-column and CSS Grid layouts
+- `TocConfig` with `TocLeaders` for table of contents configuration
+- `FootnotesConfig`, `FootnotePosition`, `FootnoteSeparator` for footnote placement and styling
+- `EndnotesConfig` for endnote section configuration
+
 ### Changed
 
 #### Spec Compliance: Validation Fixes (PR #70)
@@ -87,6 +105,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Breaking Changes
 - **Paginated presentation**: `blockRef` renamed to `blockId`, `blockRefs` to `blockIds`
 - **Forms**: Removed `ValidationRule::Custom` (executable expressions prohibited per DD-010/DD-019)
+- **EquationGroup** (PR #74): `Equation` renamed to `EquationLine`, `latex` field renamed to `value`, `equations` field renamed to `lines`, added `tag` field, added `Alignat` environment variant
+- **Legal SignatureBlock** (PR #74): `Signatory` and `FirmInfo` flattened into `LegalSigner`, added `role` field on `LegalSignatureBlock`
+
+#### CI
+- Increase cargo-tarpaulin timeout to 180s and make coverage non-blocking (`continue-on-error`)
 
 #### Documentation
 - Clarified lineage requirements: parent only required for forked documents
