@@ -7,7 +7,7 @@ resolver = "2"
 edition = "2021"
 rust-version = "1.88"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/gvonness-apolitical/cdx-core"
+repository = "https://github.com/Entrolution/cdx-core"
 
 [workspace.dependencies]
 # Shared dependencies across workspace
@@ -17,4 +17,4 @@ thiserror = "2.0"
 chrono = { version = "0.4", features = ["serde", "now"], default-features = false }
 
 # Internal crates
-cdx-core = { path = "cdx-core" }
+cdx-core = { path = "cdx-core", version = "0.1.0" }
