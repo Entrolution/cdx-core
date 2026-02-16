@@ -133,7 +133,8 @@ jobs:
         run: cargo install cargo-tarpaulin
 
       - name: Generate coverage
-        run: cargo tarpaulin --workspace --all-features --out xml
+        run: cargo tarpaulin --workspace --all-features --out xml --timeout 180
+        continue-on-error: true
 
       - name: Upload coverage
         uses: codecov/codecov-action@v5

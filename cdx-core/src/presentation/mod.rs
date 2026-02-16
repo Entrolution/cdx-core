@@ -21,13 +21,19 @@
 //! - [`PdfXCompliance`] - PDF/X conformance metadata for prepress workflows
 
 mod continuous;
+mod layout;
+mod notes;
 mod paginated;
 mod precise;
 mod print;
 mod responsive;
 mod style;
+mod toc;
+mod typography;
 
 pub use continuous::{Continuous, Section};
+pub use layout::{ColumnLayout, GridArea, GridLayout};
+pub use notes::{EndnotesConfig, FootnotePosition, FootnoteSeparator, FootnotesConfig};
 pub use paginated::{FlowElement, Margins, PageElement, PageSize, Paginated, Position};
 pub use precise::{
     FontMetrics, LineInfo, PageRegion, PageTemplate, PreciseLayout, PrecisePage,
@@ -43,6 +49,11 @@ pub use responsive::{Breakpoint, Responsive, ResponsiveDefaults, ResponsiveStyle
 pub use style::{
     Color, CssValue, FontWeight, Scale, Style, StyleMap, TextAlign, Transform, TransformOrigin,
     WritingMode,
+};
+pub use toc::{TocConfig, TocLeaders};
+pub use typography::{
+    BaselineGrid, HyphenationConfig, LineNumbering, LineNumberingRestart, LineNumberingSide,
+    TypographyConfig,
 };
 
 /// Presentation type identifier.
