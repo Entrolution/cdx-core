@@ -101,22 +101,27 @@ fn extension_mark_serializes_without_wrapper() {
 
     // Type should be "semantic:citation", not "extension"
     assert_eq!(val["type"], "semantic:citation");
-    assert_eq!(val["ref"], "smith2023");
+    assert_eq!(val["refs"], serde_json::json!(["smith2023"]));
 
     // Should NOT have wrapper fields
     assert!(val.get("namespace").is_none());
     assert!(val.get("markType").is_none());
+    // Should NOT have old singular "ref"
+    assert!(val.get("ref").is_none());
 }
 
 #[test]
 fn extension_mark_deserializes_new_format() {
-    let json = r#"{"type":"semantic:citation","ref":"smith2023"}"#;
+    let json = r#"{"type":"semantic:citation","refs":["smith2023"]}"#;
     let mark: Mark = serde_json::from_str(json).unwrap();
 
     if let Mark::Extension(ext) = &mark {
         assert_eq!(ext.namespace, "semantic");
         assert_eq!(ext.mark_type, "citation");
-        assert_eq!(ext.get_string_attribute("ref"), Some("smith2023"));
+        assert_eq!(
+            ext.get_string_array_attribute("refs"),
+            Some(vec!["smith2023"])
+        );
     } else {
         panic!("Expected Extension mark, got {mark:?}");
     }
@@ -131,10 +136,62 @@ fn extension_mark_deserializes_old_format() {
     if let Mark::Extension(ext) = &mark {
         assert_eq!(ext.namespace, "semantic");
         assert_eq!(ext.mark_type, "citation");
-        assert_eq!(ext.get_string_attribute("ref"), Some("smith2023"));
+        // Old format preserves "ref" as-is in attributes; use get_citation_refs for compat
+        assert_eq!(ext.get_citation_refs(), Some(vec!["smith2023"]));
     } else {
         panic!("Expected Extension mark, got {mark:?}");
     }
+}
+
+#[test]
+fn citation_mark_backward_compat_singular_ref() {
+    // Old format with singular "ref" string
+    let json = r#"{"type":"semantic:citation","ref":"smith2023"}"#;
+    let mark: Mark = serde_json::from_str(json).unwrap();
+
+    if let Mark::Extension(ext) = &mark {
+        assert_eq!(ext.get_citation_refs(), Some(vec!["smith2023"]));
+    } else {
+        panic!("Expected Extension mark, got {mark:?}");
+    }
+}
+
+#[test]
+fn citation_mark_multi_refs_roundtrip() {
+    use cdx_core::content::ExtensionMark;
+
+    let refs = vec!["smith2023".into(), "jones2024".into()];
+    let mark = Mark::Extension(ExtensionMark::multi_citation(&refs));
+
+    let json = serde_json::to_string(&mark).unwrap();
+    let val: serde_json::Value = serde_json::from_str(&json).unwrap();
+    assert_eq!(val["refs"], serde_json::json!(["smith2023", "jones2024"]));
+
+    // Round-trip
+    let parsed: Mark = serde_json::from_str(&json).unwrap();
+    if let Mark::Extension(ext) = &parsed {
+        assert_eq!(
+            ext.get_string_array_attribute("refs"),
+            Some(vec!["smith2023", "jones2024"])
+        );
+    } else {
+        panic!("Expected Extension mark");
+    }
+}
+
+#[test]
+fn citation_mark_normalize_attrs() {
+    use cdx_core::content::ExtensionMark;
+
+    let mut ext = ExtensionMark::new("semantic", "citation")
+        .with_attributes(serde_json::json!({"ref": "smith2023"}));
+    ext.normalize_citation_attrs();
+
+    assert_eq!(
+        ext.get_string_array_attribute("refs"),
+        Some(vec!["smith2023"])
+    );
+    assert!(ext.get_string_attribute("ref").is_none());
 }
 
 #[test]
@@ -272,8 +329,7 @@ fn spec_example_text_with_bold_string_mark() {
 #[test]
 fn spec_example_text_with_citation_mark() {
     // Spec: extension marks use "namespace:markType" as type, attributes flattened
-    let spec_json =
-        r#"{"value":"important claim","marks":[{"type":"semantic:citation","ref":"smith2023"}]}"#;
+    let spec_json = r#"{"value":"important claim","marks":[{"type":"semantic:citation","refs":["smith2023"]}]}"#;
 
     let text: Text = serde_json::from_str(spec_json).unwrap();
     assert_eq!(text.value, "important claim");
@@ -282,7 +338,10 @@ fn spec_example_text_with_citation_mark() {
     if let Mark::Extension(ext) = &text.marks[0] {
         assert_eq!(ext.namespace, "semantic");
         assert_eq!(ext.mark_type, "citation");
-        assert_eq!(ext.get_string_attribute("ref"), Some("smith2023"));
+        assert_eq!(
+            ext.get_string_array_attribute("refs"),
+            Some(vec!["smith2023"])
+        );
     } else {
         panic!("Expected Extension mark");
     }

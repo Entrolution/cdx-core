@@ -179,6 +179,15 @@ impl ExtensionBlock {
         self.attributes.get(key).and_then(Value::as_str)
     }
 
+    /// Get an array-of-strings attribute.
+    #[must_use]
+    pub fn get_string_array_attribute(&self, key: &str) -> Option<Vec<&str>> {
+        self.attributes.get(key).and_then(|v| {
+            v.as_array()
+                .map(|arr| arr.iter().filter_map(serde_json::Value::as_str).collect())
+        })
+    }
+
     /// Get a boolean attribute.
     #[must_use]
     pub fn get_bool_attribute(&self, key: &str) -> Option<bool> {
@@ -303,7 +312,7 @@ mod tests {
             "blockType": "citation",
             "id": "cite-1",
             "attributes": {
-                "ref": "smith2023",
+                "refs": ["smith2023"],
                 "page": 42
             }
         }"#;
@@ -312,7 +321,10 @@ mod tests {
         assert_eq!(ext.namespace, "semantic");
         assert_eq!(ext.block_type, "citation");
         assert_eq!(ext.id, Some("cite-1".to_string()));
-        assert_eq!(ext.get_string_attribute("ref"), Some("smith2023"));
+        assert_eq!(
+            ext.get_string_array_attribute("refs"),
+            Some(vec!["smith2023"])
+        );
         assert_eq!(ext.get_i64_attribute("page"), Some(42));
     }
 }

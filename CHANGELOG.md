@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-02-16
+
+### Changed
+
+- **Breaking:** `Citation.reference` (String) renamed to `Citation.refs` (Vec\<String\>) to support multi-citation clusters (e.g., `[smith2023; jones2024]`)
+- **Breaking:** `ExtensionMark::citation()` and `citation_with_page()` now emit `"refs"` (array) instead of `"ref"` (string)
+- Deserialization accepts both old `"ref"` (string) and new `"refs"` (array) for backward compatibility
+
+### Added
+
+- `Citation::multi()` constructor for multi-reference citations
+- `Citation::first_ref()` and `Citation::refs()` accessors
+- `ExtensionMark::multi_citation()` convenience constructor
+- `ExtensionMark::get_string_array_attribute()` for array-typed attributes
+- `ExtensionMark::get_citation_refs()` helper supporting both `"refs"` and legacy `"ref"` keys
+- `ExtensionMark::normalize_citation_attrs()` to migrate `"ref"` → `"refs"` in-place
+- `ExtensionBlock::get_string_array_attribute()` for parity with `ExtensionMark`
+- Backward-compatibility conformance tests for singular `"ref"` deserialization
+- Multi-reference citation roundtrip tests
+
 ## [0.5.0] - 2026-02-16
 
 ### Changed
@@ -276,7 +296,8 @@ Initial release implementing Codex Document Format Specification v0.1.
 - `sign_document` - Sign a document with ES256
 - `extract_content` - Extract text content from blocks
 
-[Unreleased]: https://github.com/Entrolution/cdx-core/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/Entrolution/cdx-core/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/Entrolution/cdx-core/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/Entrolution/cdx-core/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/Entrolution/cdx-core/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Entrolution/cdx-core/compare/v0.2.0...v0.3.0

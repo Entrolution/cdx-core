@@ -15,7 +15,7 @@
 //! ```json
 //! {
 //!   "type": "semantic:citation",
-//!   "ref": "smith2023",
+//!   "refs": ["smith2023"],
 //!   "page": "42-45",
 //!   "prefix": "see",
 //!   "suffix": "for details"
@@ -103,7 +103,8 @@ mod tests {
     #[test]
     fn test_citation_new() {
         let cite = Citation::new("smith2023");
-        assert_eq!(cite.reference, "smith2023");
+        assert_eq!(cite.refs, vec!["smith2023"]);
+        assert_eq!(cite.first_ref(), Some("smith2023"));
         assert!(!cite.suppress_author);
     }
 
@@ -246,8 +247,32 @@ mod tests {
     fn test_citation_serialization() {
         let cite = Citation::new("smith2023").with_page("42");
         let json = serde_json::to_string(&cite).unwrap();
-        assert!(json.contains("\"ref\":\"smith2023\""));
+        assert!(json.contains("\"refs\":[\"smith2023\"]"));
         assert!(json.contains("\"locator\":\"42\""));
+    }
+
+    #[test]
+    fn test_citation_multi() {
+        let cite = Citation::multi(vec!["smith2023".into(), "jones2024".into()]);
+        assert_eq!(cite.refs(), &["smith2023", "jones2024"]);
+        assert_eq!(cite.first_ref(), Some("smith2023"));
+    }
+
+    #[test]
+    fn test_citation_backward_compat_singular_ref() {
+        let json = r#"{"ref":"smith2023","locator":"42","locatorType":"page"}"#;
+        let cite: Citation = serde_json::from_str(json).unwrap();
+        assert_eq!(cite.refs, vec!["smith2023"]);
+        assert_eq!(cite.locator, Some("42".to_string()));
+    }
+
+    #[test]
+    fn test_citation_multi_refs_roundtrip() {
+        let cite = Citation::multi(vec!["smith2023".into(), "jones2024".into()]).with_page("42");
+        let json = serde_json::to_string(&cite).unwrap();
+        let parsed: Citation = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.refs, vec!["smith2023", "jones2024"]);
+        assert_eq!(parsed.locator, Some("42".to_string()));
     }
 
     // Footnote tests

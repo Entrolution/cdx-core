@@ -69,8 +69,9 @@ ext.is_type("forms", "textInput")                // true
 Inline extension marks on text spans use the same namespace convention via `ExtensionMark`:
 
 ```rust
-ExtensionMark::citation("ref-smith2024")
-ExtensionMark::citation_with_page("ref-smith2024", "42")
+ExtensionMark::citation("ref-smith2024")                    // emits {"refs": ["ref-smith2024"]}
+ExtensionMark::citation_with_page("ref-smith2024", "42")    // emits {"refs": ["ref-smith2024"], "locator": "42", ...}
+ExtensionMark::multi_citation(&["smith2023".into(), "jones2024".into()])
 ExtensionMark::entity("https://www.wikidata.org/wiki/Q42", EntityType::Person)
 ExtensionMark::glossary("term-algorithm")
 ExtensionMark::index("Machine learning")
