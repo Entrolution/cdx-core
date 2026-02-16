@@ -96,6 +96,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Use `rsa::sha2::Sha256` for RSA operations (sha2 0.10 → 0.11 split)
   - Use `PublicKey::from_sec1_bytes` for P-256 key parsing (replaces `EncodedPoint` chain)
   - Use `tbs_certificate()` / `serial_number()` / `extensions()` accessors (x509-cert 0.3 made fields private)
+- Replace `fips204` with RustCrypto `ml-dsa` 0.1.0-rc for ML-DSA-65 signatures (uses standard `signature::Signer`/`Verifier` traits, 32-byte seed key format)
 - Bump `zip` from 7.2 to 8.0 (resolves yanked 7.4.0; no code changes required)
 - Bump `assert_cmd` from 2.0 to 2.1.2
 - Update `keccak` from 0.1.5 (yanked) to 0.1.6
@@ -115,6 +116,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Forms**: Removed `ValidationRule::Custom` (executable expressions prohibited per DD-010/DD-019)
 - **EquationGroup** (PR #74): `Equation` renamed to `EquationLine`, `latex` field renamed to `value`, `equations` field renamed to `lines`, added `tag` field, added `Alignat` environment variant
 - **Legal SignatureBlock** (PR #74): `Signatory` and `FirmInfo` flattened into `LegalSigner`, added `role` field on `LegalSignatureBlock`
+- **ML-DSA** (PR #78): Switched from `fips204` to RustCrypto `ml-dsa` crate; `MlDsaSigner::from_bytes` now accepts a 32-byte seed (was 4032-byte expanded key); key/signature bytes are incompatible with prior `fips204`-based output
 
 #### CI
 - Increase cargo-tarpaulin timeout to 180s and make coverage non-blocking (`continue-on-error`)

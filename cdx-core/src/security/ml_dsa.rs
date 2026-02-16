@@ -18,97 +18,92 @@ use super::signer::{Signer, Verifier};
 /// ML-DSA-65 signer.
 ///
 /// Uses the FIPS-204 ML-DSA-65 parameter set for post-quantum digital signatures.
+///
+/// # Key Format
+///
+/// Keys are represented as 32-byte seeds. A seed deterministically derives
+/// both the signing and verifying keys via ML-DSA.KeyGen_internal (FIPS 204).
 #[cfg(feature = "ml-dsa")]
 pub struct MlDsaSigner {
-    secret_key: fips204::ml_dsa_65::PrivateKey,
-    public_key: fips204::ml_dsa_65::PublicKey,
+    signing_key: ml_dsa::SigningKey<ml_dsa::MlDsa65>,
+    seed: [u8; 32],
     signer_info: SignerInfo,
 }
 
 #[cfg(feature = "ml-dsa")]
 impl MlDsaSigner {
-    /// Create a signer from raw key bytes.
+    /// Create a signer from a 32-byte seed.
+    ///
+    /// The seed deterministically derives the full signing and verifying keys.
     ///
     /// # Arguments
     ///
-    /// * `secret_key_bytes` - The secret key bytes (4032 bytes for ML-DSA-65)
+    /// * `seed_bytes` - The 32-byte seed
     /// * `signer_info` - Information about the signer
     ///
     /// # Errors
     ///
-    /// Returns an error if the key bytes are invalid.
-    pub fn from_bytes(secret_key_bytes: &[u8], signer_info: SignerInfo) -> Result<Self> {
-        use fips204::traits::SerDes;
-        use fips204::traits::Signer as FipsSigner;
+    /// Returns an error if the seed is not exactly 32 bytes.
+    pub fn from_bytes(seed_bytes: &[u8], signer_info: SignerInfo) -> Result<Self> {
+        use ml_dsa::KeyGen;
 
-        let secret_key =
-            fips204::ml_dsa_65::PrivateKey::try_from_bytes(secret_key_bytes.try_into().map_err(
-                |_| crate::Error::InvalidManifest {
-                    reason: format!(
-                        "Invalid ML-DSA-65 secret key length: expected {}, got {}",
-                        fips204::ml_dsa_65::SK_LEN,
-                        secret_key_bytes.len()
-                    ),
-                },
-            )?)
-            .map_err(|e| crate::Error::InvalidManifest {
-                reason: format!("Failed to parse ML-DSA-65 secret key: {e:?}"),
+        let seed: [u8; 32] = seed_bytes
+            .try_into()
+            .map_err(|_| crate::Error::InvalidManifest {
+                reason: format!(
+                    "Invalid ML-DSA-65 seed length: expected 32, got {}",
+                    seed_bytes.len()
+                ),
             })?;
 
-        // Derive public key from secret key
-        let public_key = secret_key.get_public_key();
+        let kp = ml_dsa::MlDsa65::from_seed(&seed.into());
 
         Ok(Self {
-            secret_key,
-            public_key,
+            signing_key: kp.signing_key().clone(),
+            seed,
             signer_info,
         })
     }
 
     /// Generate a new random ML-DSA-65 key pair.
     ///
-    /// Returns the signer and the public key bytes.
+    /// Returns the signer and the encoded public (verifying) key bytes.
     ///
     /// # Errors
     ///
     /// Returns an error if key generation fails.
+    #[allow(clippy::missing_panics_doc)]
     pub fn generate(signer_info: SignerInfo) -> Result<(Self, Vec<u8>)> {
-        use fips204::ml_dsa_65;
-        use fips204::traits::SerDes;
+        use ml_dsa::KeyGen;
 
-        let (public_key, secret_key) =
-            ml_dsa_65::try_keygen().map_err(|e| crate::Error::InvalidManifest {
-                reason: format!("ML-DSA-65 key generation failed: {e:?}"),
-            })?;
-
-        let public_key_bytes = public_key.clone().into_bytes().to_vec();
+        let kp = ml_dsa::MlDsa65::key_gen(&mut rand_core::UnwrapErr(getrandom::SysRng));
+        let seed: [u8; 32] = kp.to_seed().into();
+        let public_key_bytes = kp.verifying_key().encode().to_vec();
 
         Ok((
             Self {
-                secret_key,
-                public_key,
+                signing_key: kp.signing_key().clone(),
+                seed,
                 signer_info,
             },
             public_key_bytes,
         ))
     }
 
-    /// Get the public key bytes.
+    /// Get the public (verifying) key bytes.
     #[must_use]
     pub fn public_key_bytes(&self) -> Vec<u8> {
-        use fips204::traits::SerDes;
-        self.public_key.clone().into_bytes().to_vec()
+        self.signing_key.verifying_key().encode().to_vec()
     }
 
-    /// Get the secret key bytes.
+    /// Get the secret key seed (32 bytes).
     ///
     /// # Security Warning
     ///
-    /// Handle secret key bytes with care. Do not log or expose them.
+    /// Handle seed bytes with care. Do not log or expose them.
     #[must_use]
     pub fn secret_key_bytes(&self) -> Vec<u8> {
-        use fips204::traits::SerDes;
-        self.secret_key.clone().into_bytes().to_vec()
+        self.seed.to_vec()
     }
 }
 
@@ -124,7 +119,7 @@ impl Signer for MlDsaSigner {
 
     fn sign(&self, document_id: &DocumentId) -> Result<Signature> {
         use base64::Engine;
-        use fips204::traits::Signer as MlDsaSignerTrait;
+        use ml_dsa::signature::Signer as MlDsaSignerTrait;
 
         if document_id.is_pending() {
             return Err(crate::Error::InvalidManifest {
@@ -132,16 +127,11 @@ impl Signer for MlDsaSigner {
             });
         }
 
-        // Sign the document ID bytes (empty context)
-        let signature = self
-            .secret_key
-            .try_sign(document_id.digest(), &[])
-            .map_err(|e| crate::Error::InvalidManifest {
-                reason: format!("ML-DSA-65 signing failed: {e:?}"),
-            })?;
+        // Sign the document ID bytes
+        let signature = self.signing_key.sign(document_id.digest());
 
         // Encode as base64
-        let value = base64::engine::general_purpose::STANDARD.encode(signature);
+        let value = base64::engine::general_purpose::STANDARD.encode(signature.encode());
 
         // Generate signature ID
         let sig_id = format!(
@@ -161,38 +151,32 @@ impl Signer for MlDsaSigner {
 /// ML-DSA-65 verifier.
 #[cfg(feature = "ml-dsa")]
 pub struct MlDsaVerifier {
-    public_key: fips204::ml_dsa_65::PublicKey,
+    verifying_key: ml_dsa::VerifyingKey<ml_dsa::MlDsa65>,
 }
 
 #[cfg(feature = "ml-dsa")]
 impl MlDsaVerifier {
-    /// Create a verifier from raw public key bytes.
+    /// Create a verifier from encoded public key bytes.
     ///
     /// # Arguments
     ///
-    /// * `public_key_bytes` - The public key bytes (1952 bytes for ML-DSA-65)
+    /// * `public_key_bytes` - The encoded verifying key bytes
     ///
     /// # Errors
     ///
     /// Returns an error if the key bytes are invalid.
     pub fn from_bytes(public_key_bytes: &[u8]) -> Result<Self> {
-        use fips204::traits::SerDes;
-
-        let public_key =
-            fips204::ml_dsa_65::PublicKey::try_from_bytes(public_key_bytes.try_into().map_err(
-                |_| crate::Error::InvalidManifest {
+        let verifying_key =
+            ml_dsa::VerifyingKey::decode(public_key_bytes.try_into().map_err(|_| {
+                crate::Error::InvalidManifest {
                     reason: format!(
-                        "Invalid ML-DSA-65 public key length: expected {}, got {}",
-                        fips204::ml_dsa_65::PK_LEN,
+                        "Invalid ML-DSA-65 public key length: got {}",
                         public_key_bytes.len()
                     ),
-                },
-            )?)
-            .map_err(|e| crate::Error::InvalidManifest {
-                reason: format!("Failed to parse ML-DSA-65 public key: {e:?}"),
-            })?;
+                }
+            })?);
 
-        Ok(Self { public_key })
+        Ok(Self { verifying_key })
     }
 }
 
@@ -204,7 +188,7 @@ impl Verifier for MlDsaVerifier {
         signature: &Signature,
     ) -> Result<SignatureVerification> {
         use base64::Engine;
-        use fips204::traits::Verifier as MlDsaVerifierTrait;
+        use ml_dsa::signature::Verifier as MlDsaVerifierTrait;
 
         if signature.algorithm != SignatureAlgorithm::MlDsa65 {
             return Ok(SignatureVerification::invalid(
@@ -223,28 +207,24 @@ impl Verifier for MlDsaVerifier {
                 reason: format!("Failed to decode signature: {e}"),
             })?;
 
-        // Convert to fixed-size array reference
-        let sig_array: &[u8; fips204::ml_dsa_65::SIG_LEN] = sig_bytes
-            .as_slice()
-            .try_into()
-            .map_err(|_| crate::Error::InvalidManifest {
-                reason: format!(
-                    "Invalid ML-DSA-65 signature length: expected {}, got {}",
-                    fips204::ml_dsa_65::SIG_LEN,
-                    sig_bytes.len()
-                ),
+        // Parse ML-DSA signature
+        let ml_sig =
+            ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(sig_bytes.as_slice()).map_err(|_| {
+                crate::Error::InvalidManifest {
+                    reason: format!(
+                        "Invalid ML-DSA-65 signature length: got {}",
+                        sig_bytes.len()
+                    ),
+                }
             })?;
 
-        // Verify (empty context)
-        let is_valid = self.public_key.verify(document_id.digest(), sig_array, &[]);
-
-        if is_valid {
-            Ok(SignatureVerification::valid(&signature.id))
-        } else {
-            Ok(SignatureVerification::invalid(
+        // Verify
+        match self.verifying_key.verify(document_id.digest(), &ml_sig) {
+            Ok(()) => Ok(SignatureVerification::valid(&signature.id)),
+            Err(e) => Ok(SignatureVerification::invalid(
                 &signature.id,
-                "ML-DSA-65 signature verification failed",
-            ))
+                format!("ML-DSA-65 signature verification failed: {e}"),
+            )),
         }
     }
 }
@@ -267,7 +247,6 @@ mod tests {
         let (signer, public_key_bytes) = MlDsaSigner::generate(signer_info).unwrap();
 
         assert!(!public_key_bytes.is_empty());
-        assert_eq!(public_key_bytes.len(), fips204::ml_dsa_65::PK_LEN);
 
         test_helpers::assert_sign_produces_valid_signature(&signer, SignatureAlgorithm::MlDsa65);
     }
