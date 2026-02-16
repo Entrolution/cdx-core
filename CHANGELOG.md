@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-02-16
+
+### Changed
+
+- **Breaking:** `ExtensionMark::glossary()` now emits `"ref"` instead of `"termId"` to match the spec's `glossaryMark` schema
+- **Breaking:** `GlossaryRef.term_id` serializes as `"ref"` instead of `"termId"`
+- Deserialization accepts both old `"termId"` and new `"ref"` for backward compatibility
+
+### Added
+
+- `ExtensionMark::get_glossary_ref()` helper supporting both `"ref"` and legacy `"termId"` keys
+- `ExtensionMark::normalize_glossary_attrs()` to migrate `"termId"` → `"ref"` in-place
+- Backward-compatibility tests for glossary `"termId"` deserialization
+
 ## [0.6.0] - 2026-02-16
 
 ### Changed
@@ -296,7 +310,8 @@ Initial release implementing Codex Document Format Specification v0.1.
 - `sign_document` - Sign a document with ES256
 - `extract_content` - Extract text content from blocks
 
-[Unreleased]: https://github.com/Entrolution/cdx-core/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/Entrolution/cdx-core/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/Entrolution/cdx-core/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/Entrolution/cdx-core/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/Entrolution/cdx-core/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/Entrolution/cdx-core/compare/v0.3.0...v0.4.0
