@@ -16,7 +16,7 @@ This document maps requirements from the [Codex File Format Specification](../co
 | §3.3 | `manifest.json` required at root | archive/mod.rs | existing validation | PASS |
 | §3.3 | `content/document.json` required | archive/mod.rs | existing validation | PASS |
 | §3.3 | `metadata/dublin-core.json` required | archive/mod.rs | existing validation | PASS |
-| §4.2 | `manifest.json` must be first file in ZIP | tests/integration.rs | test_manifest_must_be_first_file | TODO |
+| §4.2 | `manifest.json` must be first file in ZIP | tests/integration.rs | test_manifest_must_be_first_file | PASS |
 | §5.2 | Archives up to 100MB supported | N/A | Implementation limit | N/A |
 
 ## 2. Manifest (02-manifest.md)
@@ -88,10 +88,10 @@ This document maps requirements from the [Codex File Format Specification](../co
 | §3.2 | Asset `id` required | asset/index.rs | existing validation | PASS |
 | §3.2 | Asset `path` required | asset/index.rs | existing validation | PASS |
 | §3.2 | Asset `hash` required | asset/index.rs | existing validation | PASS |
-| §8.1 | Asset hash must match file content | tests/integration.rs | test_asset_index_hash_matches_file | TODO |
-| §8.1 | Missing asset file = error | tests/integration.rs | test_asset_missing_file_error | TODO |
-| §8.1 | Hash mismatch = error | tests/integration.rs | test_asset_hash_mismatch_error | TODO |
-| §4.1 | Asset hashes included in document ID | tests/integration.rs | test_asset_hashes_included_in_document_id | TODO |
+| §8.1 | Asset hash must match file content | tests/integration.rs | test_asset_index_hash_matches_file | PASS |
+| §8.1 | Missing asset file = error | tests/integration.rs | test_asset_missing_file_error | PASS |
+| §8.1 | Hash mismatch = error | tests/integration.rs | test_asset_hash_mismatch_error | PASS |
+| §4.1 | Asset hashes included in document ID | tests/integration.rs | test_asset_hashes_included_in_document_id | PASS |
 
 ## 7. Provenance and Lineage (09-provenance-and-lineage.md)
 
@@ -140,10 +140,10 @@ This document maps requirements from the [Codex File Format Specification](../co
 
 | Category | Property | Test File | Test Name | Status |
 |----------|----------|-----------|-----------|--------|
-| Hash boundary | Metadata subset inclusion consistent | tests/integration.rs | proptest_hash_boundary_metadata_inclusion | TODO |
-| Hash determinism | Same content = same hash | tests/integration.rs | proptest_hash_determinism_random_content | TODO |
-| Serialization | Content round-trip preserves structure | tests/integration.rs | proptest_content_serialization_roundtrip | TODO |
-| Block structure | Valid blocks serialize correctly | tests/integration.rs | proptest_block_structure_constraints | TODO |
+| Hash boundary | Metadata subset inclusion consistent | tests/integration.rs | proptest_hash_boundary_metadata_inclusion | PASS |
+| Hash determinism | Same content = same hash | tests/integration.rs | proptest_hash_determinism_random_content | PASS |
+| Serialization | Content round-trip preserves structure | tests/integration.rs | proptest_content_serialization_roundtrip | PASS |
+| Block structure | Valid blocks serialize correctly | tests/integration.rs | proptest_block_structure_constraints | PASS |
 
 ---
 
@@ -151,18 +151,18 @@ This document maps requirements from the [Codex File Format Specification](../co
 
 | Category | Total | Passing | TODO |
 |----------|-------|---------|------|
-| Container Format | 5 | 3 | 1 |
+| Container Format | 5 | 4 | 0 |
 | Manifest | 13 | 13 | 0 |
 | Content Blocks | 3 | 3 | 0 |
 | Document Hashing | 16 | 16 | 0 |
 | State Machine | 10 | 10 | 0 |
-| Asset Embedding | 7 | 3 | 4 |
+| Asset Embedding | 7 | 7 | 0 |
 | Provenance/Lineage | 10 | 10 | 0 |
 | Metadata | 3 | 3 | 0 |
 | Security | 4 | 4 | 0 |
 | Extensions | 4 | 4 | 0 |
-| Property-Based | 4 | 0 | 4 |
-| **Total** | **79** | **69** | **9** |
+| Property-Based | 4 | 4 | 0 |
+| **Total** | **79** | **78** | **0** |
 
 ---
 

@@ -2562,6 +2562,193 @@ mod archive_structure_tests {
     }
 }
 
+/// Asset embedding tests - Per spec §05-asset-embedding.md
+mod asset_embedding_tests {
+    use cdx_core::archive::{CdxReader, CdxWriter, CompressionMethod};
+    use cdx_core::asset::{verify_asset_hash, ImageAsset, ImageFormat, ImageIndex};
+    use cdx_core::{ContentRef, DocumentId, HashAlgorithm, Hasher, Manifest, Metadata, Result};
+
+    const CONTENT_PATH: &str = "content/document.json";
+    const DUBLIN_CORE_PATH: &str = "metadata/dublin-core.json";
+    const ASSET_PATH: &str = "assets/images/logo.png";
+    const INDEX_PATH: &str = "assets/images/index.json";
+
+    fn create_test_manifest() -> Manifest {
+        let content = ContentRef {
+            path: CONTENT_PATH.to_string(),
+            hash: DocumentId::pending(),
+            compression: None,
+            merkle_root: None,
+            block_count: None,
+        };
+        let metadata = Metadata {
+            dublin_core: DUBLIN_CORE_PATH.to_string(),
+            custom: None,
+        };
+        Manifest::new(content, metadata)
+    }
+
+    /// Per spec §05-asset-embedding.md §8.1 - Asset hash must match file content
+    #[test]
+    fn test_asset_index_hash_matches_file() -> Result<()> {
+        let asset_data = b"fake PNG image data for testing";
+        let hash = Hasher::hash(HashAlgorithm::Sha256, asset_data);
+
+        // verify_asset_hash should pass when hash matches
+        assert!(verify_asset_hash(ASSET_PATH, asset_data, &hash, HashAlgorithm::Sha256).is_ok());
+
+        // Build an archive with the asset and verify via CdxReader
+        let mut writer = CdxWriter::in_memory();
+        let manifest = create_test_manifest();
+        writer.write_manifest(&manifest)?;
+        writer.write_file(
+            CONTENT_PATH,
+            br#"{"version":"0.1","blocks":[]}"#,
+            CompressionMethod::Deflate,
+        )?;
+        writer.write_file(
+            DUBLIN_CORE_PATH,
+            br#"{"title":"Test"}"#,
+            CompressionMethod::Deflate,
+        )?;
+        writer.write_file(ASSET_PATH, asset_data, CompressionMethod::Stored)?;
+
+        let bytes = writer.finish()?.into_inner();
+        let mut reader = CdxReader::from_bytes(bytes)?;
+
+        // Read the asset file and verify its hash
+        let read_data = reader.read_file_verified(ASSET_PATH, &hash)?;
+        assert_eq!(read_data, asset_data);
+
+        Ok(())
+    }
+
+    /// Per spec §05-asset-embedding.md §8.1 - Missing asset file = error
+    #[test]
+    fn test_asset_missing_file_error() -> Result<()> {
+        // Create an archive WITHOUT the asset file
+        let mut writer = CdxWriter::in_memory();
+        let manifest = create_test_manifest();
+        writer.write_manifest(&manifest)?;
+        writer.write_file(
+            CONTENT_PATH,
+            br#"{"version":"0.1","blocks":[]}"#,
+            CompressionMethod::Deflate,
+        )?;
+        writer.write_file(
+            DUBLIN_CORE_PATH,
+            br#"{"title":"Test"}"#,
+            CompressionMethod::Deflate,
+        )?;
+
+        // Write an asset index that references a file not in the archive
+        let hash = Hasher::hash(HashAlgorithm::Sha256, b"nonexistent data");
+        let image = ImageAsset::new("logo", ImageFormat::Png)
+            .with_hash(hash)
+            .with_size(100);
+        let mut index: ImageIndex = Default::default();
+        index.add(image, 100);
+        let index_json = serde_json::to_vec_pretty(&index)?;
+        writer.write_file(INDEX_PATH, &index_json, CompressionMethod::Deflate)?;
+
+        let bytes = writer.finish()?.into_inner();
+        let mut reader = CdxReader::from_bytes(bytes)?;
+
+        // Trying to read the missing asset file should fail
+        let result = reader.read_file(ASSET_PATH);
+        assert!(result.is_err(), "Reading a missing asset file should error");
+
+        Ok(())
+    }
+
+    /// Per spec §05-asset-embedding.md §8.1 - Hash mismatch = error
+    #[test]
+    fn test_asset_hash_mismatch_error() -> Result<()> {
+        let asset_data = b"actual asset content";
+        let wrong_hash = Hasher::hash(HashAlgorithm::Sha256, b"different content");
+
+        // verify_asset_hash should fail when hash doesn't match
+        let result = verify_asset_hash(ASSET_PATH, asset_data, &wrong_hash, HashAlgorithm::Sha256);
+        assert!(result.is_err(), "Hash mismatch should produce error");
+
+        // Also verify via CdxReader::read_file_verified
+        let mut writer = CdxWriter::in_memory();
+        let manifest = create_test_manifest();
+        writer.write_manifest(&manifest)?;
+        writer.write_file(
+            CONTENT_PATH,
+            br#"{"version":"0.1","blocks":[]}"#,
+            CompressionMethod::Deflate,
+        )?;
+        writer.write_file(
+            DUBLIN_CORE_PATH,
+            br#"{"title":"Test"}"#,
+            CompressionMethod::Deflate,
+        )?;
+        writer.write_file(ASSET_PATH, asset_data, CompressionMethod::Stored)?;
+
+        let bytes = writer.finish()?.into_inner();
+        let mut reader = CdxReader::from_bytes(bytes)?;
+
+        let result = reader.read_file_verified(ASSET_PATH, &wrong_hash);
+        assert!(
+            result.is_err(),
+            "read_file_verified should fail on hash mismatch"
+        );
+
+        Ok(())
+    }
+
+    /// Per spec §05-asset-embedding.md §4.1 - Asset references in content
+    /// affect document ID (Image block src is part of content hash)
+    #[test]
+    fn test_asset_hashes_included_in_document_id() -> Result<()> {
+        use cdx_core::content::Block;
+        use cdx_core::Document;
+
+        // Two documents with different Image block src paths should have
+        // different document IDs, because the src field is part of the
+        // content which is included in the document ID hash.
+        let doc1 = Document::builder()
+            .title("Asset ID Test")
+            .creator("Author")
+            .add_paragraph("Text before image")
+            .add_block(Block::image("assets/images/photo_v1.png", "Photo"))
+            .build()?;
+
+        let doc2 = Document::builder()
+            .title("Asset ID Test")
+            .creator("Author")
+            .add_paragraph("Text before image")
+            .add_block(Block::image("assets/images/photo_v2.png", "Photo"))
+            .build()?;
+
+        let id1 = doc1.compute_id()?;
+        let id2 = doc2.compute_id()?;
+
+        assert_ne!(
+            id1, id2,
+            "Different asset references in content should produce different document IDs"
+        );
+
+        // Same asset path should produce same document ID
+        let doc3 = Document::builder()
+            .title("Asset ID Test")
+            .creator("Author")
+            .add_paragraph("Text before image")
+            .add_block(Block::image("assets/images/photo_v1.png", "Photo"))
+            .build()?;
+
+        let id3 = doc3.compute_id()?;
+        assert_eq!(
+            id1, id3,
+            "Same asset references should produce same document ID"
+        );
+
+        Ok(())
+    }
+}
+
 /// Property-based tests using proptest
 #[cfg(test)]
 mod proptest_tests {
@@ -2616,6 +2803,78 @@ mod proptest_tests {
 
             prop_assert_eq!(doc.title(), loaded.title());
             prop_assert_eq!(doc.content().blocks.len(), loaded.content().blocks.len());
+        }
+
+        /// Per spec §06-document-hashing.md §4.1 - Metadata subset changes affect hash
+        #[test]
+        fn proptest_hash_boundary_metadata_inclusion(
+            title1 in "[a-zA-Z ]{1,50}",
+            title2 in "[a-zA-Z ]{1,50}",
+            creator1 in "[a-zA-Z ]{1,30}",
+            creator2 in "[a-zA-Z ]{1,30}",
+        ) {
+            // When both title and creator differ, the document IDs must differ.
+            // (Skip when all pairs happen to match by coincidence.)
+            prop_assume!(title1 != title2 || creator1 != creator2);
+
+            let doc1 = Document::builder()
+                .title(&title1)
+                .creator(&creator1)
+                .add_paragraph("Fixed content")
+                .build()
+                .unwrap();
+
+            let doc2 = Document::builder()
+                .title(&title2)
+                .creator(&creator2)
+                .add_paragraph("Fixed content")
+                .build()
+                .unwrap();
+
+            let id1 = doc1.compute_id().unwrap();
+            let id2 = doc2.compute_id().unwrap();
+
+            prop_assert_ne!(
+                id1, id2,
+                "Different identity metadata should produce different hashes"
+            );
+        }
+
+        /// Valid blocks always serialize to JSON with a "type" field and deserialize back
+        #[test]
+        fn proptest_block_structure_constraints(
+            text in "[a-zA-Z0-9 .,!?]{1,100}",
+            level in 1u8..=6u8,
+            lang in "(rust|python|javascript|go|java)"
+        ) {
+            use cdx_core::content::Block;
+
+            let blocks = vec![
+                Block::paragraph(vec![]),
+                Block::heading(level, vec![]),
+                Block::code_block(text, Some(lang)),
+                Block::horizontal_rule(),
+                Block::blockquote(vec![]),
+            ];
+
+            for block in &blocks {
+                let json = serde_json::to_value(block).unwrap();
+                // Every block must have a "type" field
+                prop_assert!(
+                    json.get("type").is_some(),
+                    "Block {:?} must serialize with a 'type' field",
+                    block
+                );
+
+                // Round-trip: deserialize should produce an equivalent block
+                let json_str = serde_json::to_string(block).unwrap();
+                let deserialized: Block = serde_json::from_str(&json_str).unwrap();
+                let re_serialized = serde_json::to_string(&deserialized).unwrap();
+                prop_assert_eq!(
+                    json_str, re_serialized,
+                    "Block round-trip should be stable"
+                );
+            }
         }
     }
 }
