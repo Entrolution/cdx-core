@@ -27,8 +27,8 @@ This library provides the foundational capabilities for working with Codex docum
 - **Document Builder** - Fluent API for creating documents programmatically
 - **Metadata** - Dublin Core metadata support
 - **Presentation Layers** - Paginated and continuous presentation types
-- **Digital Signatures** - ECDSA P-256 (ES256) and Ed25519 signing and verification
-- **Encryption** - AES-256-GCM content encryption
+- **Digital Signatures** - ECDSA P-256 (ES256), P-384 (ES384), Ed25519, RSA-PSS (PS256), and ML-DSA-65 signing and verification
+- **Encryption** - AES-256-GCM and ChaCha20-Poly1305 content encryption
 - **Asset Management** - Embed and manage images, fonts, and files
 - **Document Verification** - Verify content hashes and document integrity
 - **Provenance** - Merkle trees, block proofs, and timestamp support for content lineage
@@ -51,9 +51,16 @@ cdx-core = "0.3"
 |---------|---------|-------------|
 | `zstd` | Yes | Zstandard compression support |
 | `signatures` | Yes | ECDSA P-256 digital signatures (ES256) |
+| `signatures-es384` | No | P-384 ECDSA digital signatures (ES384) |
+| `signatures-rsa` | No | RSA-PSS digital signatures (PS256) |
 | `encryption` | No | AES-256-GCM content encryption |
+| `encryption-chacha` | No | ChaCha20-Poly1305 content encryption |
+| `key-wrapping` | No | ECDH-ES+A256KW key agreement |
+| `key-wrapping-rsa` | No | RSA-OAEP-256 key wrapping |
+| `key-wrapping-pbes2` | No | PBES2 password-based key wrapping |
 | `eddsa` | No | Ed25519 digital signatures |
 | `ml-dsa` | No | ML-DSA-65 post-quantum signatures |
+| `webauthn` | No | WebAuthn/FIDO2 signature verification |
 | `timestamps-rfc3161` | No | RFC 3161 timestamp acquisition |
 | `timestamps-ots` | No | OpenTimestamps (Bitcoin anchoring) |
 | `ocsp` | No | Certificate revocation checking (OCSP/CRL) |
