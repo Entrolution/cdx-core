@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-02-16
+
 ### Changed
 
 #### Spec Serialization Compliance
@@ -17,7 +19,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Breaking:** `Block::block_type()` returns `Cow<'_, str>` instead of `&'static str`; extension blocks return `"namespace:blockType"` instead of `"extension"`
 - `FigCaption` block type serializes as `"figcaption"` (lowercase) instead of `"figCaption"`
 - All old formats are accepted on deserialization for backward compatibility
-- Added conformance test suite (`tests/conformance.rs`) to prevent future spec drift
+
+#### CLI Restructuring
+- Split `cdx-cli/src/main.rs` into `cli.rs` (argument definitions), `dispatcher.rs` (command dispatch), and `main.rs` (entry point)
+
+### Added
+
+#### Spec Conformance Testing
+- Conformance test suite (`tests/conformance.rs`) covering all 78 testable spec requirements
+- Conformance matrix (`docs/conformance-matrix.md`) mapping spec sections to tests — 78/79 PASS, 0 TODO
+- Hash boundary tests verifying document ID includes/excludes correct fields
+- Asset embedding tests: hash verification, missing file detection, hash mismatch errors
+- State machine enforcement tests for review/frozen/published requirements
+- Provenance/lineage validation tests
+- Property-based tests using proptest for hash determinism, metadata inclusion, block round-trips
+- Fuzz targets for Block, Mark, and Content deserialization (`fuzz/fuzz_targets/`)
+
+#### Security Policy
+- Added `SECURITY.md` with supported versions and vulnerability reporting process
 
 ## [0.4.0] - 2026-02-16
 
@@ -257,7 +276,8 @@ Initial release implementing Codex Document Format Specification v0.1.
 - `sign_document` - Sign a document with ES256
 - `extract_content` - Extract text content from blocks
 
-[Unreleased]: https://github.com/Entrolution/cdx-core/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/Entrolution/cdx-core/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/Entrolution/cdx-core/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/Entrolution/cdx-core/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Entrolution/cdx-core/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Entrolution/cdx-core/compare/v0.1.0...v0.2.0
