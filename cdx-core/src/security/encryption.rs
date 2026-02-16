@@ -5,6 +5,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::error::{encryption_error, invalid_manifest};
 use crate::Result;
 
 /// Encryption algorithm enumeration.
@@ -167,8 +168,11 @@ impl Aes256GcmEncryptor {
     ///
     /// Returns an error if the key is not 32 bytes.
     pub fn new(key: &[u8]) -> Result<Self> {
-        let key: [u8; 32] = key.try_into().map_err(|_| crate::Error::InvalidManifest {
-            reason: format!("Invalid key length: expected 32 bytes, got {}", key.len()),
+        let key: [u8; 32] = key.try_into().map_err(|_| {
+            invalid_manifest(format!(
+                "Invalid key length: expected 32 bytes, got {}",
+                key.len()
+            ))
         })?;
         Ok(Self { key })
     }
@@ -209,18 +213,13 @@ impl Aes256GcmEncryptor {
             Aes256Gcm, Nonce,
         };
 
-        let cipher =
-            Aes256Gcm::new_from_slice(&self.key).map_err(|e| crate::Error::InvalidManifest {
-                reason: format!("Failed to create cipher: {e}"),
-            })?;
+        let cipher = Aes256Gcm::new_from_slice(&self.key)
+            .map_err(|e| invalid_manifest(format!("Failed to create cipher: {e}")))?;
 
         let nonce_obj = Nonce::from(*nonce);
-        let ciphertext =
-            cipher
-                .encrypt(&nonce_obj, plaintext)
-                .map_err(|e| crate::Error::InvalidManifest {
-                    reason: format!("Encryption failed: {e}"),
-                })?;
+        let ciphertext = cipher
+            .encrypt(&nonce_obj, plaintext)
+            .map_err(|e| invalid_manifest(format!("Encryption failed: {e}")))?;
 
         // GCM appends the tag to the ciphertext
         let tag_start = ciphertext.len().saturating_sub(16);
@@ -244,26 +243,20 @@ impl Aes256GcmEncryptor {
             Aes256Gcm, Nonce,
         };
 
-        let nonce: [u8; 12] = nonce
-            .try_into()
-            .map_err(|_| crate::Error::InvalidManifest {
-                reason: format!(
-                    "Invalid nonce length: expected 12 bytes, got {}",
-                    nonce.len()
-                ),
-            })?;
+        let nonce: [u8; 12] = nonce.try_into().map_err(|_| {
+            invalid_manifest(format!(
+                "Invalid nonce length: expected 12 bytes, got {}",
+                nonce.len()
+            ))
+        })?;
 
-        let cipher =
-            Aes256Gcm::new_from_slice(&self.key).map_err(|e| crate::Error::InvalidManifest {
-                reason: format!("Failed to create cipher: {e}"),
-            })?;
+        let cipher = Aes256Gcm::new_from_slice(&self.key)
+            .map_err(|e| invalid_manifest(format!("Failed to create cipher: {e}")))?;
 
         let nonce_obj = Nonce::from(nonce);
         cipher
             .decrypt(&nonce_obj, ciphertext)
-            .map_err(|e| crate::Error::InvalidManifest {
-                reason: format!("Decryption failed: {e}"),
-            })
+            .map_err(|e| invalid_manifest(format!("Decryption failed: {e}")))
     }
 }
 
@@ -282,8 +275,11 @@ impl ChaCha20Poly1305Encryptor {
     ///
     /// Returns an error if the key is not 32 bytes.
     pub fn new(key: &[u8]) -> Result<Self> {
-        let key: [u8; 32] = key.try_into().map_err(|_| crate::Error::InvalidManifest {
-            reason: format!("Invalid key length: expected 32 bytes, got {}", key.len()),
+        let key: [u8; 32] = key.try_into().map_err(|_| {
+            invalid_manifest(format!(
+                "Invalid key length: expected 32 bytes, got {}",
+                key.len()
+            ))
         })?;
         Ok(Self { key })
     }
@@ -324,19 +320,13 @@ impl ChaCha20Poly1305Encryptor {
             ChaCha20Poly1305, Nonce,
         };
 
-        let cipher = ChaCha20Poly1305::new_from_slice(&self.key).map_err(|e| {
-            crate::Error::InvalidManifest {
-                reason: format!("Failed to create cipher: {e}"),
-            }
-        })?;
+        let cipher = ChaCha20Poly1305::new_from_slice(&self.key)
+            .map_err(|e| invalid_manifest(format!("Failed to create cipher: {e}")))?;
 
         let nonce_obj = Nonce::from(*nonce);
-        let ciphertext =
-            cipher
-                .encrypt(&nonce_obj, plaintext)
-                .map_err(|e| crate::Error::InvalidManifest {
-                    reason: format!("Encryption failed: {e}"),
-                })?;
+        let ciphertext = cipher
+            .encrypt(&nonce_obj, plaintext)
+            .map_err(|e| invalid_manifest(format!("Encryption failed: {e}")))?;
 
         // Poly1305 appends the tag to the ciphertext (16 bytes)
         let tag_start = ciphertext.len().saturating_sub(16);
@@ -360,27 +350,20 @@ impl ChaCha20Poly1305Encryptor {
             ChaCha20Poly1305, Nonce,
         };
 
-        let nonce: [u8; 12] = nonce
-            .try_into()
-            .map_err(|_| crate::Error::InvalidManifest {
-                reason: format!(
-                    "Invalid nonce length: expected 12 bytes, got {}",
-                    nonce.len()
-                ),
-            })?;
-
-        let cipher = ChaCha20Poly1305::new_from_slice(&self.key).map_err(|e| {
-            crate::Error::InvalidManifest {
-                reason: format!("Failed to create cipher: {e}"),
-            }
+        let nonce: [u8; 12] = nonce.try_into().map_err(|_| {
+            invalid_manifest(format!(
+                "Invalid nonce length: expected 12 bytes, got {}",
+                nonce.len()
+            ))
         })?;
+
+        let cipher = ChaCha20Poly1305::new_from_slice(&self.key)
+            .map_err(|e| invalid_manifest(format!("Failed to create cipher: {e}")))?;
 
         let nonce_obj = Nonce::from(nonce);
         cipher
             .decrypt(&nonce_obj, ciphertext)
-            .map_err(|e| crate::Error::InvalidManifest {
-                reason: format!("Decryption failed: {e}"),
-            })
+            .map_err(|e| invalid_manifest(format!("Decryption failed: {e}")))
     }
 }
 
@@ -452,17 +435,13 @@ impl EcdhEsKeyWrapper {
         let hkdf = Hkdf::<Sha256>::new(None, shared_secret.raw_secret_bytes());
         let mut kek_bytes = [0u8; 32];
         hkdf.expand(b"ECDH-ES+A256KW", &mut kek_bytes)
-            .map_err(|e| crate::Error::EncryptionError {
-                reason: format!("HKDF expansion failed: {e}"),
-            })?;
+            .map_err(|e| encryption_error(format!("HKDF expansion failed: {e}")))?;
 
         // 4. AES Key Wrap (RFC 3394)
         let kek = KwAes256::new(&kek_bytes.into());
         let mut wrapped = vec![0u8; content_key.len() + 8]; // AES-KW adds 8-byte IV
         kek.wrap_key(content_key, &mut wrapped)
-            .map_err(|e| crate::Error::EncryptionError {
-                reason: format!("AES key wrap failed: {e}"),
-            })?;
+            .map_err(|e| encryption_error(format!("AES key wrap failed: {e}")))?;
 
         // Encode ephemeral public key as SEC1 uncompressed point
         let ephemeral_public_bytes = ephemeral_public.to_sec1_bytes().to_vec();
@@ -506,9 +485,7 @@ impl EcdhEsKeyUnwrapper {
 
         // 1. Decode the ephemeral public key from SEC1 bytes
         let ephemeral_public = p256::PublicKey::from_sec1_bytes(&data.ephemeral_public_key)
-            .map_err(|e| crate::Error::EncryptionError {
-                reason: format!("Invalid ephemeral public key: {e}"),
-            })?;
+            .map_err(|e| encryption_error(format!("Invalid ephemeral public key: {e}")))?;
 
         // 2. ECDH key agreement using recipient's secret key
         let shared_secret = p256::ecdh::diffie_hellman(
@@ -520,24 +497,18 @@ impl EcdhEsKeyUnwrapper {
         let hkdf = Hkdf::<Sha256>::new(None, shared_secret.raw_secret_bytes());
         let mut kek_bytes = [0u8; 32];
         hkdf.expand(b"ECDH-ES+A256KW", &mut kek_bytes)
-            .map_err(|e| crate::Error::EncryptionError {
-                reason: format!("HKDF expansion failed: {e}"),
-            })?;
+            .map_err(|e| encryption_error(format!("HKDF expansion failed: {e}")))?;
 
         // 4. AES Key Unwrap (wrapped key is original_len + 8 bytes)
         let kek = KwAes256::new(&kek_bytes.into());
-        let unwrapped_len =
-            data.wrapped_key
-                .len()
-                .checked_sub(8)
-                .ok_or_else(|| crate::Error::EncryptionError {
-                    reason: "Wrapped key too short".to_string(),
-                })?;
+        let unwrapped_len = data
+            .wrapped_key
+            .len()
+            .checked_sub(8)
+            .ok_or_else(|| encryption_error("Wrapped key too short"))?;
         let mut unwrapped = vec![0u8; unwrapped_len];
         kek.unwrap_key(&data.wrapped_key, &mut unwrapped)
-            .map_err(|e| crate::Error::EncryptionError {
-                reason: format!("AES key unwrap failed: {e}"),
-            })?;
+            .map_err(|e| encryption_error(format!("AES key unwrap failed: {e}")))?;
         Ok(unwrapped)
     }
 }
@@ -586,9 +557,7 @@ impl RsaOaepKeyWrapper {
         let encrypting_key = EncryptingKey::<Sha256>::new(self.recipient_public_key.clone());
         let wrapped_key = encrypting_key
             .encrypt_with_rng(&mut rand_core::UnwrapErr(getrandom::SysRng), content_key)
-            .map_err(|e| crate::Error::EncryptionError {
-                reason: format!("RSA-OAEP wrap failed: {e}"),
-            })?;
+            .map_err(|e| encryption_error(format!("RSA-OAEP wrap failed: {e}")))?;
 
         Ok(RsaWrappedKeyData { wrapped_key })
     }
@@ -625,9 +594,7 @@ impl RsaOaepKeyUnwrapper {
         let decrypting_key = DecryptingKey::<Sha256>::new(self.recipient_private_key.clone());
         decrypting_key
             .decrypt(&data.wrapped_key)
-            .map_err(|e| crate::Error::EncryptionError {
-                reason: format!("RSA-OAEP unwrap failed: {e}"),
-            })
+            .map_err(|e| encryption_error(format!("RSA-OAEP unwrap failed: {e}")))
     }
 }
 
@@ -684,9 +651,8 @@ impl Pbes2KeyWrapper {
 
         // Generate random 16-byte salt
         let mut salt = [0u8; 16];
-        getrandom::fill(&mut salt).map_err(|e| crate::Error::EncryptionError {
-            reason: format!("System RNG failed: {e}"),
-        })?;
+        getrandom::fill(&mut salt)
+            .map_err(|e| encryption_error(format!("System RNG failed: {e}")))?;
 
         // Derive KEK via PBKDF2-HMAC-SHA256
         let mut kek_bytes = [0u8; 32];
@@ -696,9 +662,7 @@ impl Pbes2KeyWrapper {
         let kek = KwAes256::new(&kek_bytes.into());
         let mut wrapped = vec![0u8; content_key.len() + 8];
         kek.wrap_key(content_key, &mut wrapped)
-            .map_err(|e| crate::Error::EncryptionError {
-                reason: format!("PBES2 AES key wrap failed: {e}"),
-            })?;
+            .map_err(|e| encryption_error(format!("PBES2 AES key wrap failed: {e}")))?;
 
         Ok(Pbes2WrappedKeyData {
             wrapped_key: wrapped,
@@ -749,18 +713,14 @@ impl Pbes2KeyUnwrapper {
 
         // AES Key Unwrap
         let kek = KwAes256::new(&kek_bytes.into());
-        let unwrapped_len =
-            data.wrapped_key
-                .len()
-                .checked_sub(8)
-                .ok_or_else(|| crate::Error::EncryptionError {
-                    reason: "Wrapped key too short".to_string(),
-                })?;
+        let unwrapped_len = data
+            .wrapped_key
+            .len()
+            .checked_sub(8)
+            .ok_or_else(|| encryption_error("Wrapped key too short"))?;
         let mut unwrapped = vec![0u8; unwrapped_len];
         kek.unwrap_key(&data.wrapped_key, &mut unwrapped)
-            .map_err(|e| crate::Error::EncryptionError {
-                reason: format!("PBES2 AES key unwrap failed: {e}"),
-            })?;
+            .map_err(|e| encryption_error(format!("PBES2 AES key unwrap failed: {e}")))?;
         Ok(unwrapped)
     }
 }

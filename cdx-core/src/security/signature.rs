@@ -266,12 +266,12 @@ impl SignatureScope {
     ///
     /// Returns an error if serialization fails.
     pub fn to_jcs(&self) -> crate::Result<Vec<u8>> {
+        use crate::error::invalid_manifest;
+
         // Use json-canon for JCS serialization
         let value = serde_json::to_value(self)?;
-        let canonical =
-            json_canon::to_string(&value).map_err(|e| crate::Error::InvalidManifest {
-                reason: format!("JCS serialization failed: {e}"),
-            })?;
+        let canonical = json_canon::to_string(&value)
+            .map_err(|e| invalid_manifest(format!("JCS serialization failed: {e}")))?;
         Ok(canonical.into_bytes())
     }
 }

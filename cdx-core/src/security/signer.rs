@@ -1,5 +1,6 @@
 //! Signer and verifier traits and implementations.
 
+use crate::error::invalid_manifest;
 use crate::{DocumentId, Result};
 
 use super::signature::{Signature, SignatureAlgorithm, SignatureVerification, SignerInfo};
@@ -51,11 +52,8 @@ impl EcdsaSigner {
     pub fn from_pem(pem: &str, signer_info: SignerInfo) -> Result<Self> {
         use p256::pkcs8::DecodePrivateKey;
 
-        let signing_key = p256::ecdsa::SigningKey::from_pkcs8_pem(pem).map_err(|e| {
-            crate::Error::InvalidManifest {
-                reason: format!("Failed to parse private key PEM: {e}"),
-            }
-        })?;
+        let signing_key = p256::ecdsa::SigningKey::from_pkcs8_pem(pem)
+            .map_err(|e| invalid_manifest(format!("Failed to parse private key PEM: {e}")))?;
 
         Ok(Self {
             signing_key,
@@ -78,9 +76,7 @@ impl EcdsaSigner {
         let verifying_key = signing_key.verifying_key();
         let public_key_pem = verifying_key
             .to_public_key_pem(p256::pkcs8::LineEnding::LF)
-            .map_err(|e| crate::Error::InvalidManifest {
-                reason: format!("Failed to encode public key: {e}"),
-            })?;
+            .map_err(|e| invalid_manifest(format!("Failed to encode public key: {e}")))?;
 
         Ok((
             Self {
@@ -102,9 +98,7 @@ impl EcdsaSigner {
         self.signing_key
             .verifying_key()
             .to_public_key_pem(p256::pkcs8::LineEnding::LF)
-            .map_err(|e| crate::Error::InvalidManifest {
-                reason: format!("Failed to encode public key: {e}"),
-            })
+            .map_err(|e| invalid_manifest(format!("Failed to encode public key: {e}")))
     }
 }
 
@@ -165,11 +159,8 @@ impl EcdsaVerifier {
     pub fn from_pem(pem: &str) -> Result<Self> {
         use p256::pkcs8::DecodePublicKey;
 
-        let verifying_key = p256::ecdsa::VerifyingKey::from_public_key_pem(pem).map_err(|e| {
-            crate::Error::InvalidManifest {
-                reason: format!("Failed to parse public key PEM: {e}"),
-            }
-        })?;
+        let verifying_key = p256::ecdsa::VerifyingKey::from_public_key_pem(pem)
+            .map_err(|e| invalid_manifest(format!("Failed to parse public key PEM: {e}")))?;
 
         Ok(Self { verifying_key })
     }
@@ -198,16 +189,11 @@ impl Verifier for EcdsaVerifier {
         // Decode signature from base64
         let sig_bytes = base64::engine::general_purpose::STANDARD
             .decode(&signature.value)
-            .map_err(|e| crate::Error::InvalidManifest {
-                reason: format!("Failed to decode signature: {e}"),
-            })?;
+            .map_err(|e| invalid_manifest(format!("Failed to decode signature: {e}")))?;
 
         // Parse signature
-        let ecdsa_sig = p256::ecdsa::Signature::from_slice(&sig_bytes).map_err(|e| {
-            crate::Error::InvalidManifest {
-                reason: format!("Invalid signature format: {e}"),
-            }
-        })?;
+        let ecdsa_sig = p256::ecdsa::Signature::from_slice(&sig_bytes)
+            .map_err(|e| invalid_manifest(format!("Invalid signature format: {e}")))?;
 
         // Verify
         match self.verifying_key.verify(document_id.digest(), &ecdsa_sig) {

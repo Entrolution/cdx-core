@@ -31,6 +31,7 @@ use sha2::{Digest, Sha256};
 
 use super::signature::{Signature, SignatureVerification, WebAuthnSignature};
 use super::Verifier;
+use crate::error::invalid_manifest;
 use crate::{DocumentId, Result};
 
 /// WebAuthn client data structure.
@@ -83,11 +84,8 @@ impl WebAuthnVerifier {
     ///
     /// Returns an error if the public key cannot be parsed.
     pub fn new(expected_origin: impl Into<String>, public_key: &[u8]) -> Result<Self> {
-        let verifying_key = VerifyingKey::from_sec1_bytes(public_key).map_err(|e| {
-            crate::Error::InvalidManifest {
-                reason: format!("Invalid WebAuthn public key: {e}"),
-            }
-        })?;
+        let verifying_key = VerifyingKey::from_sec1_bytes(public_key)
+            .map_err(|e| invalid_manifest(format!("Invalid WebAuthn public key: {e}")))?;
 
         Ok(Self {
             expected_origin: expected_origin.into(),
@@ -104,10 +102,8 @@ impl WebAuthnVerifier {
     pub fn from_pem(expected_origin: impl Into<String>, pem: &str) -> Result<Self> {
         use p256::pkcs8::DecodePublicKey;
 
-        let verifying_key =
-            VerifyingKey::from_public_key_pem(pem).map_err(|e| crate::Error::InvalidManifest {
-                reason: format!("Invalid WebAuthn public key PEM: {e}"),
-            })?;
+        let verifying_key = VerifyingKey::from_public_key_pem(pem)
+            .map_err(|e| invalid_manifest(format!("Invalid WebAuthn public key PEM: {e}")))?;
 
         Ok(Self {
             expected_origin: expected_origin.into(),
@@ -132,12 +128,9 @@ impl WebAuthnVerifier {
         let engine = base64::engine::general_purpose::STANDARD;
 
         // Decode credential ID
-        let credential_id =
-            engine
-                .decode(&webauthn.credential_id)
-                .map_err(|e| crate::Error::InvalidManifest {
-                    reason: format!("Invalid credential ID base64: {e}"),
-                })?;
+        let credential_id = engine
+            .decode(&webauthn.credential_id)
+            .map_err(|e| invalid_manifest(format!("Invalid credential ID base64: {e}")))?;
 
         // Verify credential ID if expected
         if let Some(ref expected) = self.expected_credential_id {
@@ -147,18 +140,13 @@ impl WebAuthnVerifier {
         }
 
         // Decode client data JSON
-        let client_data_bytes = engine.decode(&webauthn.client_data_json).map_err(|e| {
-            crate::Error::InvalidManifest {
-                reason: format!("Invalid clientDataJSON base64: {e}"),
-            }
-        })?;
+        let client_data_bytes = engine
+            .decode(&webauthn.client_data_json)
+            .map_err(|e| invalid_manifest(format!("Invalid clientDataJSON base64: {e}")))?;
 
         // Parse client data
-        let client_data: ClientData = serde_json::from_slice(&client_data_bytes).map_err(|e| {
-            crate::Error::InvalidManifest {
-                reason: format!("Invalid clientDataJSON: {e}"),
-            }
-        })?;
+        let client_data: ClientData = serde_json::from_slice(&client_data_bytes)
+            .map_err(|e| invalid_manifest(format!("Invalid clientDataJSON: {e}")))?;
 
         // Verify type
         if client_data.type_ != "webauthn.get" {
@@ -186,9 +174,7 @@ impl WebAuthnVerifier {
         // WebAuthn uses base64url encoding for the challenge
         let challenge_bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD
             .decode(&client_data.challenge)
-            .map_err(|e| crate::Error::InvalidManifest {
-                reason: format!("Invalid challenge base64url: {e}"),
-            })?;
+            .map_err(|e| invalid_manifest(format!("Invalid challenge base64url: {e}")))?;
 
         if challenge_bytes != document_id.digest() {
             return Ok(SignatureVerification::invalid(
@@ -198,11 +184,9 @@ impl WebAuthnVerifier {
         }
 
         // Decode authenticator data
-        let authenticator_data = engine.decode(&webauthn.authenticator_data).map_err(|e| {
-            crate::Error::InvalidManifest {
-                reason: format!("Invalid authenticatorData base64: {e}"),
-            }
-        })?;
+        let authenticator_data = engine
+            .decode(&webauthn.authenticator_data)
+            .map_err(|e| invalid_manifest(format!("Invalid authenticatorData base64: {e}")))?;
 
         // Verify authenticator data is at least 37 bytes (RP ID hash + flags + counter)
         if authenticator_data.len() < 37 {
@@ -222,19 +206,13 @@ impl WebAuthnVerifier {
         }
 
         // Decode signature
-        let signature_bytes =
-            engine
-                .decode(&webauthn.signature)
-                .map_err(|e| crate::Error::InvalidManifest {
-                    reason: format!("Invalid signature base64: {e}"),
-                })?;
+        let signature_bytes = engine
+            .decode(&webauthn.signature)
+            .map_err(|e| invalid_manifest(format!("Invalid signature base64: {e}")))?;
 
         // Parse the signature (DER-encoded ECDSA signature)
-        let signature = p256::ecdsa::DerSignature::from_bytes(&signature_bytes).map_err(|e| {
-            crate::Error::InvalidManifest {
-                reason: format!("Invalid ECDSA signature: {e}"),
-            }
-        })?;
+        let signature = p256::ecdsa::DerSignature::from_bytes(&signature_bytes)
+            .map_err(|e| invalid_manifest(format!("Invalid ECDSA signature: {e}")))?;
 
         // Compute the signed data: authenticator_data || SHA-256(clientDataJSON)
         let client_data_hash = Sha256::digest(&client_data_bytes);

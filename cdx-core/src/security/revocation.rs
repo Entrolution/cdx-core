@@ -35,6 +35,9 @@ use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "ocsp")]
+use crate::error::{invalid_certificate, network_error};
+
 /// Revocation status of a certificate.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "status", rename_all = "camelCase")]
@@ -352,9 +355,7 @@ impl RevocationChecker {
         let client = reqwest::Client::builder()
             .timeout(config.timeout)
             .build()
-            .map_err(|e| crate::Error::Network {
-                message: format!("Failed to create HTTP client: {e}"),
-            })?;
+            .map_err(|e| network_error(format!("Failed to create HTTP client: {e}")))?;
 
         Ok(Self { config, client })
     }
@@ -383,15 +384,11 @@ impl RevocationChecker {
         use x509_cert::Certificate;
 
         // Parse the certificates
-        let cert =
-            Certificate::from_der(cert_der).map_err(|e| crate::Error::InvalidCertificate {
-                reason: format!("Failed to parse certificate: {e}"),
-            })?;
+        let cert = Certificate::from_der(cert_der)
+            .map_err(|e| invalid_certificate(format!("Failed to parse certificate: {e}")))?;
 
-        let issuer =
-            Certificate::from_der(issuer_der).map_err(|e| crate::Error::InvalidCertificate {
-                reason: format!("Failed to parse issuer certificate: {e}"),
-            })?;
+        let issuer = Certificate::from_der(issuer_der)
+            .map_err(|e| invalid_certificate(format!("Failed to parse issuer certificate: {e}")))?;
 
         // Get serial number as hex string
         let serial_bytes = cert.tbs_certificate().serial_number().as_bytes();
@@ -418,9 +415,7 @@ impl RevocationChecker {
             .body(request_body)
             .send()
             .await
-            .map_err(|e| crate::Error::Network {
-                message: format!("OCSP request failed: {e}"),
-            })?;
+            .map_err(|e| network_error(format!("OCSP request failed: {e}")))?;
 
         if !response.status().is_success() {
             return Ok(RevocationResult::new(
@@ -433,9 +428,10 @@ impl RevocationChecker {
             .with_responder(&responder_url));
         }
 
-        let response_body = response.bytes().await.map_err(|e| crate::Error::Network {
-            message: format!("Failed to read OCSP response: {e}"),
-        })?;
+        let response_body = response
+            .bytes()
+            .await
+            .map_err(|e| network_error(format!("Failed to read OCSP response: {e}")))?;
 
         // Parse OCSP response
         let status = parse_ocsp_response(&response_body);
@@ -465,29 +461,24 @@ impl RevocationChecker {
         use x509_cert::Certificate;
 
         // Parse the certificate
-        let cert =
-            Certificate::from_der(cert_der).map_err(|e| crate::Error::InvalidCertificate {
-                reason: format!("Failed to parse certificate: {e}"),
-            })?;
+        let cert = Certificate::from_der(cert_der)
+            .map_err(|e| invalid_certificate(format!("Failed to parse certificate: {e}")))?;
 
         // Get serial number as hex string
         let serial_bytes = cert.tbs_certificate().serial_number().as_bytes();
         let serial = bytes_to_hex(serial_bytes);
 
         // Get CRL distribution point
-        let crl_url = extract_crl_url(&cert).ok_or_else(|| crate::Error::InvalidCertificate {
-            reason: "No CRL distribution point found in certificate".to_string(),
-        })?;
+        let crl_url = extract_crl_url(&cert)
+            .ok_or_else(|| invalid_certificate("No CRL distribution point found in certificate"))?;
 
         // Fetch CRL
-        let response =
-            self.client
-                .get(&crl_url)
-                .send()
-                .await
-                .map_err(|e| crate::Error::Network {
-                    message: format!("CRL fetch failed: {e}"),
-                })?;
+        let response = self
+            .client
+            .get(&crl_url)
+            .send()
+            .await
+            .map_err(|e| network_error(format!("CRL fetch failed: {e}")))?;
 
         if !response.status().is_success() {
             return Ok(RevocationResult::new(
@@ -500,9 +491,10 @@ impl RevocationChecker {
             .with_responder(&crl_url));
         }
 
-        let crl_data = response.bytes().await.map_err(|e| crate::Error::Network {
-            message: format!("Failed to read CRL: {e}"),
-        })?;
+        let crl_data = response
+            .bytes()
+            .await
+            .map_err(|e| network_error(format!("Failed to read CRL: {e}")))?;
 
         // Parse and check CRL
         let status = check_crl_for_serial(&crl_data, cert.tbs_certificate().serial_number())?;
@@ -703,10 +695,8 @@ fn check_crl_for_serial(
     use x509_cert::crl::CertificateList;
 
     // Parse the CRL
-    let crl =
-        CertificateList::from_der(crl_data).map_err(|e| crate::Error::InvalidCertificate {
-            reason: format!("Failed to parse CRL: {e}"),
-        })?;
+    let crl = CertificateList::from_der(crl_data)
+        .map_err(|e| invalid_certificate(format!("Failed to parse CRL: {e}")))?;
 
     // Check if the serial number is in the revoked list
     if let Some(revoked_certs) = &crl.tbs_cert_list.revoked_certificates {
