@@ -180,6 +180,10 @@ pub struct TextInputField {
     /// Validation rules.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub validation: Option<FormValidation>,
+
+    /// Conditional validation based on another field's value.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub conditional_validation: Option<ConditionalValidation>,
 }
 
 impl TextInputField {
@@ -195,6 +199,7 @@ impl TextInputField {
             readonly: false,
             input_type: None,
             validation: None,
+            conditional_validation: None,
         }
     }
 
@@ -246,6 +251,13 @@ impl TextInputField {
         self.validation = Some(validation);
         self
     }
+
+    /// Set conditional validation.
+    #[must_use]
+    pub fn with_conditional_validation(mut self, cv: ConditionalValidation) -> Self {
+        self.conditional_validation = Some(cv);
+        self
+    }
 }
 
 /// Multi-line text area field.
@@ -286,6 +298,10 @@ pub struct TextAreaField {
     /// Validation rules.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub validation: Option<FormValidation>,
+
+    /// Conditional validation based on another field's value.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub conditional_validation: Option<ConditionalValidation>,
 }
 
 impl TextAreaField {
@@ -302,6 +318,7 @@ impl TextAreaField {
             rows: None,
             max_length: None,
             validation: None,
+            conditional_validation: None,
         }
     }
 
@@ -332,6 +349,13 @@ impl TextAreaField {
         self.required = true;
         self
     }
+
+    /// Set conditional validation.
+    #[must_use]
+    pub fn with_conditional_validation(mut self, cv: ConditionalValidation) -> Self {
+        self.conditional_validation = Some(cv);
+        self
+    }
 }
 
 /// Boolean checkbox field.
@@ -356,6 +380,10 @@ pub struct CheckboxField {
     /// Whether the field is read-only.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub readonly: bool,
+
+    /// Conditional validation based on another field's value.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub conditional_validation: Option<ConditionalValidation>,
 }
 
 impl CheckboxField {
@@ -368,6 +396,7 @@ impl CheckboxField {
             default_checked: false,
             required: false,
             readonly: false,
+            conditional_validation: None,
         }
     }
 
@@ -389,6 +418,13 @@ impl CheckboxField {
     #[must_use]
     pub const fn required(mut self) -> Self {
         self.required = true;
+        self
+    }
+
+    /// Set conditional validation.
+    #[must_use]
+    pub fn with_conditional_validation(mut self, cv: ConditionalValidation) -> Self {
+        self.conditional_validation = Some(cv);
         self
     }
 }
@@ -445,6 +481,10 @@ pub struct RadioGroupField {
     /// Whether the field is read-only.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub readonly: bool,
+
+    /// Conditional validation based on another field's value.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub conditional_validation: Option<ConditionalValidation>,
 }
 
 impl RadioGroupField {
@@ -458,6 +498,7 @@ impl RadioGroupField {
             default_value: None,
             required: false,
             readonly: false,
+            conditional_validation: None,
         }
     }
 
@@ -479,6 +520,13 @@ impl RadioGroupField {
     #[must_use]
     pub const fn required(mut self) -> Self {
         self.required = true;
+        self
+    }
+
+    /// Set conditional validation.
+    #[must_use]
+    pub fn with_conditional_validation(mut self, cv: ConditionalValidation) -> Self {
+        self.conditional_validation = Some(cv);
         self
     }
 }
@@ -555,6 +603,10 @@ pub struct DropdownField {
     /// Allow multiple selections.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub multiple: bool,
+
+    /// Conditional validation based on another field's value.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub conditional_validation: Option<ConditionalValidation>,
 }
 
 impl DropdownField {
@@ -570,6 +622,7 @@ impl DropdownField {
             required: false,
             readonly: false,
             multiple: false,
+            conditional_validation: None,
         }
     }
 
@@ -605,6 +658,13 @@ impl DropdownField {
     #[must_use]
     pub const fn multiple(mut self) -> Self {
         self.multiple = true;
+        self
+    }
+
+    /// Set conditional validation.
+    #[must_use]
+    pub fn with_conditional_validation(mut self, cv: ConditionalValidation) -> Self {
+        self.conditional_validation = Some(cv);
         self
     }
 }
@@ -647,6 +707,10 @@ pub struct DatePickerField {
     /// Validation rules.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub validation: Option<FormValidation>,
+
+    /// Conditional validation based on another field's value.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub conditional_validation: Option<ConditionalValidation>,
 }
 
 /// Date picker mode.
@@ -676,6 +740,7 @@ impl DatePickerField {
             required: false,
             readonly: false,
             validation: None,
+            conditional_validation: None,
         }
     }
 
@@ -713,6 +778,13 @@ impl DatePickerField {
         self.required = true;
         self
     }
+
+    /// Set conditional validation.
+    #[must_use]
+    pub fn with_conditional_validation(mut self, cv: ConditionalValidation) -> Self {
+        self.conditional_validation = Some(cv);
+        self
+    }
 }
 
 /// Digital signature capture field.
@@ -737,6 +809,10 @@ pub struct SignatureField {
     /// Legal text that must be agreed to before signing.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub legal_text: Option<String>,
+
+    /// Conditional validation based on another field's value.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub conditional_validation: Option<ConditionalValidation>,
 }
 
 impl SignatureField {
@@ -749,6 +825,7 @@ impl SignatureField {
             required: false,
             readonly: false,
             legal_text: None,
+            conditional_validation: None,
         }
     }
 
@@ -772,6 +849,13 @@ impl SignatureField {
         self.required = true;
         self
     }
+
+    /// Set conditional validation.
+    #[must_use]
+    pub fn with_conditional_validation(mut self, cv: ConditionalValidation) -> Self {
+        self.conditional_validation = Some(cv);
+        self
+    }
 }
 
 /// Form validation configuration.
@@ -793,6 +877,164 @@ impl FormValidation {
     #[must_use]
     pub fn with_rule(rule: ValidationRule) -> Self {
         Self { rules: vec![rule] }
+    }
+}
+
+/// Conditional validation that applies rules based on another field's value.
+///
+/// This allows form fields to have validation that only applies when
+/// certain conditions are met (e.g., "require email if contact method is email").
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConditionalValidation {
+    /// The condition that triggers the validation.
+    pub when: Condition,
+
+    /// The action to take when the condition is met.
+    pub then: ConditionalAction,
+}
+
+impl ConditionalValidation {
+    /// Create a new conditional validation.
+    #[must_use]
+    pub fn new(when: Condition, then: ConditionalAction) -> Self {
+        Self { when, then }
+    }
+}
+
+/// A condition that references another field's value.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Condition {
+    /// The ID of the field to check.
+    pub field: String,
+
+    /// The comparison operator and expected value.
+    #[serde(flatten)]
+    pub operator: ConditionOperator,
+}
+
+impl Condition {
+    /// Create an "equals" condition.
+    #[must_use]
+    pub fn equals(field: impl Into<String>, value: Value) -> Self {
+        Self {
+            field: field.into(),
+            operator: ConditionOperator {
+                equals: Some(value),
+                not_equals: None,
+                is_empty: None,
+                is_not_empty: None,
+            },
+        }
+    }
+
+    /// Create a "not equals" condition.
+    #[must_use]
+    pub fn not_equals(field: impl Into<String>, value: Value) -> Self {
+        Self {
+            field: field.into(),
+            operator: ConditionOperator {
+                equals: None,
+                not_equals: Some(value),
+                is_empty: None,
+                is_not_empty: None,
+            },
+        }
+    }
+
+    /// Create an "is empty" condition.
+    #[must_use]
+    pub fn is_empty(field: impl Into<String>) -> Self {
+        Self {
+            field: field.into(),
+            operator: ConditionOperator {
+                equals: None,
+                not_equals: None,
+                is_empty: Some(true),
+                is_not_empty: None,
+            },
+        }
+    }
+
+    /// Create an "is not empty" condition.
+    #[must_use]
+    pub fn is_not_empty(field: impl Into<String>) -> Self {
+        Self {
+            field: field.into(),
+            operator: ConditionOperator {
+                equals: None,
+                not_equals: None,
+                is_empty: None,
+                is_not_empty: Some(true),
+            },
+        }
+    }
+}
+
+/// The comparison operator for a conditional validation.
+///
+/// Exactly one field should be set. When serialized with `#[serde(flatten)]`
+/// on the parent, this produces `{"equals": value}` or `{"isNotEmpty": true}`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConditionOperator {
+    /// Field value equals the specified value.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub equals: Option<Value>,
+
+    /// Field value does not equal the specified value.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub not_equals: Option<Value>,
+
+    /// Field value is empty (null, empty string, or missing).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub is_empty: Option<bool>,
+
+    /// Field value is not empty.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub is_not_empty: Option<bool>,
+}
+
+/// The action to apply when a condition is met.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConditionalAction {
+    /// Override whether the field is required.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub required: Option<bool>,
+
+    /// Additional validation rules to apply.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub validation: Option<FormValidation>,
+}
+
+impl ConditionalAction {
+    /// Create an action that makes the field required.
+    #[must_use]
+    pub fn require() -> Self {
+        Self {
+            required: Some(true),
+            validation: None,
+        }
+    }
+
+    /// Create an action with specific validation rules.
+    #[must_use]
+    pub fn with_validation(validation: FormValidation) -> Self {
+        Self {
+            required: None,
+            validation: Some(validation),
+        }
+    }
+
+    /// Create an action that makes the field required and adds validation.
+    #[must_use]
+    pub fn require_with_validation(validation: FormValidation) -> Self {
+        Self {
+            required: Some(true),
+            validation: Some(validation),
+        }
     }
 }
 
@@ -1227,5 +1469,126 @@ mod tests {
         // Test roundtrip
         let parsed: ValidationRule = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed, rule);
+    }
+
+    #[test]
+    fn test_conditional_validation_equals() {
+        let cv = ConditionalValidation::new(
+            Condition::equals("contact_method", json!("email")),
+            ConditionalAction::require(),
+        );
+
+        let json = serde_json::to_string_pretty(&cv).unwrap();
+        assert!(json.contains("\"field\": \"contact_method\""));
+        assert!(json.contains("\"equals\": \"email\""));
+        assert!(json.contains("\"required\": true"));
+
+        let parsed: ConditionalValidation = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed, cv);
+    }
+
+    #[test]
+    fn test_conditional_validation_not_equals() {
+        let cv = ConditionalValidation::new(
+            Condition::not_equals("status", json!("inactive")),
+            ConditionalAction::with_validation(FormValidation::with_rule(
+                ValidationRule::required(),
+            )),
+        );
+
+        let json = serde_json::to_string(&cv).unwrap();
+        assert!(json.contains("\"notEquals\":\"inactive\""));
+
+        let parsed: ConditionalValidation = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed, cv);
+    }
+
+    #[test]
+    fn test_conditional_validation_is_empty() {
+        let cv = ConditionalValidation::new(
+            Condition::is_empty("other_field"),
+            ConditionalAction::require(),
+        );
+
+        let json = serde_json::to_string(&cv).unwrap();
+        assert!(json.contains("\"isEmpty\":true"));
+
+        let parsed: ConditionalValidation = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed, cv);
+    }
+
+    #[test]
+    fn test_conditional_validation_is_not_empty() {
+        let cv = ConditionalValidation::new(
+            Condition::is_not_empty("parent_field"),
+            ConditionalAction::require_with_validation(FormValidation::with_rule(
+                ValidationRule::min_length(3),
+            )),
+        );
+
+        let json = serde_json::to_string(&cv).unwrap();
+        assert!(json.contains("\"isNotEmpty\":true"));
+        assert!(json.contains("\"required\":true"));
+        assert!(json.contains("\"minLength\""));
+
+        let parsed: ConditionalValidation = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed, cv);
+    }
+
+    #[test]
+    fn test_field_with_conditional_validation() {
+        let cv = ConditionalValidation::new(
+            Condition::equals("contact_method", json!("email")),
+            ConditionalAction::require(),
+        );
+
+        let field = TextInputField::new("Email Address")
+            .with_id("email")
+            .with_conditional_validation(cv);
+
+        assert!(field.conditional_validation.is_some());
+
+        let json = serde_json::to_string_pretty(&field).unwrap();
+        assert!(json.contains("\"conditionalValidation\""));
+        assert!(json.contains("\"contact_method\""));
+
+        let parsed: TextInputField = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed, field);
+    }
+
+    #[test]
+    fn test_backward_compat_no_conditional_validation() {
+        // Fields without conditionalValidation should deserialize fine
+        let json = r#"{
+            "label": "Name",
+            "required": true
+        }"#;
+
+        let field: TextInputField = serde_json::from_str(json).unwrap();
+        assert_eq!(field.label, "Name");
+        assert!(field.required);
+        assert!(field.conditional_validation.is_none());
+    }
+
+    #[test]
+    fn test_conditional_validation_on_checkbox() {
+        let cv = ConditionalValidation::new(
+            Condition::equals("has_address", json!(true)),
+            ConditionalAction::require(),
+        );
+
+        let field = CheckboxField::new("Confirm address").with_conditional_validation(cv);
+
+        let json = serde_json::to_string(&field).unwrap();
+        let parsed: CheckboxField = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed, field);
+    }
+
+    #[test]
+    fn test_conditional_validation_skipped_when_none() {
+        // Ensure conditionalValidation is not present in JSON when None
+        let field = TextInputField::new("Name");
+        let json = serde_json::to_string(&field).unwrap();
+        assert!(!json.contains("conditionalValidation"));
     }
 }
