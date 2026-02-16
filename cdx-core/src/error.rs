@@ -185,6 +185,34 @@ pub enum Error {
     },
 }
 
+/// Create an [`Error::InvalidManifest`] with a formatted reason.
+pub(crate) fn invalid_manifest(reason: impl Into<String>) -> Error {
+    Error::InvalidManifest {
+        reason: reason.into(),
+    }
+}
+
+/// Create an [`Error::EncryptionError`] with a formatted reason.
+pub(crate) fn encryption_error(reason: impl Into<String>) -> Error {
+    Error::EncryptionError {
+        reason: reason.into(),
+    }
+}
+
+/// Create an [`Error::Network`] error with a formatted message.
+pub(crate) fn network_error(message: impl Into<String>) -> Error {
+    Error::Network {
+        message: message.into(),
+    }
+}
+
+/// Create an [`Error::InvalidCertificate`] with a formatted reason.
+pub(crate) fn invalid_certificate(reason: impl Into<String>) -> Error {
+    Error::InvalidCertificate {
+        reason: reason.into(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
