@@ -108,7 +108,10 @@ mod tests {
 
     #[test]
     fn test_toc_leaders_serde() {
-        assert_eq!(serde_json::to_string(&TocLeaders::Dots).unwrap(), "\"dots\"");
+        assert_eq!(
+            serde_json::to_string(&TocLeaders::Dots).unwrap(),
+            "\"dots\""
+        );
         assert_eq!(
             serde_json::to_string(&TocLeaders::Dashes).unwrap(),
             "\"dashes\""

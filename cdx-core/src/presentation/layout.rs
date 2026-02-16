@@ -115,11 +115,7 @@ pub struct GridArea {
 impl GridArea {
     /// Create a new grid area.
     #[must_use]
-    pub fn new(
-        name: impl Into<String>,
-        column: impl Into<String>,
-        row: impl Into<String>,
-    ) -> Self {
+    pub fn new(name: impl Into<String>, column: impl Into<String>, row: impl Into<String>) -> Self {
         Self {
             name: name.into(),
             column: column.into(),

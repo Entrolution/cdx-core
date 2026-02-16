@@ -191,7 +191,11 @@ mod tests {
         let config = FootnotesConfig::new()
             .with_numbering("lower-roman")
             .with_position(FootnotePosition::PageBottom)
-            .with_separator(FootnoteSeparator::new().with_width("33%").with_style("solid"));
+            .with_separator(
+                FootnoteSeparator::new()
+                    .with_width("33%")
+                    .with_style("solid"),
+            );
 
         let json = serde_json::to_string_pretty(&config).unwrap();
         assert!(json.contains("\"numbering\": \"lower-roman\""));
@@ -234,7 +238,9 @@ mod tests {
 
     #[test]
     fn test_footnote_separator_serde() {
-        let sep = FootnoteSeparator::new().with_width("50%").with_style("dashed");
+        let sep = FootnoteSeparator::new()
+            .with_width("50%")
+            .with_style("dashed");
         let json = serde_json::to_string(&sep).unwrap();
         assert!(json.contains("\"width\":\"50%\""));
 
