@@ -73,7 +73,8 @@ impl EcdsaSigner {
     pub fn generate(signer_info: SignerInfo) -> Result<(Self, String)> {
         use p256::pkcs8::EncodePublicKey;
 
-        let signing_key = p256::ecdsa::SigningKey::random(&mut rand_core::OsRng);
+        use p256::elliptic_curve::Generate;
+        let signing_key = p256::ecdsa::SigningKey::generate();
         let verifying_key = signing_key.verifying_key();
         let public_key_pem = verifying_key
             .to_public_key_pem(p256::pkcs8::LineEnding::LF)
@@ -219,9 +220,6 @@ impl Verifier for EcdsaVerifier {
     }
 }
 
-// Re-export rand_core for key generation
-#[cfg(feature = "signatures")]
-use rand_core;
 
 #[cfg(all(test, feature = "signatures"))]
 mod tests {

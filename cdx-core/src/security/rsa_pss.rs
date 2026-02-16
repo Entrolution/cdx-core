@@ -45,7 +45,9 @@ impl Ps256Signer {
     pub fn generate(signer_info: SignerInfo, bits: usize) -> Result<(Self, String)> {
         use rsa::pkcs8::EncodePublicKey;
 
-        let signing_key = rsa::RsaPrivateKey::new(&mut rand_core::OsRng, bits).map_err(|e| {
+        let signing_key =
+            rsa::RsaPrivateKey::new(&mut rand_core::UnwrapErr(getrandom::SysRng), bits)
+                .map_err(|e| {
             crate::Error::InvalidManifest {
                 reason: format!("Failed to generate RSA key: {e}"),
             }
@@ -116,10 +118,12 @@ impl Signer for Ps256Signer {
         }
 
         // Create PSS signing key
-        let signing_key = rsa::pss::SigningKey::<sha2::Sha256>::new(self.signing_key.clone());
+        let signing_key =
+            rsa::pss::SigningKey::<rsa::sha2::Sha256>::new(self.signing_key.clone());
 
         // Sign the document ID bytes (PSS is randomized)
-        let signature = signing_key.sign_with_rng(&mut rand_core::OsRng, document_id.digest());
+        let signature = signing_key
+            .sign_with_rng(&mut rand_core::UnwrapErr(getrandom::SysRng), document_id.digest());
 
         // Encode as base64
         let value = base64::engine::general_purpose::STANDARD.encode(signature.to_bytes());
@@ -191,7 +195,7 @@ impl Verifier for Ps256Verifier {
             })?;
 
         // Create PSS verifying key
-        let verifying_key = VerifyingKey::<sha2::Sha256>::new(self.verifying_key.clone());
+        let verifying_key = VerifyingKey::<rsa::sha2::Sha256>::new(self.verifying_key.clone());
 
         // Parse signature
         let rsa_sig = rsa::pss::Signature::try_from(sig_bytes.as_slice()).map_err(|e| {

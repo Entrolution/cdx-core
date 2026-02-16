@@ -394,7 +394,7 @@ impl RevocationChecker {
             })?;
 
         // Get serial number as hex string
-        let serial_bytes = cert.tbs_certificate.serial_number.as_bytes();
+        let serial_bytes = cert.tbs_certificate().serial_number().as_bytes();
         let serial = bytes_to_hex(serial_bytes);
 
         // Get OCSP responder URL
@@ -471,7 +471,7 @@ impl RevocationChecker {
             })?;
 
         // Get serial number as hex string
-        let serial_bytes = cert.tbs_certificate.serial_number.as_bytes();
+        let serial_bytes = cert.tbs_certificate().serial_number().as_bytes();
         let serial = bytes_to_hex(serial_bytes);
 
         // Get CRL distribution point
@@ -505,7 +505,7 @@ impl RevocationChecker {
         })?;
 
         // Parse and check CRL
-        let status = check_crl_for_serial(&crl_data, &cert.tbs_certificate.serial_number)?;
+        let status = check_crl_for_serial(&crl_data, cert.tbs_certificate().serial_number())?;
 
         Ok(RevocationResult::new(status, RevocationMethod::Crl, serial).with_responder(&crl_url))
     }
@@ -594,7 +594,7 @@ fn bytes_to_hex(bytes: &[u8]) -> String {
 fn extract_ocsp_url(cert: &x509_cert::Certificate) -> Option<String> {
     use x509_cert::ext::pkix::AuthorityInfoAccessSyntax;
 
-    let extensions = cert.tbs_certificate.extensions.as_ref()?;
+    let extensions = cert.tbs_certificate().extensions()?;
 
     for ext in extensions {
         // OID for Authority Information Access: 1.3.6.1.5.5.7.1.1
@@ -622,7 +622,7 @@ fn extract_ocsp_url(cert: &x509_cert::Certificate) -> Option<String> {
 
 #[cfg(feature = "ocsp")]
 fn extract_crl_url(cert: &x509_cert::Certificate) -> Option<String> {
-    let extensions = cert.tbs_certificate.extensions.as_ref()?;
+    let extensions = cert.tbs_certificate().extensions()?;
 
     for ext in extensions {
         // OID for CRL Distribution Points: 2.5.29.31

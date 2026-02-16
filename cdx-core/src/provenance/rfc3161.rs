@@ -31,7 +31,6 @@
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
 use chrono::{DateTime, Utc};
 use const_oid::ObjectIdentifier;
-use rand_core::{OsRng, RngCore};
 use std::io::{Error as IoError, ErrorKind};
 
 use super::record::TimestampRecord;
@@ -156,7 +155,9 @@ impl Rfc3161Client {
 
         // Generate nonce for replay protection
         let mut nonce_bytes = [0u8; 8];
-        OsRng.fill_bytes(&mut nonce_bytes);
+        getrandom::fill(&mut nonce_bytes).map_err(|e| Error::Network {
+            message: format!("System RNG failed: {e}"),
+        })?;
         let nonce = u64::from_be_bytes(nonce_bytes);
 
         // Build the timestamp request using manual DER encoding

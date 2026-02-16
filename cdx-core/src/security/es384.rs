@@ -44,7 +44,8 @@ impl Es384Signer {
     pub fn generate(signer_info: SignerInfo) -> Result<(Self, String)> {
         use p384::pkcs8::EncodePublicKey;
 
-        let signing_key = p384::ecdsa::SigningKey::random(&mut rand_core::OsRng);
+        use p384::elliptic_curve::Generate;
+        let signing_key = p384::ecdsa::SigningKey::generate();
         let verifying_key = signing_key.verifying_key();
         let public_key_pem = verifying_key
             .to_public_key_pem(p384::pkcs8::LineEnding::LF)

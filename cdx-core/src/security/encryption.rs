@@ -159,6 +159,7 @@ pub struct Aes256GcmEncryptor {
 }
 
 #[cfg(feature = "encryption")]
+#[allow(clippy::missing_panics_doc)] // getrandom::fill only fails on misconfigured systems
 impl Aes256GcmEncryptor {
     /// Create a new encryptor with the given key.
     ///
@@ -175,18 +176,16 @@ impl Aes256GcmEncryptor {
     /// Generate a new random encryption key.
     #[must_use]
     pub fn generate_key() -> [u8; 32] {
-        use rand_core::RngCore;
         let mut key = [0u8; 32];
-        rand_core::OsRng.fill_bytes(&mut key);
+        getrandom::fill(&mut key).expect("system RNG failed");
         key
     }
 
     /// Generate a random nonce.
     #[must_use]
     pub fn generate_nonce() -> [u8; 12] {
-        use rand_core::RngCore;
         let mut nonce = [0u8; 12];
-        rand_core::OsRng.fill_bytes(&mut nonce);
+        getrandom::fill(&mut nonce).expect("system RNG failed");
         nonce
     }
 
@@ -275,6 +274,7 @@ pub struct ChaCha20Poly1305Encryptor {
 }
 
 #[cfg(feature = "encryption-chacha")]
+#[allow(clippy::missing_panics_doc)] // getrandom::fill only fails on misconfigured systems
 impl ChaCha20Poly1305Encryptor {
     /// Create a new encryptor with the given key.
     ///
@@ -291,18 +291,16 @@ impl ChaCha20Poly1305Encryptor {
     /// Generate a new random encryption key.
     #[must_use]
     pub fn generate_key() -> [u8; 32] {
-        use rand_core::RngCore;
         let mut key = [0u8; 32];
-        rand_core::OsRng.fill_bytes(&mut key);
+        getrandom::fill(&mut key).expect("system RNG failed");
         key
     }
 
     /// Generate a random nonce.
     #[must_use]
     pub fn generate_nonce() -> [u8; 12] {
-        use rand_core::RngCore;
         let mut nonce = [0u8; 12];
-        rand_core::OsRng.fill_bytes(&mut nonce);
+        getrandom::fill(&mut nonce).expect("system RNG failed");
         nonce
     }
 
@@ -438,11 +436,12 @@ impl EcdhEsKeyWrapper {
     pub fn wrap(&self, content_key: &[u8]) -> Result<WrappedKeyData> {
         use aes_kw::{cipher::KeyInit, KwAes256};
         use hkdf::Hkdf;
-        use p256::{ecdh::EphemeralSecret, elliptic_curve::sec1::ToEncodedPoint};
+        use p256::ecdh::EphemeralSecret;
+        use p256::elliptic_curve::Generate;
         use sha2::Sha256;
 
         // 1. Generate ephemeral keypair
-        let ephemeral_secret = EphemeralSecret::random(&mut rand_core::OsRng);
+        let ephemeral_secret = EphemeralSecret::generate();
         let ephemeral_public = p256::PublicKey::from(&ephemeral_secret);
 
         // 2. ECDH key agreement
@@ -466,7 +465,9 @@ impl EcdhEsKeyWrapper {
             })?;
 
         // Encode ephemeral public key as SEC1 uncompressed point
-        let ephemeral_public_bytes = ephemeral_public.to_encoded_point(false).as_bytes().to_vec();
+        let ephemeral_public_bytes = ephemeral_public
+            .to_sec1_bytes()
+            .to_vec();
 
         Ok(WrappedKeyData {
             wrapped_key: wrapped,
@@ -503,26 +504,15 @@ impl EcdhEsKeyUnwrapper {
     pub fn unwrap(&self, data: &WrappedKeyData) -> Result<Vec<u8>> {
         use aes_kw::{cipher::KeyInit, KwAes256};
         use hkdf::Hkdf;
-        use p256::elliptic_curve::sec1::FromEncodedPoint;
         use sha2::Sha256;
 
-        // 1. Decode the ephemeral public key
-        let ephemeral_point =
-            p256::EncodedPoint::from_bytes(&data.ephemeral_public_key).map_err(|e| {
+        // 1. Decode the ephemeral public key from SEC1 bytes
+        let ephemeral_public =
+            p256::PublicKey::from_sec1_bytes(&data.ephemeral_public_key).map_err(|e| {
                 crate::Error::EncryptionError {
-                    reason: format!("Invalid ephemeral public key encoding: {e}"),
+                    reason: format!("Invalid ephemeral public key: {e}"),
                 }
             })?;
-        let ephemeral_public =
-            p256::AffinePoint::from_encoded_point(&ephemeral_point).into_option();
-        let ephemeral_public = ephemeral_public.ok_or_else(|| crate::Error::EncryptionError {
-            reason: "Invalid ephemeral public key point".to_string(),
-        })?;
-        let ephemeral_public = p256::PublicKey::from_affine(ephemeral_public).map_err(|e| {
-            crate::Error::EncryptionError {
-                reason: format!("Invalid ephemeral public key: {e}"),
-            }
-        })?;
 
         // 2. ECDH key agreement using recipient's secret key
         let shared_secret = p256::ecdh::diffie_hellman(
@@ -594,12 +584,12 @@ impl RsaOaepKeyWrapper {
     /// Returns an error if RSA-OAEP encryption fails (e.g., key too small for payload).
     pub fn wrap(&self, content_key: &[u8]) -> Result<RsaWrappedKeyData> {
         use rsa::oaep::EncryptingKey;
+        use rsa::sha2::Sha256;
         use rsa::traits::RandomizedEncryptor;
-        use sha2::Sha256;
 
         let encrypting_key = EncryptingKey::<Sha256>::new(self.recipient_public_key.clone());
         let wrapped_key = encrypting_key
-            .encrypt_with_rng(&mut rand_core::OsRng, content_key)
+            .encrypt_with_rng(&mut rand_core::UnwrapErr(getrandom::SysRng), content_key)
             .map_err(|e| crate::Error::EncryptionError {
                 reason: format!("RSA-OAEP wrap failed: {e}"),
             })?;
@@ -633,8 +623,8 @@ impl RsaOaepKeyUnwrapper {
     /// Returns an error if RSA-OAEP decryption fails (wrong key or tampered data).
     pub fn unwrap(&self, data: &RsaWrappedKeyData) -> Result<Vec<u8>> {
         use rsa::oaep::DecryptingKey;
+        use rsa::sha2::Sha256;
         use rsa::traits::Decryptor;
-        use sha2::Sha256;
 
         let decrypting_key = DecryptingKey::<Sha256>::new(self.recipient_private_key.clone());
         decrypting_key
@@ -695,11 +685,12 @@ impl Pbes2KeyWrapper {
     /// Returns an error if AES key wrapping fails.
     pub fn wrap(&self, content_key: &[u8]) -> Result<Pbes2WrappedKeyData> {
         use aes_kw::{cipher::KeyInit, KwAes256};
-        use rand_core::RngCore;
 
         // Generate random 16-byte salt
         let mut salt = [0u8; 16];
-        rand_core::OsRng.fill_bytes(&mut salt);
+        getrandom::fill(&mut salt).map_err(|e| crate::Error::EncryptionError {
+            reason: format!("System RNG failed: {e}"),
+        })?;
 
         // Derive KEK via PBKDF2-HMAC-SHA256
         let mut kek_bytes = [0u8; 32];
@@ -1032,7 +1023,8 @@ mod key_wrapping_tests {
 
     /// Generate a P-256 keypair for testing.
     fn generate_keypair() -> (p256::SecretKey, p256::PublicKey) {
-        let secret = p256::SecretKey::random(&mut rand_core::OsRng);
+        use p256::elliptic_curve::Generate;
+        let secret = p256::SecretKey::generate();
         let public = secret.public_key();
         (secret, public)
     }
@@ -1230,7 +1222,8 @@ mod rsa_oaep_tests {
     use super::*;
 
     fn generate_rsa_keypair(bits: usize) -> (rsa::RsaPrivateKey, rsa::RsaPublicKey) {
-        let private_key = rsa::RsaPrivateKey::new(&mut rand_core::OsRng, bits).unwrap();
+        let private_key =
+            rsa::RsaPrivateKey::new(&mut rand_core::UnwrapErr(getrandom::SysRng), bits).unwrap();
         let public_key = rsa::RsaPublicKey::from(&private_key);
         (private_key, public_key)
     }

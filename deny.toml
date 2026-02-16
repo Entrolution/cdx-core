@@ -7,9 +7,9 @@ db-path = "~/.cargo/advisory-db"
 db-urls = ["https://github.com/rustsec/advisory-db"]
 yanked = "deny"
 
-# rsa 0.9.x has a timing side-channel (Marvin Attack) with no fixed version available.
+# rsa has a timing side-channel (Marvin Attack) with no fixed version available (incl. 0.10-rc).
 # signatures-rsa is opt-in (not in default features). Review periodically.
-# Last reviewed: 2026-02-15
+# Last reviewed: 2026-02-16
 ignore = ["RUSTSEC-2023-0071"]
 
 [licenses]
