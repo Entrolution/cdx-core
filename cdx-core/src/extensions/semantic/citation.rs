@@ -1,50 +1,77 @@
 //! Citations and footnotes for academic documents.
 
+use serde::de::{self, MapAccess, Visitor};
+use serde::ser::SerializeMap;
 use serde::{Deserialize, Serialize};
 
 use crate::content::Block;
 
 /// An inline citation reference.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+///
+/// Supports both single and multi-reference citations (e.g., `[smith2023; jones2024]`).
+///
+/// # Backward Compatibility
+///
+/// Deserializes from both the old singular `"ref"` (string) format and the
+/// new `"refs"` (array) format.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Citation {
-    /// Reference to bibliography entry ID.
-    #[serde(rename = "ref")]
-    pub reference: String,
+    /// References to bibliography entry IDs.
+    pub refs: Vec<String>,
 
     /// Page or location within the reference.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub locator: Option<String>,
 
     /// Locator type (page, chapter, section, etc.).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub locator_type: Option<LocatorType>,
 
     /// Text before the citation (e.g., "see").
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub prefix: Option<String>,
 
     /// Text after the citation (e.g., "for details").
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub suffix: Option<String>,
 
     /// Suppress author name in citation.
-    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub suppress_author: bool,
 }
 
 impl Citation {
-    /// Create a new citation.
+    /// Create a new citation with a single reference.
     #[must_use]
     pub fn new(reference: impl Into<String>) -> Self {
         Self {
-            reference: reference.into(),
+            refs: vec![reference.into()],
             locator: None,
             locator_type: None,
             prefix: None,
             suffix: None,
             suppress_author: false,
         }
+    }
+
+    /// Create a citation with multiple references (e.g., `[smith2023; jones2024]`).
+    #[must_use]
+    pub fn multi(refs: Vec<String>) -> Self {
+        Self {
+            refs,
+            locator: None,
+            locator_type: None,
+            prefix: None,
+            suffix: None,
+            suppress_author: false,
+        }
+    }
+
+    /// Get the first reference, if any.
+    #[must_use]
+    pub fn first_ref(&self) -> Option<&str> {
+        self.refs.first().map(String::as_str)
+    }
+
+    /// Get all references.
+    #[must_use]
+    pub fn refs(&self) -> &[String] {
+        &self.refs
     }
 
     /// Set page locator.
@@ -82,6 +109,107 @@ impl Citation {
     pub const fn suppress_author(mut self) -> Self {
         self.suppress_author = true;
         self
+    }
+}
+
+impl Serialize for Citation {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut count = 1; // refs is always present
+        if self.locator.is_some() {
+            count += 1;
+        }
+        if self.locator_type.is_some() {
+            count += 1;
+        }
+        if self.prefix.is_some() {
+            count += 1;
+        }
+        if self.suffix.is_some() {
+            count += 1;
+        }
+        if self.suppress_author {
+            count += 1;
+        }
+
+        let mut map = serializer.serialize_map(Some(count))?;
+        map.serialize_entry("refs", &self.refs)?;
+        if let Some(ref locator) = self.locator {
+            map.serialize_entry("locator", locator)?;
+        }
+        if let Some(ref locator_type) = self.locator_type {
+            map.serialize_entry("locatorType", locator_type)?;
+        }
+        if let Some(ref prefix) = self.prefix {
+            map.serialize_entry("prefix", prefix)?;
+        }
+        if let Some(ref suffix) = self.suffix {
+            map.serialize_entry("suffix", suffix)?;
+        }
+        if self.suppress_author {
+            map.serialize_entry("suppressAuthor", &true)?;
+        }
+        map.end()
+    }
+}
+
+impl<'de> Deserialize<'de> for Citation {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        struct CitationVisitor;
+
+        impl<'de> Visitor<'de> for CitationVisitor {
+            type Value = Citation;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                formatter.write_str("a Citation object with 'refs' (array) or 'ref' (string)")
+            }
+
+            fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<Citation, A::Error> {
+                let mut refs: Option<Vec<String>> = None;
+                let mut locator: Option<String> = None;
+                let mut locator_type: Option<LocatorType> = None;
+                let mut prefix: Option<String> = None;
+                let mut suffix: Option<String> = None;
+                let mut suppress_author = false;
+
+                while let Some(key) = map.next_key::<String>()? {
+                    match key.as_str() {
+                        "refs" => {
+                            // Accept array of strings
+                            refs = Some(map.next_value::<Vec<String>>()?);
+                        }
+                        "ref" => {
+                            // Backward compat: singular string → wrap in vec
+                            let single: String = map.next_value()?;
+                            refs = Some(vec![single]);
+                        }
+                        "locator" => locator = Some(map.next_value()?),
+                        "locatorType" | "locator_type" => locator_type = Some(map.next_value()?),
+                        "prefix" => prefix = Some(map.next_value()?),
+                        "suffix" => suffix = Some(map.next_value()?),
+                        "suppressAuthor" | "suppress_author" => {
+                            suppress_author = map.next_value()?;
+                        }
+                        _ => {
+                            // Skip unknown fields for forward compatibility
+                            let _: serde_json::Value = map.next_value()?;
+                        }
+                    }
+                }
+
+                let refs = refs.ok_or_else(|| de::Error::missing_field("refs"))?;
+
+                Ok(Citation {
+                    refs,
+                    locator,
+                    locator_type,
+                    prefix,
+                    suffix,
+                    suppress_author,
+                })
+            }
+        }
+
+        deserializer.deserialize_map(CitationVisitor)
     }
 }
 

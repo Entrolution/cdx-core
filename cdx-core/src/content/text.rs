@@ -255,13 +255,57 @@ impl ExtensionMark {
         self.attributes.get(key).and_then(serde_json::Value::as_str)
     }
 
+    /// Get an array-of-strings attribute.
+    #[must_use]
+    pub fn get_string_array_attribute(&self, key: &str) -> Option<Vec<&str>> {
+        self.attributes.get(key).and_then(|v| {
+            v.as_array()
+                .map(|arr| arr.iter().filter_map(serde_json::Value::as_str).collect())
+        })
+    }
+
+    /// Get citation refs, supporting both `"refs"` (array) and legacy `"ref"` (string).
+    ///
+    /// Returns `None` if neither key is present.
+    #[must_use]
+    pub fn get_citation_refs(&self) -> Option<Vec<&str>> {
+        // Try new format first
+        if let Some(refs) = self.get_string_array_attribute("refs") {
+            return Some(refs);
+        }
+        // Fall back to legacy singular "ref"
+        self.get_string_attribute("ref").map(|r| vec![r])
+    }
+
+    /// Rewrite legacy `"ref"` (string) → `"refs"` (array) in the attributes map.
+    ///
+    /// No-op if `"refs"` already exists or `"ref"` is absent.
+    pub fn normalize_citation_attrs(&mut self) {
+        if let Some(obj) = self.attributes.as_object_mut() {
+            if obj.contains_key("refs") {
+                return;
+            }
+            if let Some(single) = obj.remove("ref") {
+                if let Some(s) = single.as_str() {
+                    obj.insert(
+                        "refs".to_string(),
+                        serde_json::Value::Array(vec![serde_json::Value::String(s.to_string())]),
+                    );
+                } else {
+                    // Put it back if it wasn't a string
+                    obj.insert("ref".to_string(), single);
+                }
+            }
+        }
+    }
+
     // ===== Convenience constructors for common extension marks =====
 
     /// Create a citation mark (semantic extension).
     #[must_use]
     pub fn citation(reference: impl Into<String>) -> Self {
         Self::new("semantic", "citation").with_attributes(serde_json::json!({
-            "ref": reference.into()
+            "refs": [reference.into()]
         }))
     }
 
@@ -269,9 +313,17 @@ impl ExtensionMark {
     #[must_use]
     pub fn citation_with_page(reference: impl Into<String>, page: impl Into<String>) -> Self {
         Self::new("semantic", "citation").with_attributes(serde_json::json!({
-            "ref": reference.into(),
+            "refs": [reference.into()],
             "locator": page.into(),
             "locatorType": "page"
+        }))
+    }
+
+    /// Create a multi-reference citation mark (e.g., `[smith2023; jones2024]`).
+    #[must_use]
+    pub fn multi_citation(refs: &[String]) -> Self {
+        Self::new("semantic", "citation").with_attributes(serde_json::json!({
+            "refs": refs
         }))
     }
 
@@ -936,11 +988,14 @@ mod tests {
     #[test]
     fn test_extension_mark_with_attributes() {
         let ext = ExtensionMark::new("semantic", "citation").with_attributes(serde_json::json!({
-            "ref": "smith2023",
+            "refs": ["smith2023"],
             "page": "42"
         }));
 
-        assert_eq!(ext.get_string_attribute("ref"), Some("smith2023"));
+        assert_eq!(
+            ext.get_string_array_attribute("refs"),
+            Some(vec!["smith2023"])
+        );
         assert_eq!(ext.get_string_attribute("page"), Some("42"));
     }
 
@@ -969,14 +1024,14 @@ mod tests {
     #[test]
     fn test_extension_mark_serialization() {
         let ext = ExtensionMark::new("semantic", "citation").with_attributes(serde_json::json!({
-            "ref": "smith2023"
+            "refs": ["smith2023"]
         }));
         let mark = Mark::Extension(ext);
 
         let json = serde_json::to_string(&mark).unwrap();
         // New format: type is "namespace:markType", attributes flattened
         assert!(json.contains("\"type\":\"semantic:citation\""));
-        assert!(json.contains("\"ref\":\"smith2023\""));
+        assert!(json.contains("\"refs\":[\"smith2023\"]"));
         // Should NOT contain old wrapper fields
         assert!(!json.contains("\"namespace\""));
         assert!(!json.contains("\"markType\""));
@@ -1046,16 +1101,64 @@ mod tests {
     fn test_citation_convenience() {
         let ext = ExtensionMark::citation("smith2023");
         assert!(ext.is_type("semantic", "citation"));
-        assert_eq!(ext.get_string_attribute("ref"), Some("smith2023"));
+        assert_eq!(
+            ext.get_string_array_attribute("refs"),
+            Some(vec!["smith2023"])
+        );
+        assert_eq!(ext.get_citation_refs(), Some(vec!["smith2023"]));
     }
 
     #[test]
     fn test_citation_with_page_convenience() {
         let ext = ExtensionMark::citation_with_page("smith2023", "42-45");
         assert!(ext.is_type("semantic", "citation"));
-        assert_eq!(ext.get_string_attribute("ref"), Some("smith2023"));
+        assert_eq!(
+            ext.get_string_array_attribute("refs"),
+            Some(vec!["smith2023"])
+        );
         assert_eq!(ext.get_string_attribute("locator"), Some("42-45"));
         assert_eq!(ext.get_string_attribute("locatorType"), Some("page"));
+    }
+
+    #[test]
+    fn test_multi_citation_convenience() {
+        let refs = vec!["smith2023".into(), "jones2024".into()];
+        let ext = ExtensionMark::multi_citation(&refs);
+        assert!(ext.is_type("semantic", "citation"));
+        assert_eq!(
+            ext.get_string_array_attribute("refs"),
+            Some(vec!["smith2023", "jones2024"])
+        );
+    }
+
+    #[test]
+    fn test_get_citation_refs_legacy() {
+        // Legacy "ref" key should still be readable via get_citation_refs
+        let ext = ExtensionMark::new("semantic", "citation")
+            .with_attributes(serde_json::json!({"ref": "smith2023"}));
+        assert_eq!(ext.get_citation_refs(), Some(vec!["smith2023"]));
+    }
+
+    #[test]
+    fn test_normalize_citation_attrs() {
+        let mut ext = ExtensionMark::new("semantic", "citation")
+            .with_attributes(serde_json::json!({"ref": "smith2023"}));
+        ext.normalize_citation_attrs();
+        assert_eq!(
+            ext.get_string_array_attribute("refs"),
+            Some(vec!["smith2023"])
+        );
+        assert!(ext.get_string_attribute("ref").is_none());
+    }
+
+    #[test]
+    fn test_normalize_citation_attrs_noop_when_refs_exists() {
+        let mut ext = ExtensionMark::citation("smith2023");
+        ext.normalize_citation_attrs();
+        assert_eq!(
+            ext.get_string_array_attribute("refs"),
+            Some(vec!["smith2023"])
+        );
     }
 
     #[test]

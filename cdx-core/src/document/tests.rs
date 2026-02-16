@@ -136,7 +136,7 @@ mod tests {
 
         let ext_block = Block::Extension(
             ExtensionBlock::new("semantic", "citation")
-                .with_attributes(serde_json::json!({"ref": "smith2023"})),
+                .with_attributes(serde_json::json!({"refs": ["smith2023"]})),
         );
 
         let content = Content::new(vec![
