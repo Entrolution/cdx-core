@@ -469,17 +469,16 @@ impl RevocationChecker {
         let serial = bytes_to_hex(serial_bytes);
 
         // Get CRL distribution point
-        let crl_url = extract_crl_url(&cert).ok_or_else(|| {
-            invalid_certificate("No CRL distribution point found in certificate")
-        })?;
+        let crl_url = extract_crl_url(&cert)
+            .ok_or_else(|| invalid_certificate("No CRL distribution point found in certificate"))?;
 
         // Fetch CRL
-        let response =
-            self.client
-                .get(&crl_url)
-                .send()
-                .await
-                .map_err(|e| network_error(format!("CRL fetch failed: {e}")))?;
+        let response = self
+            .client
+            .get(&crl_url)
+            .send()
+            .await
+            .map_err(|e| network_error(format!("CRL fetch failed: {e}")))?;
 
         if !response.status().is_success() {
             return Ok(RevocationResult::new(
