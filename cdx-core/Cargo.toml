@@ -66,7 +66,7 @@ p384 = { version = "0.13", features = ["ecdsa", "pem"], optional = true }
 ecdsa = { version = "0.16", optional = true }
 rsa = { version = "0.9", features = ["sha2", "pem"], optional = true }
 base64 = { version = "0.22", optional = true }
-rand_core = { version = "0.6", features = ["getrandom"], optional = true }
+rand_core = { version = "0.10", features = ["getrandom"], optional = true }
 
 # EdDSA signatures (optional)
 ed25519-dalek = { version = "2.1", features = ["rand_core", "pem"], optional = true }
