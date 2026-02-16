@@ -358,8 +358,10 @@ impl From<&cdx_core::content::Mark> for CdxTextMark {
                 number: *number,
                 id: id.clone(),
             },
-            cdx_core::content::Mark::Math { format: _, value } => CdxTextMark::Math {
-                value: value.clone(),
+            cdx_core::content::Mark::Math {
+                format: _, source, ..
+            } => CdxTextMark::Math {
+                value: source.clone(),
                 display: false,
             },
             cdx_core::content::Mark::Extension(_) => {

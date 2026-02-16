@@ -461,7 +461,7 @@ fn validate_figcaption(
     if parent != Some(ParentContext::Figure) {
         errors.push(ValidationError {
             path: path.to_string(),
-            message: "figCaption should be a child of figure".to_string(),
+            message: "figcaption should be a child of figure".to_string(),
         });
     }
     validate_text_children(children, path, errors);

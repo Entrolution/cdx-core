@@ -624,7 +624,7 @@ pub fn convert_text_to_core(span: &CdxTextSpan) -> cdx_core::content::Text {
             },
             CdxTextMark::Math { value, display: _ } => cdx_core::content::Mark::Math {
                 format: cdx_core::content::MathFormat::Latex,
-                value: value.clone(),
+                source: value.clone(),
             },
         })
         .collect();
