@@ -42,7 +42,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-cdx-core = "0.3"
+cdx-core = "0.4"
 ```
 
 ### Feature Flags
