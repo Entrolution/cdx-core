@@ -454,7 +454,7 @@ fn main() {
     }
 }
 
-#[allow(clippy::too_many_lines)]
+#[allow(clippy::too_many_lines)] // flat match dispatching each CLI subcommand — no shared logic to extract
 fn run_command(command: Commands, output_config: &output::OutputConfig) -> Result<()> {
     match command {
         Commands::Create {

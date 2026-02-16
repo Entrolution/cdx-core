@@ -31,7 +31,7 @@ pub fn run(file1: &Path, file2: &Path, config: &OutputConfig) -> Result<()> {
     }
 }
 
-#[allow(clippy::too_many_lines)]
+#[allow(clippy::too_many_lines)] // sequential field-by-field comparison — splitting would scatter related diff logic
 fn collect_differences(doc1: &Document, doc2: &Document) -> Vec<DiffItem> {
     let mut differences = Vec::new();
     let manifest_a = doc1.manifest();

@@ -82,12 +82,13 @@ Low-level ZIP archive handling with security checks.
 
 ### Content (`content/`)
 
-Semantic content model with 13 block types.
+Semantic content model with 20+ block types and 15+ mark types.
 
-- **Block**: Enum of all block types (Paragraph, Heading, List, etc.)
-- **Text**: Text nodes with optional marks (bold, italic, link, etc.)
+- **Block**: Enum of all block types (Paragraph, Heading, List, CodeBlock, Table, Figure, Math, etc.)
+- **Text**: Text nodes with optional marks (bold, italic, link, code, highlight, etc.)
 - **Content**: Root structure containing version and blocks array
 - **Validation**: Structural validation (lists contain list items, etc.)
+- **Custom serde**: Hand-written `Serialize`/`Deserialize` impls for `Block` and `Mark` that produce flat `{"type": "...", ...}` JSON matching the Codex spec wire format, replacing derived serde which produced nested `{"Paragraph": {...}}` Rust-style enums
 
 ### Metadata (`metadata/`)
 

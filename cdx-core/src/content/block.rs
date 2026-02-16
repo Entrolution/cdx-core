@@ -1151,7 +1151,7 @@ struct InlineIdOnly<'a> {
 }
 
 impl Serialize for Block {
-    #[allow(clippy::too_many_lines)]
+    #[allow(clippy::too_many_lines)] // mechanical match over 20+ block variants — splitting would obscure the dispatch
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         use serde::ser::Error;
 
@@ -1408,7 +1408,7 @@ impl Serialize for Block {
 }
 
 impl<'de> Deserialize<'de> for Block {
-    #[allow(clippy::too_many_lines)]
+    #[allow(clippy::too_many_lines)] // mechanical match over 20+ block type strings — splitting would obscure the dispatch
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         // Deserialize into a generic Value first, then dispatch based on "type"
         let mut value = serde_json::Value::deserialize(deserializer)?;
