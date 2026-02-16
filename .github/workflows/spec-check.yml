@@ -1,0 +1,32 @@
+name: Spec Staleness Check
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'  # Weekly, Monday 9am UTC
+  workflow_dispatch: {}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: true
+
+      - name: Check for upstream spec updates
+        run: |
+          cd spec
+          git fetch origin main
+          LOCAL=$(git rev-parse HEAD)
+          REMOTE=$(git rev-parse origin/main)
+          if [ "$LOCAL" != "$REMOTE" ]; then
+            BEHIND=$(git rev-list --count HEAD..origin/main)
+            echo "::warning::Spec submodule is $BEHIND commits behind upstream"
+            gh issue create --title "Spec submodule is $BEHIND commits behind" \
+              --body "The spec submodule is pinned at \`$LOCAL\` but upstream is at \`$REMOTE\` ($BEHIND commits behind).\n\nRun:\n\`\`\`\ngit submodule update --remote spec\n\`\`\`" \
+              --label "dependencies" || true
+          else
+            echo "Spec submodule is up to date"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
