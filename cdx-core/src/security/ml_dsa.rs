@@ -71,7 +71,7 @@ impl MlDsaSigner {
     /// # Errors
     ///
     /// Returns an error if key generation fails.
-    #[allow(clippy::missing_panics_doc)]
+    #[allow(clippy::missing_panics_doc)] // getrandom::SysRng only fails on misconfigured systems
     pub fn generate(signer_info: SignerInfo) -> Result<(Self, Vec<u8>)> {
         use ml_dsa::KeyGen;
 

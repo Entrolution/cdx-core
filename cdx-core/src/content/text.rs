@@ -507,7 +507,7 @@ impl Serialize for Mark {
 }
 
 impl<'de> Deserialize<'de> for Mark {
-    #[allow(clippy::too_many_lines)]
+    #[allow(clippy::too_many_lines)] // mechanical dispatch across 15+ mark variants — splitting would obscure the mapping
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         struct MarkVisitor;
 
@@ -541,7 +541,7 @@ impl<'de> Deserialize<'de> for Mark {
             }
 
             // Complex marks are objects with a "type" field
-            #[allow(clippy::too_many_lines)]
+            #[allow(clippy::too_many_lines)] // field extraction + type dispatch for 15+ mark variants in one pass
             fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<Mark, A::Error> {
                 let mut type_str: Option<String> = None;
                 let mut fields = serde_json::Map::new();
