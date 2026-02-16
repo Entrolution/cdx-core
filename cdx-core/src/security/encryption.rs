@@ -465,9 +465,7 @@ impl EcdhEsKeyWrapper {
             })?;
 
         // Encode ephemeral public key as SEC1 uncompressed point
-        let ephemeral_public_bytes = ephemeral_public
-            .to_sec1_bytes()
-            .to_vec();
+        let ephemeral_public_bytes = ephemeral_public.to_sec1_bytes().to_vec();
 
         Ok(WrappedKeyData {
             wrapped_key: wrapped,
@@ -507,11 +505,9 @@ impl EcdhEsKeyUnwrapper {
         use sha2::Sha256;
 
         // 1. Decode the ephemeral public key from SEC1 bytes
-        let ephemeral_public =
-            p256::PublicKey::from_sec1_bytes(&data.ephemeral_public_key).map_err(|e| {
-                crate::Error::EncryptionError {
-                    reason: format!("Invalid ephemeral public key: {e}"),
-                }
+        let ephemeral_public = p256::PublicKey::from_sec1_bytes(&data.ephemeral_public_key)
+            .map_err(|e| crate::Error::EncryptionError {
+                reason: format!("Invalid ephemeral public key: {e}"),
             })?;
 
         // 2. ECDH key agreement using recipient's secret key

@@ -46,12 +46,11 @@ impl Ps256Signer {
         use rsa::pkcs8::EncodePublicKey;
 
         let signing_key =
-            rsa::RsaPrivateKey::new(&mut rand_core::UnwrapErr(getrandom::SysRng), bits)
-                .map_err(|e| {
-            crate::Error::InvalidManifest {
-                reason: format!("Failed to generate RSA key: {e}"),
-            }
-        })?;
+            rsa::RsaPrivateKey::new(&mut rand_core::UnwrapErr(getrandom::SysRng), bits).map_err(
+                |e| crate::Error::InvalidManifest {
+                    reason: format!("Failed to generate RSA key: {e}"),
+                },
+            )?;
 
         let public_key = signing_key.to_public_key();
         let public_key_pem = public_key
@@ -118,12 +117,13 @@ impl Signer for Ps256Signer {
         }
 
         // Create PSS signing key
-        let signing_key =
-            rsa::pss::SigningKey::<rsa::sha2::Sha256>::new(self.signing_key.clone());
+        let signing_key = rsa::pss::SigningKey::<rsa::sha2::Sha256>::new(self.signing_key.clone());
 
         // Sign the document ID bytes (PSS is randomized)
-        let signature = signing_key
-            .sign_with_rng(&mut rand_core::UnwrapErr(getrandom::SysRng), document_id.digest());
+        let signature = signing_key.sign_with_rng(
+            &mut rand_core::UnwrapErr(getrandom::SysRng),
+            document_id.digest(),
+        );
 
         // Encode as base64
         let value = base64::engine::general_purpose::STANDARD.encode(signature.to_bytes());

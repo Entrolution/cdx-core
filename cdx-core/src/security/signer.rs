@@ -220,7 +220,6 @@ impl Verifier for EcdsaVerifier {
     }
 }
 
-
 #[cfg(all(test, feature = "signatures"))]
 mod tests {
     use super::*;
