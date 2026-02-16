@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+#### Spec Serialization Compliance
+- **Breaking:** `Mark::Math { value }` field renamed to `Mark::Math { source }` to match spec
+- **Breaking:** Simple marks (Bold, Italic, etc.) now serialize as strings (`"bold"`) instead of objects (`{"type":"bold"}`)
+- **Breaking:** Extension marks serialize with colon-delimited type (`"semantic:citation"`) instead of wrapper (`{"type":"extension","namespace":"semantic","markType":"citation"}`)
+- **Breaking:** Extension blocks serialize with colon-delimited type (`"academic:theorem"`) instead of wrapper format
+- **Breaking:** `Block::block_type()` returns `Cow<'_, str>` instead of `&'static str`; extension blocks return `"namespace:blockType"` instead of `"extension"`
+- `FigCaption` block type serializes as `"figcaption"` (lowercase) instead of `"figCaption"`
+- All old formats are accepted on deserialization for backward compatibility
+- Added conformance test suite (`tests/conformance.rs`) to prevent future spec drift
+
 ## [0.4.0] - 2026-02-16
 
 ### Added

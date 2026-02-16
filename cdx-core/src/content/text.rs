@@ -1,5 +1,7 @@
 //! Text nodes and formatting marks.
 
+use serde::de::{self, MapAccess, Visitor};
+use serde::ser::SerializeMap;
 use serde::{Deserialize, Serialize};
 
 use crate::content::block::MathFormat;
@@ -105,8 +107,13 @@ impl Text {
 ///
 /// Marks represent inline formatting such as bold, italic, links, etc.
 /// Multiple marks can be applied to the same text node.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "camelCase")]
+///
+/// # Serialization
+///
+/// Simple marks (Bold, Italic, etc.) serialize as plain strings: `"bold"`.
+/// Complex marks (Link, Math, etc.) serialize as objects with a `"type"` field.
+/// Extension marks serialize with their namespaced type as `"type"`.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Mark {
     /// Bold/strong text.
     Bold,
@@ -135,7 +142,6 @@ pub enum Mark {
         href: String,
 
         /// Optional link title.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
         title: Option<String>,
     },
 
@@ -153,7 +159,6 @@ pub enum Mark {
         number: u32,
 
         /// Optional unique identifier for cross-referencing.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
         id: Option<String>,
     },
 
@@ -162,8 +167,8 @@ pub enum Mark {
         /// Math format (latex or mathml).
         format: MathFormat,
 
-        /// The mathematical expression.
-        value: String,
+        /// The mathematical expression source.
+        source: String,
     },
 
     /// Extension mark for custom/unknown mark types.
@@ -422,6 +427,247 @@ impl ExtensionMark {
     }
 }
 
+/// Infer the extension namespace from a mark type string.
+///
+/// Used during deserialization when an unknown type string is encountered
+/// without explicit namespace information.
+fn infer_mark_namespace(mark_type: &str) -> &'static str {
+    match mark_type {
+        "citation" | "entity" | "glossary" => "semantic",
+        "theorem-ref" | "equation-ref" | "algorithm-ref" => "academic",
+        "cite" => "legal",
+        "highlight" => "collaboration",
+        "index" => "presentation",
+        _ => "",
+    }
+}
+
+impl Serialize for Mark {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        match self {
+            // Simple marks serialize as plain strings
+            Self::Bold => serializer.serialize_str("bold"),
+            Self::Italic => serializer.serialize_str("italic"),
+            Self::Underline => serializer.serialize_str("underline"),
+            Self::Strikethrough => serializer.serialize_str("strikethrough"),
+            Self::Code => serializer.serialize_str("code"),
+            Self::Superscript => serializer.serialize_str("superscript"),
+            Self::Subscript => serializer.serialize_str("subscript"),
+
+            // Complex marks serialize as objects with "type" field
+            Self::Link { href, title } => {
+                let len = 2 + usize::from(title.is_some());
+                let mut map = serializer.serialize_map(Some(len))?;
+                map.serialize_entry("type", "link")?;
+                map.serialize_entry("href", href)?;
+                if let Some(t) = title {
+                    map.serialize_entry("title", t)?;
+                }
+                map.end()
+            }
+            Self::Anchor { id } => {
+                let mut map = serializer.serialize_map(Some(2))?;
+                map.serialize_entry("type", "anchor")?;
+                map.serialize_entry("id", id)?;
+                map.end()
+            }
+            Self::Footnote { number, id } => {
+                let len = 2 + usize::from(id.is_some());
+                let mut map = serializer.serialize_map(Some(len))?;
+                map.serialize_entry("type", "footnote")?;
+                map.serialize_entry("number", number)?;
+                if let Some(i) = id {
+                    map.serialize_entry("id", i)?;
+                }
+                map.end()
+            }
+            Self::Math { format, source } => {
+                let mut map = serializer.serialize_map(Some(3))?;
+                map.serialize_entry("type", "math")?;
+                map.serialize_entry("format", format)?;
+                map.serialize_entry("source", source)?;
+                map.end()
+            }
+
+            // Extension marks: type is "namespace:markType", attributes flattened
+            Self::Extension(ext) => {
+                let type_str = ext.full_type();
+                let attr_count = ext.attributes.as_object().map_or(0, serde_json::Map::len);
+                let mut map = serializer.serialize_map(Some(1 + attr_count))?;
+                map.serialize_entry("type", &type_str)?;
+                if let Some(obj) = ext.attributes.as_object() {
+                    for (k, v) in obj {
+                        map.serialize_entry(k, v)?;
+                    }
+                }
+                map.end()
+            }
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for Mark {
+    #[allow(clippy::too_many_lines)]
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        struct MarkVisitor;
+
+        impl<'de> Visitor<'de> for MarkVisitor {
+            type Value = Mark;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                formatter.write_str("a string (simple mark) or an object (complex mark)")
+            }
+
+            // Simple marks can be plain strings
+            fn visit_str<E: de::Error>(self, v: &str) -> Result<Mark, E> {
+                match v {
+                    "bold" => Ok(Mark::Bold),
+                    "italic" => Ok(Mark::Italic),
+                    "underline" => Ok(Mark::Underline),
+                    "strikethrough" => Ok(Mark::Strikethrough),
+                    "code" => Ok(Mark::Code),
+                    "superscript" => Ok(Mark::Superscript),
+                    "subscript" => Ok(Mark::Subscript),
+                    other => {
+                        // Unknown string: treat as extension mark
+                        let (ns, mt) = if let Some((ns, mt)) = other.split_once(':') {
+                            (ns.to_string(), mt.to_string())
+                        } else {
+                            (infer_mark_namespace(other).to_string(), other.to_string())
+                        };
+                        Ok(Mark::Extension(ExtensionMark::new(ns, mt)))
+                    }
+                }
+            }
+
+            // Complex marks are objects with a "type" field
+            #[allow(clippy::too_many_lines)]
+            fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<Mark, A::Error> {
+                let mut type_str: Option<String> = None;
+                let mut fields = serde_json::Map::new();
+
+                while let Some(key) = map.next_key::<String>()? {
+                    if key == "type" {
+                        type_str = Some(map.next_value()?);
+                    } else {
+                        let value: serde_json::Value = map.next_value()?;
+                        fields.insert(key, value);
+                    }
+                }
+
+                let type_str = type_str.ok_or_else(|| de::Error::missing_field("type"))?;
+
+                match type_str.as_str() {
+                    // Simple marks in object form
+                    "bold" => Ok(Mark::Bold),
+                    "italic" => Ok(Mark::Italic),
+                    "underline" => Ok(Mark::Underline),
+                    "strikethrough" => Ok(Mark::Strikethrough),
+                    "code" => Ok(Mark::Code),
+                    "superscript" => Ok(Mark::Superscript),
+                    "subscript" => Ok(Mark::Subscript),
+
+                    // Complex core marks
+                    "link" => {
+                        let href = fields
+                            .get("href")
+                            .and_then(serde_json::Value::as_str)
+                            .ok_or_else(|| de::Error::missing_field("href"))?
+                            .to_string();
+                        let title = fields
+                            .get("title")
+                            .and_then(serde_json::Value::as_str)
+                            .map(ToString::to_string);
+                        Ok(Mark::Link { href, title })
+                    }
+                    "anchor" => {
+                        let id = fields
+                            .get("id")
+                            .and_then(serde_json::Value::as_str)
+                            .ok_or_else(|| de::Error::missing_field("id"))?
+                            .to_string();
+                        Ok(Mark::Anchor { id })
+                    }
+                    "footnote" => {
+                        let number = fields
+                            .get("number")
+                            .and_then(serde_json::Value::as_u64)
+                            .ok_or_else(|| de::Error::missing_field("number"))?;
+                        let id = fields
+                            .get("id")
+                            .and_then(serde_json::Value::as_str)
+                            .map(ToString::to_string);
+                        Ok(Mark::Footnote {
+                            number: u32::try_from(number)
+                                .map_err(|_| de::Error::custom("footnote number too large"))?,
+                            id,
+                        })
+                    }
+                    "math" => {
+                        let format_val = fields
+                            .get("format")
+                            .ok_or_else(|| de::Error::missing_field("format"))?;
+                        let format: MathFormat = serde_json::from_value(format_val.clone())
+                            .map_err(de::Error::custom)?;
+                        // Accept both "source" and "value" (backward compat)
+                        let source = fields
+                            .get("source")
+                            .or_else(|| fields.get("value"))
+                            .and_then(serde_json::Value::as_str)
+                            .ok_or_else(|| de::Error::missing_field("source"))?
+                            .to_string();
+                        Ok(Mark::Math { format, source })
+                    }
+
+                    // Old format backward compat: {"type": "extension", "namespace": "...", "markType": "..."}
+                    "extension" => {
+                        let namespace = fields
+                            .get("namespace")
+                            .and_then(serde_json::Value::as_str)
+                            .unwrap_or("")
+                            .to_string();
+                        let mark_type = fields
+                            .get("markType")
+                            .and_then(serde_json::Value::as_str)
+                            .unwrap_or("")
+                            .to_string();
+                        let attributes = fields
+                            .get("attributes")
+                            .cloned()
+                            .unwrap_or(serde_json::Value::Null);
+                        Ok(Mark::Extension(ExtensionMark {
+                            namespace,
+                            mark_type,
+                            attributes,
+                        }))
+                    }
+
+                    // Colon-delimited extension type or unknown type
+                    other => {
+                        let (namespace, mark_type) = if let Some((ns, mt)) = other.split_once(':') {
+                            (ns.to_string(), mt.to_string())
+                        } else {
+                            (infer_mark_namespace(other).to_string(), other.to_string())
+                        };
+                        let attributes = if fields.is_empty() {
+                            serde_json::Value::Null
+                        } else {
+                            serde_json::Value::Object(fields)
+                        };
+                        Ok(Mark::Extension(ExtensionMark {
+                            namespace,
+                            mark_type,
+                            attributes,
+                        }))
+                    }
+                }
+            }
+        }
+
+        deserializer.deserialize_any(MarkVisitor)
+    }
+}
+
 impl Mark {
     /// Get the type of this mark.
     #[must_use]
@@ -525,15 +771,30 @@ mod tests {
         let text = Text::bold("Test");
         let json = serde_json::to_string(&text).unwrap();
         assert!(json.contains("\"value\":\"Test\""));
-        assert!(json.contains("\"type\":\"bold\""));
+        // Simple marks serialize as strings
+        assert!(json.contains("\"bold\""));
     }
 
     #[test]
     fn test_text_deserialization() {
+        // New format: simple marks as strings
+        let json = r#"{"value":"Test","marks":["bold","italic"]}"#;
+        let text: Text = serde_json::from_str(json).unwrap();
+        assert_eq!(text.value, "Test");
+        assert_eq!(text.marks.len(), 2);
+        assert_eq!(text.marks[0], Mark::Bold);
+        assert_eq!(text.marks[1], Mark::Italic);
+    }
+
+    #[test]
+    fn test_text_deserialization_object_format() {
+        // Old format: simple marks as objects (backward compat)
         let json = r#"{"value":"Test","marks":[{"type":"bold"},{"type":"italic"}]}"#;
         let text: Text = serde_json::from_str(json).unwrap();
         assert_eq!(text.value, "Test");
         assert_eq!(text.marks.len(), 2);
+        assert_eq!(text.marks[0], Mark::Bold);
+        assert_eq!(text.marks[1], Mark::Italic);
     }
 
     #[test]
@@ -602,7 +863,7 @@ mod tests {
 
         let mark = Mark::Math {
             format: MathFormat::Latex,
-            value: "E = mc^2".to_string(),
+            source: "E = mc^2".to_string(),
         };
         assert_eq!(mark.mark_type(), MarkType::Math);
     }
@@ -613,23 +874,23 @@ mod tests {
 
         let mark = Mark::Math {
             format: MathFormat::Latex,
-            value: "\\frac{1}{2}".to_string(),
+            source: "\\frac{1}{2}".to_string(),
         };
         let json = serde_json::to_string(&mark).unwrap();
         assert!(json.contains("\"type\":\"math\""));
         assert!(json.contains("\"format\":\"latex\""));
-        assert!(json.contains("\"value\":\"\\\\frac{1}{2}\""));
+        assert!(json.contains("\"source\":\"\\\\frac{1}{2}\""));
     }
 
     #[test]
     fn test_math_mark_deserialization() {
         use crate::content::block::MathFormat;
 
-        let json = r#"{"type":"math","format":"mathml","value":"<math>...</math>"}"#;
+        let json = r#"{"type":"math","format":"mathml","source":"<math>...</math>"}"#;
         let mark: Mark = serde_json::from_str(json).unwrap();
-        if let Mark::Math { format, value } = mark {
+        if let Mark::Math { format, source } = mark {
             assert_eq!(format, MathFormat::Mathml);
-            assert_eq!(value, "<math>...</math>");
+            assert_eq!(source, "<math>...</math>");
         } else {
             panic!("Expected Math mark");
         }
@@ -643,7 +904,7 @@ mod tests {
             "x²",
             vec![Mark::Math {
                 format: MathFormat::Latex,
-                value: "x^2".to_string(),
+                source: "x^2".to_string(),
             }],
         );
         assert!(text.has_mark(MarkType::Math));
@@ -713,14 +974,38 @@ mod tests {
         let mark = Mark::Extension(ext);
 
         let json = serde_json::to_string(&mark).unwrap();
-        assert!(json.contains("\"type\":\"extension\""));
-        assert!(json.contains("\"namespace\":\"semantic\""));
-        assert!(json.contains("\"markType\":\"citation\""));
+        // New format: type is "namespace:markType", attributes flattened
+        assert!(json.contains("\"type\":\"semantic:citation\""));
         assert!(json.contains("\"ref\":\"smith2023\""));
+        // Should NOT contain old wrapper fields
+        assert!(!json.contains("\"namespace\""));
+        assert!(!json.contains("\"markType\""));
     }
 
     #[test]
-    fn test_extension_mark_deserialization() {
+    fn test_extension_mark_deserialization_new_format() {
+        // New format: colon-delimited type with flattened attributes
+        let json = r#"{
+            "type": "legal:cite",
+            "citation": "Brown v. Board of Education"
+        }"#;
+        let mark: Mark = serde_json::from_str(json).unwrap();
+
+        if let Mark::Extension(ext) = mark {
+            assert_eq!(ext.namespace, "legal");
+            assert_eq!(ext.mark_type, "cite");
+            assert_eq!(
+                ext.get_string_attribute("citation"),
+                Some("Brown v. Board of Education")
+            );
+        } else {
+            panic!("Expected Extension mark");
+        }
+    }
+
+    #[test]
+    fn test_extension_mark_deserialization_old_format() {
+        // Old format backward compat: "extension" wrapper with namespace/markType
         let json = r#"{
             "type": "extension",
             "namespace": "legal",

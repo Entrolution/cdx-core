@@ -126,7 +126,7 @@ fn display_text(
             println!(
                 "  {}. {}",
                 i + 1,
-                format_block_type(block.block_type()).cyan(),
+                format_block_type(&block.block_type()).cyan(),
             );
         }
     }
@@ -188,7 +188,7 @@ fn format_block_type(block_type: &str) -> String {
         "svg" => "SVG",
         "barcode" => "Barcode",
         "figure" => "Figure",
-        "figCaption" => "Figure Caption",
+        "figcaption" => "Figure Caption",
         other => other,
     }
     .to_string()
