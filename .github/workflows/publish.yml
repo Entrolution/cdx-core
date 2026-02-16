@@ -1,0 +1,140 @@
+name: Publish
+
+on:
+  push:
+    tags: ['v*']
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  ci:
+    name: CI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Build workspace
+        run: cargo build --workspace --all-features
+
+      - name: Run tests
+        run: cargo test --workspace --all-features
+
+      - name: Clippy
+        run: cargo clippy --workspace --all-features -- -D warnings
+
+      - name: Build docs
+        run: cargo doc --workspace --no-deps --all-features
+        env:
+          RUSTDOCFLAGS: -D warnings
+
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked || true
+
+      - name: Audit dependencies
+        run: cargo audit --ignore RUSTSEC-2023-0071
+
+      - name: Install cargo-deny
+        run: cargo install cargo-deny --locked || true
+
+      - name: Check dependency policies
+        run: cargo deny check
+
+  publish:
+    name: Publish to crates.io
+    needs: [ci]
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Validate tag matches Cargo.toml version
+        run: |
+          TAG="${GITHUB_REF#refs/tags/v}"
+          CORE_VERSION=$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[] | select(.name == "cdx-core") | .version')
+          CLI_VERSION=$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[] | select(.name == "cdx-cli") | .version')
+          echo "Tag version: $TAG"
+          echo "cdx-core version: $CORE_VERSION"
+          echo "cdx-cli version: $CLI_VERSION"
+          if [ "$TAG" != "$CORE_VERSION" ]; then
+            echo "ERROR: Tag v$TAG does not match cdx-core version $CORE_VERSION"
+            exit 1
+          fi
+          if [ "$TAG" != "$CLI_VERSION" ]; then
+            echo "ERROR: Tag v$TAG does not match cdx-cli version $CLI_VERSION"
+            exit 1
+          fi
+
+      - name: Dry run cdx-core
+        run: cargo publish --dry-run -p cdx-core
+
+      - name: Dry run cdx-cli
+        run: cargo publish --dry-run -p cdx-cli
+
+      - name: Authenticate with crates.io
+        uses: rust-lang/crates-io-auth-action@v1
+
+      - name: Publish cdx-core
+        run: cargo publish -p cdx-core
+
+      - name: Wait for crates.io index update
+        run: sleep 30
+
+      - name: Publish cdx-cli
+        run: cargo publish -p cdx-cli
+
+  release:
+    name: Create GitHub Release
+    needs: [publish]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Extract changelog for this version
+        id: changelog
+        run: |
+          TAG="${GITHUB_REF#refs/tags/v}"
+          # Extract the section for this version from CHANGELOG.md
+          # Matches from "## [X.Y.Z]" until the next "## [" or end of file
+          CHANGELOG=$(awk -v ver="$TAG" '
+            /^## \[/ {
+              if (found) exit
+              if ($0 ~ "\\[" ver "\\]") found=1
+              next
+            }
+            found { print }
+          ' CHANGELOG.md)
+          if [ -z "$CHANGELOG" ]; then
+            CHANGELOG="Release v$TAG"
+          fi
+          # Write to file to avoid delimiter issues
+          echo "$CHANGELOG" > /tmp/changelog.txt
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: /tmp/changelog.txt
+          generate_release_notes: false

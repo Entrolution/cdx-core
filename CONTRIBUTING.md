@@ -142,7 +142,7 @@ src/
 
 ## Specification Reference
 
-This library implements the [Codex Document Format Specification](https://github.com/gvonness-apolitical/codex-file-format-spec). When implementing new features:
+This library implements the [Codex Document Format Specification](https://github.com/Entrolution/codex-file-format-spec). When implementing new features:
 
 - Reference the relevant spec section
 - Note any deviations or extensions

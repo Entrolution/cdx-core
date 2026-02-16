@@ -1,5 +1,5 @@
-[![CI](https://github.com/gvonness-apolitical/cdx-core/actions/workflows/ci.yml/badge.svg)](https://github.com/gvonness-apolitical/cdx-core/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/gvonness-apolitical/cdx-core/graph/badge.svg)](https://codecov.io/gh/gvonness-apolitical/cdx-core)
+[![CI](https://github.com/Entrolution/cdx-core/actions/workflows/ci.yml/badge.svg)](https://github.com/Entrolution/cdx-core/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/Entrolution/cdx-core/graph/badge.svg)](https://codecov.io/gh/Entrolution/cdx-core)
 [![Crates.io](https://img.shields.io/crates/v/cdx-core.svg)](https://crates.io/crates/cdx-core)
 [![Documentation](https://docs.rs/cdx-core/badge.svg)](https://docs.rs/cdx-core)
 [![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](LICENSE-MIT)
@@ -7,7 +7,7 @@
 
 # cdx-core
 
-Core Rust library for reading, writing, and validating [Codex Document Format](https://github.com/gvonness-apolitical/codex-file-format-spec) (`.cdx`) files.
+Core Rust library for reading, writing, and validating [Codex Document Format](https://github.com/Entrolution/codex-file-format-spec) (`.cdx`) files.
 
 ## Overview
 
@@ -161,7 +161,7 @@ cargo run --example open_and_verify path/to/document.cdx
 
 ## Specification Compliance
 
-This library implements the [Codex Document Format Specification v0.1](https://github.com/gvonness-apolitical/codex-file-format-spec).
+This library implements the [Codex Document Format Specification v0.1](https://github.com/Entrolution/codex-file-format-spec).
 
 ### Module Status
 
