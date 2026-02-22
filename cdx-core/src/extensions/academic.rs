@@ -985,6 +985,44 @@ impl TheoremRef {
 // Numbering Configuration
 // ============================================================================
 
+/// When to reset counters. Uses heading level identifiers
+/// corresponding to the core heading block's level attribute.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ResetTrigger {
+    /// Reset at heading level 1.
+    Heading1,
+    /// Reset at heading level 2.
+    Heading2,
+    /// Reset at heading level 3.
+    Heading3,
+    /// Reset at heading level 4.
+    Heading4,
+    /// Reset at heading level 5.
+    Heading5,
+    /// Reset at heading level 6.
+    Heading6,
+    /// Never reset.
+    None,
+}
+
+/// Numbering style pattern.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum NumberingStylePattern {
+    /// Sequential numbering (e.g., 1, 2, 3).
+    #[serde(rename = "number")]
+    Number,
+    /// Chapter-scoped numbering (e.g., 2.1, 2.2).
+    #[serde(rename = "chapter.number")]
+    ChapterNumber,
+    /// Section-scoped numbering (e.g., 3.1, 3.2).
+    #[serde(rename = "section.number")]
+    SectionNumber,
+    /// Chapter-and-section-scoped numbering (e.g., 2.3.1).
+    #[serde(rename = "chapter.section.number")]
+    ChapterSectionNumber,
+}
+
 /// Numbering configuration for academic content.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -1014,12 +1052,13 @@ pub struct NumberingConfig {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NumberingStyle {
-    /// Format string (e.g., "{chapter}.{number}").
-    pub format: String,
+    /// Numbering style pattern.
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "format")]
+    pub style: Option<NumberingStylePattern>,
 
-    /// Whether to reset numbering per chapter.
-    #[serde(default)]
-    pub reset_per_chapter: bool,
+    /// When to reset counters.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reset_on: Option<ResetTrigger>,
 
     /// Starting number.
     #[serde(default = "default_start")]

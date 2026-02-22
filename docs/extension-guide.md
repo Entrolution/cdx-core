@@ -248,7 +248,7 @@ Structured content types for academic writing:
 - **Exercises** (`Exercise`, `ExerciseSet`): With difficulty levels and optional hints/solutions.
 - **Algorithms** (`Algorithm`): Pseudocode with parameters.
 - **Abstracts** (`Abstract`): Structured abstracts with sections (Background, Objectives, Methods, Results, Conclusions).
-- **Numbering** (`NumberingConfig`): Configurable numbering schemes (Sequential, BySection, ByChapter).
+- **Numbering** (`NumberingConfig`): Configurable numbering with style patterns (`number`, `chapter.number`, `section.number`, `chapter.section.number`) and heading-level reset triggers.
 
 ### Legal
 
