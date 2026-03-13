@@ -97,6 +97,7 @@ macro_rules! define_extension_accessors {
         #[doc = concat!("Get a mutable reference to the ", $label, ".\n\n# Errors\n\nReturns an error if the document is in an immutable state.")]
         pub fn $field_mut(&mut self) -> Result<Option<&mut $type>> {
             self.require_mutable(concat!("modify ", $label))?;
+            self.manifest.modified = chrono::Utc::now();
             Ok(self.$field.as_mut())
         }
 
@@ -110,6 +111,7 @@ macro_rules! define_extension_accessors {
         pub fn $set(&mut self, value: $type) -> Result<()> {
             self.require_mutable(concat!("set ", $label))?;
             self.$field = Some(value);
+            self.manifest.modified = chrono::Utc::now();
             Ok(())
         }
 
@@ -117,6 +119,7 @@ macro_rules! define_extension_accessors {
         pub fn $clear(&mut self) -> Result<()> {
             self.require_mutable(concat!("remove ", $label))?;
             self.$field = None;
+            self.manifest.modified = chrono::Utc::now();
             Ok(())
         }
     };
@@ -185,6 +188,10 @@ impl Document {
     pub fn content_mut(&mut self) -> Result<&mut Content> {
         self.require_mutable("modify content")?;
         self.manifest.modified = Utc::now();
+        // Reset document ID so freeze() recomputes it from the modified content
+        if !self.manifest.id.is_pending() {
+            self.manifest.id = DocumentId::pending();
+        }
         Ok(&mut self.content)
     }
 
@@ -202,6 +209,10 @@ impl Document {
     pub fn dublin_core_mut(&mut self) -> Result<&mut DublinCore> {
         self.require_mutable("modify Dublin Core metadata")?;
         self.manifest.modified = Utc::now();
+        // Reset document ID so freeze() recomputes it from the modified metadata
+        if !self.manifest.id.is_pending() {
+            self.manifest.id = DocumentId::pending();
+        }
         Ok(&mut self.dublin_core)
     }
 

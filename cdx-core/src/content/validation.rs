@@ -135,7 +135,7 @@ fn validate_block(
         Block::Measurement(m) => validate_measurement(m, path, ctx.errors),
         Block::Svg(svg) => validate_svg(svg, path, ctx.errors),
         Block::Barcode(bc) => validate_barcode(bc, path, ctx.errors),
-        Block::Figure(fig) => validate_figure(&fig.children, path, &mut ctx),
+        Block::Figure(fig) => validate_figure(fig, path, &mut ctx),
         Block::FigCaption(fc) => validate_figcaption(&fc.children, path, parent, ctx.errors),
         Block::Admonition(adm) => validate_container(&adm.children, path, &mut ctx),
     }
@@ -439,8 +439,12 @@ fn validate_barcode(
     }
 }
 
-fn validate_figure(children: &[Block], path: &str, ctx: &mut ValidationContext<'_>) {
-    for (i, child) in children.iter().enumerate() {
+fn validate_figure(
+    fig: &super::block::FigureBlock,
+    path: &str,
+    ctx: &mut ValidationContext<'_>,
+) {
+    for (i, child) in fig.children.iter().enumerate() {
         let child_path = format!("{path}.children[{i}]");
         validate_block(
             child,
@@ -449,6 +453,26 @@ fn validate_figure(children: &[Block], path: &str, ctx: &mut ValidationContext<'
             ctx.seen_ids,
             Some(ParentContext::Figure),
         );
+    }
+
+    // Validate subfigures if present
+    if let Some(ref subfigures) = fig.subfigures {
+        for (i, subfig) in subfigures.iter().enumerate() {
+            let subfig_path = format!("{path}.subfigures[{i}]");
+
+            // Check subfigure ID uniqueness
+            if let Some(ref id) = subfig.id {
+                if !ctx.seen_ids.insert(id.clone()) {
+                    ctx.add_error(&subfig_path, format!("duplicate block ID: {id}"));
+                }
+            }
+
+            // Validate subfigure children
+            for (j, child) in subfig.children.iter().enumerate() {
+                let child_path = format!("{subfig_path}.children[{j}]");
+                validate_block(child, &child_path, ctx.errors, ctx.seen_ids, None);
+            }
+        }
     }
 }
 
@@ -696,6 +720,80 @@ mod tests {
         let content = Content::new(vec![Block::figcaption(vec![Text::plain("Orphan caption")])]);
         let errors = validate_content(&content);
         assert!(errors.iter().any(|e| e.message.contains("child of figure")));
+    }
+
+    #[test]
+    fn test_subfigure_with_invalid_block() {
+        use super::super::block::{FigureBlock, Subfigure};
+
+        let fig = FigureBlock {
+            id: None,
+            numbering: None,
+            subfigures: Some(vec![Subfigure {
+                id: Some("sub-a".to_string()),
+                label: Some("(a)".to_string()),
+                children: vec![Block::Image(super::super::block::ImageBlock {
+                    id: None,
+                    src: String::new(), // invalid: empty src
+                    alt: String::new(), // invalid: empty alt
+                    title: None,
+                    width: None,
+                    height: None,
+                })],
+            }]),
+            children: vec![Block::image("main.png", "Main image")],
+            attributes: BlockAttributes::default(),
+        };
+
+        let content = Content::new(vec![Block::Figure(fig)]);
+        let errors = validate_content(&content);
+        assert!(
+            !errors.is_empty(),
+            "subfigure with invalid block should produce errors"
+        );
+        // Should have errors for empty src and empty alt
+        assert!(errors.iter().any(|e| e.message.contains("src")));
+        assert!(errors.iter().any(|e| e.message.contains("alt")));
+    }
+
+    #[test]
+    fn test_subfigure_duplicate_id() {
+        use super::super::block::{FigureBlock, Subfigure};
+
+        let fig = FigureBlock {
+            id: Some("fig-1".to_string()),
+            numbering: None,
+            subfigures: Some(vec![Subfigure {
+                id: Some("fig-1".to_string()), // duplicate of parent
+                label: None,
+                children: vec![Block::paragraph(vec![Text::plain("subfig")])],
+            }]),
+            children: vec![Block::paragraph(vec![Text::plain("content")])],
+            attributes: BlockAttributes::default(),
+        };
+
+        let content = Content::new(vec![Block::Figure(fig)]);
+        let errors = validate_content(&content);
+        assert!(errors.iter().any(|e| e.message.contains("duplicate")));
+    }
+
+    #[test]
+    fn test_heading_level_clamped_on_deser() {
+        let json = r#"{"type":"heading","level":0,"children":[{"value":"Zero"}]}"#;
+        let block: Block = serde_json::from_str(json).unwrap();
+        if let Block::Heading { level, .. } = block {
+            assert_eq!(level, 1, "level 0 should be clamped to 1");
+        } else {
+            panic!("Expected Heading");
+        }
+
+        let json = r#"{"type":"heading","level":99,"children":[{"value":"High"}]}"#;
+        let block: Block = serde_json::from_str(json).unwrap();
+        if let Block::Heading { level, .. } = block {
+            assert_eq!(level, 6, "level 99 should be clamped to 6");
+        } else {
+            panic!("Expected Heading");
+        }
     }
 
     #[test]

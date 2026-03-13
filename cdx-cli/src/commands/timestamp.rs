@@ -177,12 +177,7 @@ pub fn run_verify_timestamps(file: &Path, config: &OutputConfig) -> Result<()> {
             record.timestamps.len()
         ));
     } else {
-        println!(
-            "{} {}",
-            "✗".red().bold(),
-            "Some timestamps failed verification".red()
-        );
-        std::process::exit(1);
+        anyhow::bail!("Some timestamps failed verification");
     }
 
     Ok(())
@@ -251,7 +246,7 @@ pub fn run_add_timestamp(params: &AddTimestampParams, config: &OutputConfig) -> 
     // Let's report what would be added
     if config.json {
         let output_json = serde_json::json!({
-            "status": "dry_run",
+            "status": "not_implemented",
             "message": "Adding timestamps to documents requires provenance record persistence (not yet implemented)",
             "timestamp": {
                 "method": format!("{:?}", timestamp.method).to_lowercase(),
@@ -263,9 +258,6 @@ pub fn run_add_timestamp(params: &AddTimestampParams, config: &OutputConfig) -> 
         });
         println!("{}", serde_json::to_string_pretty(&output_json)?);
     } else {
-        config.warning(
-            "Adding timestamps requires provenance record persistence (planned for future release)",
-        );
         println!("\n{}", "Timestamp to add:".dimmed());
         config.field("  Method", &format!("{}", timestamp.method));
         config.field("  Authority", &timestamp.authority);
@@ -276,13 +268,7 @@ pub fn run_add_timestamp(params: &AddTimestampParams, config: &OutputConfig) -> 
         }
     }
 
-    // Note: Full implementation would:
-    // 1. Load or create provenance record
-    // 2. Add timestamp to record
-    // 3. Save provenance record to document
-    // 4. Save document
-
-    Ok(())
+    anyhow::bail!("Timestamp persistence not yet implemented")
 }
 
 /// Timestamp verification result.
@@ -294,12 +280,11 @@ struct TimestampVerification {
     note: Option<String>,
 }
 
-/// Truncate a token for display.
+/// Truncate a token for display (char-safe).
 fn truncate_token(token: &str, max_len: usize) -> String {
-    if token.len() <= max_len {
-        token.to_string()
-    } else {
-        format!("{}...", &token[..max_len])
+    match token.char_indices().nth(max_len) {
+        Some((i, _)) => format!("{}...", &token[..i]),
+        None => token.to_string(),
     }
 }
 
@@ -423,12 +408,10 @@ fn run_acquire_rfc3161(_file: &Path, _server: Option<&str>, config: &OutputConfi
             "message": "Rebuild with --features timestamps-rfc3161 to enable RFC 3161 timestamps",
         });
         println!("{}", serde_json::to_string_pretty(&output)?);
-        Ok(())
-    } else {
-        anyhow::bail!(
-            "RFC 3161 feature not enabled. Rebuild with: cargo build --features timestamps-rfc3161"
-        )
     }
+    anyhow::bail!(
+        "RFC 3161 feature not enabled. Rebuild with: cargo build --features timestamps-rfc3161"
+    )
 }
 
 /// Acquire a timestamp from `OpenTimestamps`.
@@ -511,10 +494,8 @@ fn run_acquire_ots(_file: &Path, config: &OutputConfig) -> Result<()> {
             "message": "Rebuild with --features timestamps-ots to enable OpenTimestamps",
         });
         println!("{}", serde_json::to_string_pretty(&output)?);
-        Ok(())
-    } else {
-        anyhow::bail!(
-            "OpenTimestamps feature not enabled. Rebuild with: cargo build --features timestamps-ots"
-        )
     }
+    anyhow::bail!(
+        "OpenTimestamps feature not enabled. Rebuild with: cargo build --features timestamps-ots"
+    )
 }

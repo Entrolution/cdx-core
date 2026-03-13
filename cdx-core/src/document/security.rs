@@ -116,6 +116,7 @@ impl Document {
     pub fn set_encryption(&mut self, metadata: EncryptionMetadata) -> Result<()> {
         self.require_mutable("set encryption")?;
         self.encryption_metadata = Some(metadata);
+        self.manifest.modified = chrono::Utc::now();
         Ok(())
     }
 
@@ -128,6 +129,7 @@ impl Document {
     pub fn clear_encryption(&mut self) -> Result<()> {
         self.require_mutable("remove encryption")?;
         self.encryption_metadata = None;
+        self.manifest.modified = chrono::Utc::now();
         Ok(())
     }
 }

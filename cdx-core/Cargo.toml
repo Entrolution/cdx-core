@@ -21,13 +21,13 @@ zstd = ["zip/zstd"]
 signatures = ["dep:p256", "dep:ecdsa", "dep:base64", "dep:rand_core"]
 signatures-es384 = ["dep:p384", "dep:ecdsa", "dep:base64", "dep:rand_core"]
 signatures-rsa = ["dep:rsa", "dep:base64", "dep:rand_core"]
-encryption = ["signatures", "dep:aes-gcm", "dep:rand_core"]
+encryption = ["signatures", "dep:aes-gcm", "dep:rand_core", "dep:zeroize"]
 encryption-chacha = ["encryption", "dep:chacha20poly1305", "dep:rand_core"]
 key-wrapping = ["encryption", "dep:aes-kw", "dep:hkdf", "p256/ecdh"]
 key-wrapping-rsa = ["key-wrapping", "signatures-rsa"]
 key-wrapping-pbes2 = ["key-wrapping", "dep:pbkdf2"]
 eddsa = ["dep:ed25519-dalek", "dep:rand_core"]
-ml-dsa = ["dep:ml-dsa", "dep:base64", "dep:rand_core"]
+ml-dsa = ["dep:ml-dsa", "dep:base64", "dep:rand_core", "dep:zeroize"]
 wasm = ["getrandom/wasm_js"]
 
 # Network-dependent features (require external services)
@@ -77,6 +77,7 @@ ml-dsa = { version = ">=0.1.0-rc.7, <0.2", features = ["rand_core"], optional = 
 # Encryption (optional)
 aes-gcm = { version = "0.11.0-rc.3", optional = true }
 chacha20poly1305 = { version = "0.11.0-rc.3", optional = true }
+zeroize = { version = "1", features = ["derive"], optional = true }
 
 # Key wrapping (optional)
 aes-kw = { version = "0.3.0-rc.2", optional = true }
