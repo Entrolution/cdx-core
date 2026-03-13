@@ -156,8 +156,11 @@ impl<R: Read + Seek> CdxReader<R> {
 
     /// Internal file reading without path validation (for known-safe paths).
     fn read_file_internal(archive: &mut ZipArchive<R>, path: &str) -> Result<Vec<u8>> {
-        let file = archive.by_name(path).map_err(|_| Error::MissingFile {
-            path: path.to_string(),
+        let file = archive.by_name(path).map_err(|e| match e {
+            zip::result::ZipError::FileNotFound => Error::MissingFile {
+                path: path.to_string(),
+            },
+            other => Error::InvalidArchive(other),
         })?;
 
         // Check declared size before allocating (catches honest oversized files)

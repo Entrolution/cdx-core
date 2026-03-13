@@ -5,7 +5,11 @@ all-features = true
 [advisories]
 db-path = "~/.cargo/advisory-db"
 db-urls = ["https://github.com/rustsec/advisory-db"]
-yanked = "deny"
+# RustCrypto RC ecosystem has transiently yanked digest/cipher/crypto-common 0.11.x.
+# Non-yanked replacements (0.11.2+) break hkdf/universal-hash/ctr.
+# Downgrade to "warn" until the RC ecosystem stabilizes.
+# Last reviewed: 2026-03-13
+yanked = "warn"
 
 # rsa has a timing side-channel (Marvin Attack) with no fixed version available (incl. 0.10-rc).
 # signatures-rsa is opt-in (not in default features). Review periodically.

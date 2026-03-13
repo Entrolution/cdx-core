@@ -111,7 +111,7 @@ pub fn run_verify_proof(file: &Path, proof_file: &Path, config: &OutputConfig) -
             ));
         }
 
-        std::process::exit(1);
+        anyhow::bail!("Proof verification failed");
     }
 
     Ok(())

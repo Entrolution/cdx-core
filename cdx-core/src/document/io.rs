@@ -217,6 +217,8 @@ impl Document {
                     signatures: signatures_ref,
                     encryption: encryption_ref,
                 });
+            } else {
+                manifest.security = None;
             }
         }
 

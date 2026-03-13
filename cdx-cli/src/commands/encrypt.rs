@@ -5,8 +5,6 @@
 #[cfg(feature = "encryption")]
 use anyhow::Context;
 use anyhow::Result;
-#[cfg(feature = "encryption")]
-use colored::Colorize;
 use std::path::{Path, PathBuf};
 
 use crate::output::OutputConfig;
@@ -129,22 +127,18 @@ pub fn run(
                 "file": output_path.display().to_string(),
                 "algorithm": "AES-256-GCM",
                 "kdf": "Argon2id",
-                "message": "Document encrypted successfully"
+                "message": "Encryption metadata set (content-level encryption not yet implemented)"
             });
             println!("{}", serde_json::to_string_pretty(&result)?);
         } else {
+            config.warning("Encryption metadata set, but content-level encryption is not yet implemented. Content remains in plaintext.");
             config.success(&format!(
-                "Document encrypted successfully: {}",
+                "Encryption metadata written: {}",
                 output_path.display()
             ));
             println!();
             config.field("Algorithm", "AES-256-GCM");
             config.field("Key Derivation", "Argon2id");
-            println!();
-            println!(
-                "{} Store your password securely. Lost passwords cannot be recovered.",
-                "Warning:".yellow().bold()
-            );
         }
 
         Ok(())

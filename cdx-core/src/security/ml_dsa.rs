@@ -10,7 +10,7 @@
 //! Post-quantum cryptography is still maturing. While ML-DSA-65 is
 //! standardized by NIST, implementations should be considered experimental.
 
-use crate::error::invalid_manifest;
+use crate::error::signature_error;
 use crate::{DocumentId, Result};
 
 use super::signature::{Signature, SignatureAlgorithm, SignatureVerification, SignerInfo};
@@ -27,7 +27,7 @@ use super::signer::{Signer, Verifier};
 #[cfg(feature = "ml-dsa")]
 pub struct MlDsaSigner {
     signing_key: ml_dsa::SigningKey<ml_dsa::MlDsa65>,
-    seed: [u8; 32],
+    seed: zeroize::Zeroizing<[u8; 32]>,
     signer_info: SignerInfo,
 }
 
@@ -49,7 +49,7 @@ impl MlDsaSigner {
         use ml_dsa::KeyGen;
 
         let seed: [u8; 32] = seed_bytes.try_into().map_err(|_| {
-            invalid_manifest(format!(
+            signature_error(format!(
                 "Invalid ML-DSA-65 seed length: expected 32, got {}",
                 seed_bytes.len()
             ))
@@ -59,7 +59,7 @@ impl MlDsaSigner {
 
         Ok(Self {
             signing_key: kp.signing_key().clone(),
-            seed,
+            seed: zeroize::Zeroizing::new(seed),
             signer_info,
         })
     }
@@ -82,7 +82,7 @@ impl MlDsaSigner {
         Ok((
             Self {
                 signing_key: kp.signing_key().clone(),
-                seed,
+                seed: zeroize::Zeroizing::new(seed),
                 signer_info,
             },
             public_key_bytes,
@@ -167,7 +167,7 @@ impl MlDsaVerifier {
     pub fn from_bytes(public_key_bytes: &[u8]) -> Result<Self> {
         let verifying_key =
             ml_dsa::VerifyingKey::decode(public_key_bytes.try_into().map_err(|_| {
-                invalid_manifest(format!(
+                signature_error(format!(
                     "Invalid ML-DSA-65 public key length: got {}",
                     public_key_bytes.len()
                 ))
@@ -200,12 +200,12 @@ impl Verifier for MlDsaVerifier {
         // Decode signature from base64
         let sig_bytes = base64::engine::general_purpose::STANDARD
             .decode(&signature.value)
-            .map_err(|e| invalid_manifest(format!("Failed to decode signature: {e}")))?;
+            .map_err(|e| signature_error(format!("Failed to decode signature: {e}")))?;
 
         // Parse ML-DSA signature
         let ml_sig =
             ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(sig_bytes.as_slice()).map_err(|_| {
-                invalid_manifest(format!(
+                signature_error(format!(
                     "Invalid ML-DSA-65 signature length: got {}",
                     sig_bytes.len()
                 ))

@@ -84,10 +84,63 @@ impl CommentThread {
         None
     }
 
-    /// Find a mutable comment.
+    /// Find a mutable comment, including in nested replies.
     fn find_comment_mut(&mut self, id: &str) -> Option<&mut Comment> {
-        // Note: Can't recurse into replies with mutable reference easily
-        // This is a limitation of the current implementation
-        self.comments.iter_mut().find(|comment| comment.id == id)
+        Self::find_comment_mut_recursive(&mut self.comments, id)
+    }
+
+    /// Recursively search for a mutable comment by ID.
+    fn find_comment_mut_recursive<'a>(
+        comments: &'a mut [Comment],
+        id: &str,
+    ) -> Option<&'a mut Comment> {
+        for comment in comments {
+            if comment.id == id {
+                return Some(comment);
+            }
+            if let Some(found) = Self::find_comment_mut_recursive(&mut comment.replies, id) {
+                return Some(found);
+            }
+        }
+        None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::extensions::collaboration::Collaborator;
+
+    #[test]
+    fn test_get_mut_finds_reply() {
+        let mut thread = CommentThread::new();
+        let author = Collaborator::new("Alice");
+
+        let mut parent = Comment::new("c1", "block-1", author.clone(), "Parent comment");
+        let reply = Comment::new("reply-1", "block-1", author, "Reply to parent");
+        parent.replies.push(reply);
+
+        thread.add(parent);
+
+        // get_mut should find the nested reply
+        assert!(
+            thread.get_mut("reply-1").is_some(),
+            "get_mut should find nested replies"
+        );
+
+        // Mutate the reply
+        if let Some(reply) = thread.get_mut("reply-1") {
+            reply.resolved = true;
+        }
+
+        // Verify mutation persisted
+        let reply = thread.get("reply-1").unwrap();
+        assert!(reply.resolved);
+    }
+
+    #[test]
+    fn test_get_mut_returns_none_for_missing() {
+        let mut thread = CommentThread::new();
+        assert!(thread.get_mut("nonexistent").is_none());
     }
 }

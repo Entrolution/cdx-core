@@ -391,7 +391,7 @@ impl Author {
 }
 
 /// A partial date (year, year-month, or full date).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PartialDate {
     /// Year.
@@ -423,6 +423,9 @@ impl PartialDate {
     }
 
     /// Create a year-month date.
+    ///
+    /// Note: `month` should be in the range 1-12. Use [`Self::try_year_month`]
+    /// for validated construction.
     #[must_use]
     pub const fn year_month(year: i32, month: u8) -> Self {
         Self {
@@ -433,7 +436,22 @@ impl PartialDate {
         }
     }
 
+    /// Create a year-month date with validation.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if month is not in the range 1-12.
+    pub fn try_year_month(year: i32, month: u8) -> Result<Self, String> {
+        if !(1..=12).contains(&month) {
+            return Err(format!("month must be 1-12, got {month}"));
+        }
+        Ok(Self::year_month(year, month))
+    }
+
     /// Create a full date.
+    ///
+    /// Note: `month` should be 1-12 and `day` should be 1-31.
+    /// Use [`Self::try_full`] for validated construction.
     #[must_use]
     pub const fn full(year: i32, month: u8, day: u8) -> Self {
         Self {
@@ -442,6 +460,21 @@ impl PartialDate {
             day: Some(day),
             season: None,
         }
+    }
+
+    /// Create a full date with validation.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if month is not 1-12 or day is not 1-31.
+    pub fn try_full(year: i32, month: u8, day: u8) -> Result<Self, String> {
+        if !(1..=12).contains(&month) {
+            return Err(format!("month must be 1-12, got {month}"));
+        }
+        if !(1..=31).contains(&day) {
+            return Err(format!("day must be 1-31, got {day}"));
+        }
+        Ok(Self::full(year, month, day))
     }
 
     /// Create a seasonal date.
@@ -456,6 +489,46 @@ impl PartialDate {
     }
 }
 
+impl<'de> Deserialize<'de> for PartialDate {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Raw {
+            year: i32,
+            #[serde(default)]
+            month: Option<u8>,
+            #[serde(default)]
+            day: Option<u8>,
+            #[serde(default)]
+            season: Option<String>,
+        }
+        let raw = Raw::deserialize(deserializer)?;
+        if let Some(m) = raw.month {
+            if !(1..=12).contains(&m) {
+                return Err(serde::de::Error::custom(format!(
+                    "month must be 1-12, got {m}"
+                )));
+            }
+        }
+        if let Some(d) = raw.day {
+            if !(1..=31).contains(&d) {
+                return Err(serde::de::Error::custom(format!(
+                    "day must be 1-31, got {d}"
+                )));
+            }
+        }
+        Ok(PartialDate {
+            year: raw.year,
+            month: raw.month,
+            day: raw.day,
+            season: raw.season,
+        })
+    }
+}
+
 impl std::fmt::Display for PartialDate {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if let Some(season) = &self.season {
@@ -466,5 +539,57 @@ impl std::fmt::Display for PartialDate {
             (Some(month), None) => write!(f, "{}-{:02}", self.year, month),
             _ => write!(f, "{}", self.year),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_try_year_month_valid() {
+        assert!(PartialDate::try_year_month(2024, 1).is_ok());
+        assert!(PartialDate::try_year_month(2024, 12).is_ok());
+    }
+
+    #[test]
+    fn test_try_year_month_invalid() {
+        assert!(PartialDate::try_year_month(2024, 0).is_err());
+        assert!(PartialDate::try_year_month(2024, 13).is_err());
+    }
+
+    #[test]
+    fn test_try_full_valid() {
+        assert!(PartialDate::try_full(2024, 6, 15).is_ok());
+    }
+
+    #[test]
+    fn test_try_full_invalid() {
+        assert!(PartialDate::try_full(2024, 0, 15).is_err());
+        assert!(PartialDate::try_full(2024, 6, 0).is_err());
+        assert!(PartialDate::try_full(2024, 6, 32).is_err());
+    }
+
+    #[test]
+    fn test_partial_date_deser_rejects_invalid_month() {
+        let json = r#"{"year":2024,"month":13}"#;
+        let result: Result<PartialDate, _> = serde_json::from_str(json);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_partial_date_deser_rejects_invalid_day() {
+        let json = r#"{"year":2024,"month":6,"day":32}"#;
+        let result: Result<PartialDate, _> = serde_json::from_str(json);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_partial_date_deser_accepts_valid() {
+        let json = r#"{"year":2024,"month":6,"day":15}"#;
+        let result: PartialDate = serde_json::from_str(json).unwrap();
+        assert_eq!(result.year, 2024);
+        assert_eq!(result.month, Some(6));
+        assert_eq!(result.day, Some(15));
     }
 }

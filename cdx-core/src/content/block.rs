@@ -1458,7 +1458,7 @@ impl<'de> Deserialize<'de> for Block {
                 let inner: Inner = serde_json::from_value(value).map_err(de::Error::custom)?;
                 Ok(Block::Heading {
                     id: inner.id,
-                    level: inner.level,
+                    level: inner.level.clamp(1, 6),
                     children: inner.children,
                     attributes: inner.attributes,
                 })

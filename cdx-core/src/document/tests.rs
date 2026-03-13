@@ -478,4 +478,153 @@ mod tests {
 
         assert_eq!(doc.comments().unwrap().comments.len(), 2);
     }
+
+    #[cfg(any(feature = "signatures", feature = "encryption"))]
+    #[test]
+    fn test_write_to_clears_stale_security_ref() {
+        use crate::manifest::SecurityRef;
+
+        // Create a document and add a signature
+        let mut doc = Document::builder()
+            .title("Security Ref Test")
+            .creator("Author")
+            .add_paragraph("Content")
+            .build()
+            .unwrap();
+
+        // Manually set a security reference as if it had signatures before
+        doc.manifest_mut().security = Some(SecurityRef {
+            signatures: Some("security/signatures.json".to_string()),
+            encryption: None,
+        });
+
+        // Save and reload — signature_file is None so the security ref should be cleared
+        let bytes = doc.to_bytes().unwrap();
+        let loaded = Document::from_bytes(bytes).unwrap();
+        assert!(
+            loaded.manifest().security.is_none(),
+            "security ref should be None when no signatures or encryption exist"
+        );
+    }
+
+    #[test]
+    fn test_root_document_can_freeze_after_set_lineage() {
+        let mut doc = Document::builder()
+            .title("Root Doc")
+            .creator("Author")
+            .add_paragraph("Content")
+            .build()
+            .unwrap();
+
+        // Set root lineage
+        doc.set_lineage(None, 1, None).unwrap();
+        assert!(doc.manifest().lineage.is_some());
+    }
+
+    #[cfg(feature = "signatures")]
+    #[test]
+    fn test_freeze_lineage_error_message_mentions_set_lineage() {
+        let mut doc = Document::builder()
+            .title("Lineage Error Test")
+            .creator("Author")
+            .add_paragraph("Content")
+            .build()
+            .unwrap();
+
+        doc.submit_for_review().unwrap();
+
+        // Add a dummy signature so the signature check passes
+        #[cfg(feature = "signatures")]
+        {
+            use crate::security::{Signature, SignatureAlgorithm, SignerInfo};
+            let sig = Signature::new(
+                "sig-1",
+                SignatureAlgorithm::ES256,
+                SignerInfo::new("test@example.com"),
+                "dummysig",
+            );
+            doc.add_signature(sig).unwrap();
+        }
+
+        let err = doc.freeze().unwrap_err();
+        let msg = err.to_string();
+        assert!(
+            msg.contains("set_lineage"),
+            "error message should mention set_lineage, got: {msg}"
+        );
+    }
+
+    // Phase 2: Document mutation consistency tests
+
+    #[test]
+    fn test_set_extension_updates_modified() {
+        use crate::extensions::Bibliography;
+
+        let mut doc = Document::builder()
+            .title("Extension Modified Test")
+            .creator("Author")
+            .add_paragraph("Content")
+            .build()
+            .unwrap();
+
+        let before = doc.manifest().modified;
+        std::thread::sleep(std::time::Duration::from_millis(10));
+
+        doc.set_bibliography(Bibliography::default()).unwrap();
+        assert!(
+            doc.manifest().modified > before,
+            "modified timestamp should update after set_bibliography"
+        );
+    }
+
+    #[test]
+    fn test_clear_extension_updates_modified() {
+        use crate::extensions::Bibliography;
+
+        let mut doc = Document::builder()
+            .title("Clear Extension Modified Test")
+            .creator("Author")
+            .add_paragraph("Content")
+            .build()
+            .unwrap();
+
+        doc.set_bibliography(Bibliography::default()).unwrap();
+        let before = doc.manifest().modified;
+        std::thread::sleep(std::time::Duration::from_millis(10));
+
+        doc.clear_bibliography().unwrap();
+        assert!(
+            doc.manifest().modified > before,
+            "modified timestamp should update after clear_bibliography"
+        );
+    }
+
+    #[cfg(feature = "encryption")]
+    #[test]
+    fn test_set_encryption_updates_modified() {
+        use crate::security::{EncryptionAlgorithm, EncryptionMetadata};
+
+        let mut doc = Document::builder()
+            .title("Encryption Modified Test")
+            .creator("Author")
+            .add_paragraph("Content")
+            .build()
+            .unwrap();
+
+        let before = doc.manifest().modified;
+        std::thread::sleep(std::time::Duration::from_millis(10));
+
+        let meta = EncryptionMetadata {
+            algorithm: EncryptionAlgorithm::Aes256Gcm,
+            kdf: None,
+            wrapped_key: None,
+            key_management: None,
+            recipients: Vec::new(),
+        };
+        doc.set_encryption(meta).unwrap();
+        assert!(
+            doc.manifest().modified > before,
+            "modified timestamp should update after set_encryption"
+        );
+    }
 }

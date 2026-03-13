@@ -67,7 +67,8 @@ impl Document {
         if self.manifest.lineage.is_none() {
             return Err(crate::Error::StateRequirementNotMet {
                 state: DocumentState::Frozen,
-                requirement: "lineage information".to_string(),
+                requirement: "lineage information (call set_lineage for root documents)"
+                    .to_string(),
             });
         }
 
@@ -206,7 +207,12 @@ impl Document {
         self.require_mutable("modify lineage")?;
 
         let lineage = if let Some(parent_id) = parent {
-            Lineage::from_parent(parent_id, None).with_note(note.unwrap_or_default())
+            let mut l = Lineage::from_parent(parent_id, None);
+            l.version = Some(version);
+            if let Some(n) = note {
+                l = l.with_note(n);
+            }
+            l
         } else {
             let mut l = Lineage::root();
             l.version = Some(version);

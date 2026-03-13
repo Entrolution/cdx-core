@@ -167,6 +167,7 @@ fn verify_signatures(
 
         for signature in signatures {
             if loaded_keys.is_empty() {
+                *all_valid = false;
                 signature_results.push(SignatureVerificationResult {
                     signature_id: signature.id.clone(),
                     algorithm: signature.algorithm,

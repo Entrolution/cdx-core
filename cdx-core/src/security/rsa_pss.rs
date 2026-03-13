@@ -3,7 +3,7 @@
 //! This module provides PS256 signing and verification using RSA with PSS padding
 //! and SHA-256.
 
-use crate::error::invalid_manifest;
+use crate::error::signature_error;
 use crate::{DocumentId, Result};
 
 use super::signature::{Signature, SignatureAlgorithm, SignatureVerification, SignerInfo};
@@ -25,7 +25,7 @@ impl Ps256Signer {
         use rsa::pkcs8::DecodePrivateKey;
 
         let signing_key = rsa::RsaPrivateKey::from_pkcs8_pem(pem)
-            .map_err(|e| invalid_manifest(format!("Failed to parse RSA private key PEM: {e}")))?;
+            .map_err(|e| signature_error(format!("Failed to parse RSA private key PEM: {e}")))?;
 
         Ok(Self {
             signing_key,
@@ -46,12 +46,12 @@ impl Ps256Signer {
 
         let signing_key =
             rsa::RsaPrivateKey::new(&mut rand_core::UnwrapErr(getrandom::SysRng), bits)
-                .map_err(|e| invalid_manifest(format!("Failed to generate RSA key: {e}")))?;
+                .map_err(|e| signature_error(format!("Failed to generate RSA key: {e}")))?;
 
         let public_key = signing_key.to_public_key();
         let public_key_pem = public_key
             .to_public_key_pem(rsa::pkcs8::LineEnding::LF)
-            .map_err(|e| invalid_manifest(format!("Failed to encode RSA public key: {e}")))?;
+            .map_err(|e| signature_error(format!("Failed to encode RSA public key: {e}")))?;
 
         Ok((
             Self {
@@ -84,7 +84,7 @@ impl Ps256Signer {
         self.signing_key
             .to_public_key()
             .to_public_key_pem(rsa::pkcs8::LineEnding::LF)
-            .map_err(|e| invalid_manifest(format!("Failed to encode RSA public key: {e}")))
+            .map_err(|e| signature_error(format!("Failed to encode RSA public key: {e}")))
     }
 }
 
@@ -150,7 +150,7 @@ impl Ps256Verifier {
         use rsa::pkcs8::DecodePublicKey;
 
         let verifying_key = rsa::RsaPublicKey::from_public_key_pem(pem)
-            .map_err(|e| invalid_manifest(format!("Failed to parse RSA public key PEM: {e}")))?;
+            .map_err(|e| signature_error(format!("Failed to parse RSA public key PEM: {e}")))?;
 
         Ok(Self { verifying_key })
     }
@@ -179,14 +179,14 @@ impl Verifier for Ps256Verifier {
         // Decode signature from base64
         let sig_bytes = base64::engine::general_purpose::STANDARD
             .decode(&signature.value)
-            .map_err(|e| invalid_manifest(format!("Failed to decode signature: {e}")))?;
+            .map_err(|e| signature_error(format!("Failed to decode signature: {e}")))?;
 
         // Create PSS verifying key
         let verifying_key = VerifyingKey::<rsa::sha2::Sha256>::new(self.verifying_key.clone());
 
         // Parse signature
         let rsa_sig = rsa::pss::Signature::try_from(sig_bytes.as_slice())
-            .map_err(|e| invalid_manifest(format!("Invalid PS256 signature format: {e}")))?;
+            .map_err(|e| signature_error(format!("Invalid PS256 signature format: {e}")))?;
 
         // Verify
         match verifying_key.verify(document_id.digest(), &rsa_sig) {

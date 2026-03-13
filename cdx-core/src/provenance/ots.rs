@@ -364,9 +364,10 @@ impl OtsClient {
         let _ = document_id;
 
         Ok(TimestampVerification {
-            valid: true,
+            valid: false,
             status: VerificationStatus::Pending,
-            message: "Timestamp proof present (full verification requires upgrade)".to_string(),
+            message: "Timestamp proof present but unverified (full verification requires upgrade)"
+                .to_string(),
         })
     }
 }
@@ -599,7 +600,7 @@ mod tests {
             TimestampRecord::open_timestamps(Utc::now(), BASE64.encode(b"some proof data"));
 
         let result = client.verify_timestamp(&timestamp, &doc_id).unwrap();
-        assert!(result.valid);
+        assert!(!result.valid);
         assert_eq!(result.status, VerificationStatus::Pending);
     }
 }

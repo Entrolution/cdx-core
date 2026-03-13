@@ -30,12 +30,10 @@ pub fn run(
                 "message": "Rebuild with --features encryption to enable decryption"
             });
             println!("{}", serde_json::to_string_pretty(&result)?);
-            Ok(())
-        } else {
-            anyhow::bail!(
-                "Encryption feature not enabled. Rebuild with: cargo build --features encryption"
-            )
         }
+        anyhow::bail!(
+            "Encryption feature not enabled. Rebuild with: cargo build --features encryption"
+        )
     }
 
     #[cfg(feature = "encryption")]
@@ -99,14 +97,12 @@ pub fn run(
             }
         };
 
-        // Note: In a full implementation, we would:
-        // 1. Decrypt the content using the derived key
-        // 2. Verify the decryption was successful (GCM authentication)
-        // 3. Replace the encrypted content with decrypted content
-        //
-        // For now, we just remove the encryption metadata to mark it as decrypted.
-        // This is a simplified implementation that assumes content wasn't actually encrypted
-        // at the file level (only metadata was set).
+        // Note: Content-level decryption is not yet implemented.
+        // Currently we can only clear the encryption metadata.
+        // Full implementation would use the derived key to decrypt content.
+        config.warning(
+            "Content-level decryption is not yet implemented; only clearing encryption metadata",
+        );
 
         // Clear encryption metadata
         doc.clear_encryption()?;

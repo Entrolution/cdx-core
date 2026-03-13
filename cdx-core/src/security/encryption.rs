@@ -5,7 +5,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::error::{encryption_error, invalid_manifest};
+use crate::error::encryption_error;
 use crate::Result;
 
 /// Encryption algorithm enumeration.
@@ -155,6 +155,7 @@ pub struct EncryptedData {
 
 /// AES-256-GCM encryptor.
 #[cfg(feature = "encryption")]
+#[derive(zeroize::ZeroizeOnDrop)]
 pub struct Aes256GcmEncryptor {
     key: [u8; 32],
 }
@@ -169,7 +170,7 @@ impl Aes256GcmEncryptor {
     /// Returns an error if the key is not 32 bytes.
     pub fn new(key: &[u8]) -> Result<Self> {
         let key: [u8; 32] = key.try_into().map_err(|_| {
-            invalid_manifest(format!(
+            encryption_error(format!(
                 "Invalid key length: expected 32 bytes, got {}",
                 key.len()
             ))
@@ -214,12 +215,12 @@ impl Aes256GcmEncryptor {
         };
 
         let cipher = Aes256Gcm::new_from_slice(&self.key)
-            .map_err(|e| invalid_manifest(format!("Failed to create cipher: {e}")))?;
+            .map_err(|e| encryption_error(format!("Failed to create cipher: {e}")))?;
 
         let nonce_obj = Nonce::from(*nonce);
         let ciphertext = cipher
             .encrypt(&nonce_obj, plaintext)
-            .map_err(|e| invalid_manifest(format!("Encryption failed: {e}")))?;
+            .map_err(|e| encryption_error(format!("Encryption failed: {e}")))?;
 
         // GCM appends the tag to the ciphertext
         let tag_start = ciphertext.len().saturating_sub(16);
@@ -244,24 +245,25 @@ impl Aes256GcmEncryptor {
         };
 
         let nonce: [u8; 12] = nonce.try_into().map_err(|_| {
-            invalid_manifest(format!(
+            encryption_error(format!(
                 "Invalid nonce length: expected 12 bytes, got {}",
                 nonce.len()
             ))
         })?;
 
         let cipher = Aes256Gcm::new_from_slice(&self.key)
-            .map_err(|e| invalid_manifest(format!("Failed to create cipher: {e}")))?;
+            .map_err(|e| encryption_error(format!("Failed to create cipher: {e}")))?;
 
         let nonce_obj = Nonce::from(nonce);
         cipher
             .decrypt(&nonce_obj, ciphertext)
-            .map_err(|e| invalid_manifest(format!("Decryption failed: {e}")))
+            .map_err(|e| encryption_error(format!("Decryption failed: {e}")))
     }
 }
 
 /// ChaCha20-Poly1305 encryptor.
 #[cfg(feature = "encryption-chacha")]
+#[derive(zeroize::ZeroizeOnDrop)]
 pub struct ChaCha20Poly1305Encryptor {
     key: [u8; 32],
 }
@@ -276,7 +278,7 @@ impl ChaCha20Poly1305Encryptor {
     /// Returns an error if the key is not 32 bytes.
     pub fn new(key: &[u8]) -> Result<Self> {
         let key: [u8; 32] = key.try_into().map_err(|_| {
-            invalid_manifest(format!(
+            encryption_error(format!(
                 "Invalid key length: expected 32 bytes, got {}",
                 key.len()
             ))
@@ -321,12 +323,12 @@ impl ChaCha20Poly1305Encryptor {
         };
 
         let cipher = ChaCha20Poly1305::new_from_slice(&self.key)
-            .map_err(|e| invalid_manifest(format!("Failed to create cipher: {e}")))?;
+            .map_err(|e| encryption_error(format!("Failed to create cipher: {e}")))?;
 
         let nonce_obj = Nonce::from(*nonce);
         let ciphertext = cipher
             .encrypt(&nonce_obj, plaintext)
-            .map_err(|e| invalid_manifest(format!("Encryption failed: {e}")))?;
+            .map_err(|e| encryption_error(format!("Encryption failed: {e}")))?;
 
         // Poly1305 appends the tag to the ciphertext (16 bytes)
         let tag_start = ciphertext.len().saturating_sub(16);
@@ -351,19 +353,19 @@ impl ChaCha20Poly1305Encryptor {
         };
 
         let nonce: [u8; 12] = nonce.try_into().map_err(|_| {
-            invalid_manifest(format!(
+            encryption_error(format!(
                 "Invalid nonce length: expected 12 bytes, got {}",
                 nonce.len()
             ))
         })?;
 
         let cipher = ChaCha20Poly1305::new_from_slice(&self.key)
-            .map_err(|e| invalid_manifest(format!("Failed to create cipher: {e}")))?;
+            .map_err(|e| encryption_error(format!("Failed to create cipher: {e}")))?;
 
         let nonce_obj = Nonce::from(nonce);
         cipher
             .decrypt(&nonce_obj, ciphertext)
-            .map_err(|e| invalid_manifest(format!("Decryption failed: {e}")))
+            .map_err(|e| encryption_error(format!("Decryption failed: {e}")))
     }
 }
 
@@ -620,7 +622,7 @@ pub struct Pbes2WrappedKeyData {
 /// then wraps the content encryption key with AES Key Wrap (RFC 3394).
 #[cfg(feature = "key-wrapping-pbes2")]
 pub struct Pbes2KeyWrapper {
-    password: Vec<u8>,
+    password: zeroize::Zeroizing<Vec<u8>>,
     iterations: u32,
 }
 
@@ -629,13 +631,30 @@ impl Pbes2KeyWrapper {
     /// Default PBKDF2 iteration count (600,000).
     pub const DEFAULT_ITERATIONS: u32 = 600_000;
 
+    /// Minimum allowed PBKDF2 iteration count.
+    pub const MIN_ITERATIONS: u32 = 10_000;
+
+    /// Maximum allowed PBKDF2 iteration count.
+    pub const MAX_ITERATIONS: u32 = 10_000_000;
+
     /// Create a key wrapper with the given password and iteration count.
-    #[must_use]
-    pub fn new(password: impl AsRef<[u8]>, iterations: u32) -> Self {
-        Self {
-            password: password.as_ref().to_vec(),
-            iterations,
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `iterations` is outside the allowed range
+    /// (`MIN_ITERATIONS..=MAX_ITERATIONS`).
+    pub fn new(password: impl AsRef<[u8]>, iterations: u32) -> Result<Self> {
+        if !(Self::MIN_ITERATIONS..=Self::MAX_ITERATIONS).contains(&iterations) {
+            return Err(encryption_error(format!(
+                "PBKDF2 iterations must be between {} and {}, got {iterations}",
+                Self::MIN_ITERATIONS,
+                Self::MAX_ITERATIONS
+            )));
         }
+        Ok(Self {
+            password: zeroize::Zeroizing::new(password.as_ref().to_vec()),
+            iterations,
+        })
     }
 
     /// Wrap a content encryption key.
@@ -678,7 +697,7 @@ impl Pbes2KeyWrapper {
 /// in the wrapped data, then unwraps the content encryption key.
 #[cfg(feature = "key-wrapping-pbes2")]
 pub struct Pbes2KeyUnwrapper {
-    password: Vec<u8>,
+    password: zeroize::Zeroizing<Vec<u8>>,
 }
 
 #[cfg(feature = "key-wrapping-pbes2")]
@@ -687,7 +706,7 @@ impl Pbes2KeyUnwrapper {
     #[must_use]
     pub fn new(password: impl AsRef<[u8]>) -> Self {
         Self {
-            password: password.as_ref().to_vec(),
+            password: zeroize::Zeroizing::new(password.as_ref().to_vec()),
         }
     }
 
@@ -698,9 +717,22 @@ impl Pbes2KeyUnwrapper {
     ///
     /// # Errors
     ///
-    /// Returns an error if the password is wrong or the wrapped data is tampered.
+    /// Returns an error if the password is wrong, the wrapped data is tampered,
+    /// or the iteration count is outside the allowed range.
     pub fn unwrap(&self, data: &Pbes2WrappedKeyData) -> Result<Vec<u8>> {
         use aes_kw::{cipher::KeyInit, KwAes256};
+
+        // Validate iteration count before doing expensive KDF work
+        if !(Pbes2KeyWrapper::MIN_ITERATIONS..=Pbes2KeyWrapper::MAX_ITERATIONS)
+            .contains(&data.iterations)
+        {
+            return Err(encryption_error(format!(
+                "PBKDF2 iterations must be between {} and {}, got {}",
+                Pbes2KeyWrapper::MIN_ITERATIONS,
+                Pbes2KeyWrapper::MAX_ITERATIONS,
+                data.iterations
+            )));
+        }
 
         // Derive KEK via PBKDF2-HMAC-SHA256 (same params as wrap)
         let mut kek_bytes = [0u8; 32];
@@ -1306,7 +1338,7 @@ mod pbes2_tests {
         let password = b"correct horse battery staple";
         let content_key = Aes256GcmEncryptor::generate_key();
 
-        let wrapper = Pbes2KeyWrapper::new(password, Pbes2KeyWrapper::DEFAULT_ITERATIONS);
+        let wrapper = Pbes2KeyWrapper::new(password, Pbes2KeyWrapper::DEFAULT_ITERATIONS).unwrap();
         let wrapped = wrapper.wrap(&content_key).unwrap();
 
         assert_eq!(wrapped.wrapped_key.len(), content_key.len() + 8);
@@ -1323,7 +1355,8 @@ mod pbes2_tests {
     fn test_pbes2_wrong_password_fails() {
         let content_key = Aes256GcmEncryptor::generate_key();
 
-        let wrapper = Pbes2KeyWrapper::new(b"correct password", 1000);
+        let wrapper =
+            Pbes2KeyWrapper::new(b"correct password", Pbes2KeyWrapper::MIN_ITERATIONS).unwrap();
         let wrapped = wrapper.wrap(&content_key).unwrap();
 
         let unwrapper = Pbes2KeyUnwrapper::new(b"wrong password");
@@ -1336,7 +1369,7 @@ mod pbes2_tests {
         let password = b"my password";
         let content_key = Aes256GcmEncryptor::generate_key();
 
-        let wrapper = Pbes2KeyWrapper::new(password, 1000);
+        let wrapper = Pbes2KeyWrapper::new(password, Pbes2KeyWrapper::MIN_ITERATIONS).unwrap();
         let mut wrapped = wrapper.wrap(&content_key).unwrap();
 
         // Tamper with the salt
@@ -1354,9 +1387,9 @@ mod pbes2_tests {
         let password = b"shared password";
         let content_key = Aes256GcmEncryptor::generate_key();
 
-        // Wrap with different iteration counts
-        for &iterations in &[1000u32, 10_000, 100_000] {
-            let wrapper = Pbes2KeyWrapper::new(password, iterations);
+        // Wrap with different valid iteration counts
+        for &iterations in &[10_000u32, 100_000, 1_000_000] {
+            let wrapper = Pbes2KeyWrapper::new(password, iterations).unwrap();
             let wrapped = wrapper.wrap(&content_key).unwrap();
             assert_eq!(wrapped.iterations, iterations);
 
@@ -1364,6 +1397,35 @@ mod pbes2_tests {
             let recovered = unwrapper.unwrap(&wrapped).unwrap();
             assert_eq!(recovered, content_key);
         }
+    }
+
+    #[test]
+    fn test_pbes2_iteration_bounds() {
+        // Below minimum
+        assert!(Pbes2KeyWrapper::new(b"password", 0).is_err());
+        assert!(Pbes2KeyWrapper::new(b"password", 1).is_err());
+        assert!(Pbes2KeyWrapper::new(b"password", 9_999).is_err());
+
+        // At minimum
+        assert!(Pbes2KeyWrapper::new(b"password", 10_000).is_ok());
+
+        // At maximum
+        assert!(Pbes2KeyWrapper::new(b"password", 10_000_000).is_ok());
+
+        // Above maximum
+        assert!(Pbes2KeyWrapper::new(b"password", 10_000_001).is_err());
+        assert!(Pbes2KeyWrapper::new(b"password", u32::MAX).is_err());
+    }
+
+    #[test]
+    fn test_pbes2_unwrap_rejects_bad_iterations() {
+        let unwrapper = Pbes2KeyUnwrapper::new(b"password");
+        let data = Pbes2WrappedKeyData {
+            wrapped_key: vec![0u8; 40],
+            salt: vec![0u8; 16],
+            iterations: 0,
+        };
+        assert!(unwrapper.unwrap(&data).is_err());
     }
 
     #[test]
@@ -1377,7 +1439,7 @@ mod pbes2_tests {
         let encrypted = encryptor.encrypt(plaintext).unwrap();
 
         // Wrap the content key with password
-        let wrapper = Pbes2KeyWrapper::new(password, 1000);
+        let wrapper = Pbes2KeyWrapper::new(password, Pbes2KeyWrapper::MIN_ITERATIONS).unwrap();
         let wrapped = wrapper.wrap(&content_key).unwrap();
 
         // Unwrap and decrypt

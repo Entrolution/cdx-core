@@ -2,7 +2,7 @@
 //!
 //! This module provides ES384 signing and verification using the NIST P-384 curve.
 
-use crate::error::invalid_manifest;
+use crate::error::signature_error;
 use crate::{DocumentId, Result};
 
 use super::signature::{Signature, SignatureAlgorithm, SignatureVerification, SignerInfo};
@@ -24,7 +24,7 @@ impl Es384Signer {
         use p384::pkcs8::DecodePrivateKey;
 
         let signing_key = p384::ecdsa::SigningKey::from_pkcs8_pem(pem)
-            .map_err(|e| invalid_manifest(format!("Failed to parse P-384 private key PEM: {e}")))?;
+            .map_err(|e| signature_error(format!("Failed to parse P-384 private key PEM: {e}")))?;
 
         Ok(Self {
             signing_key,
@@ -47,7 +47,7 @@ impl Es384Signer {
         let verifying_key = signing_key.verifying_key();
         let public_key_pem = verifying_key
             .to_public_key_pem(p384::pkcs8::LineEnding::LF)
-            .map_err(|e| invalid_manifest(format!("Failed to encode P-384 public key: {e}")))?;
+            .map_err(|e| signature_error(format!("Failed to encode P-384 public key: {e}")))?;
 
         Ok((
             Self {
@@ -69,7 +69,7 @@ impl Es384Signer {
         self.signing_key
             .verifying_key()
             .to_public_key_pem(p384::pkcs8::LineEnding::LF)
-            .map_err(|e| invalid_manifest(format!("Failed to encode P-384 public key: {e}")))
+            .map_err(|e| signature_error(format!("Failed to encode P-384 public key: {e}")))
     }
 }
 
@@ -128,7 +128,7 @@ impl Es384Verifier {
         use p384::pkcs8::DecodePublicKey;
 
         let verifying_key = p384::ecdsa::VerifyingKey::from_public_key_pem(pem)
-            .map_err(|e| invalid_manifest(format!("Failed to parse P-384 public key PEM: {e}")))?;
+            .map_err(|e| signature_error(format!("Failed to parse P-384 public key PEM: {e}")))?;
 
         Ok(Self { verifying_key })
     }
@@ -156,11 +156,11 @@ impl Verifier for Es384Verifier {
         // Decode signature from base64
         let sig_bytes = base64::engine::general_purpose::STANDARD
             .decode(&signature.value)
-            .map_err(|e| invalid_manifest(format!("Failed to decode signature: {e}")))?;
+            .map_err(|e| signature_error(format!("Failed to decode signature: {e}")))?;
 
         // Parse signature
         let ecdsa_sig = p384::ecdsa::Signature::from_slice(&sig_bytes)
-            .map_err(|e| invalid_manifest(format!("Invalid ES384 signature format: {e}")))?;
+            .map_err(|e| signature_error(format!("Invalid ES384 signature format: {e}")))?;
 
         // Verify
         match self.verifying_key.verify(document_id.digest(), &ecdsa_sig) {

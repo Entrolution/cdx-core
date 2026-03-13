@@ -270,6 +270,7 @@ impl ResponsiveStyle {
 }
 
 /// Merge source style into destination, source values take precedence.
+#[allow(clippy::too_many_lines)]
 fn merge_styles(dest: &mut Style, source: &Style) {
     if source.font_family.is_some() {
         dest.font_family.clone_from(&source.font_family);
@@ -357,6 +358,34 @@ fn merge_styles(dest: &mut Style, source: &Style) {
     }
     if source.extends.is_some() {
         dest.extends.clone_from(&source.extends);
+    }
+    if source.writing_mode.is_some() {
+        dest.writing_mode.clone_from(&source.writing_mode);
+    }
+    if source.z_index.is_some() {
+        dest.z_index = source.z_index;
+    }
+    if source.background_image.is_some() {
+        dest.background_image.clone_from(&source.background_image);
+    }
+    if source.background_size.is_some() {
+        dest.background_size.clone_from(&source.background_size);
+    }
+    if source.background_position.is_some() {
+        dest.background_position
+            .clone_from(&source.background_position);
+    }
+    if source.background_repeat.is_some() {
+        dest.background_repeat.clone_from(&source.background_repeat);
+    }
+    if source.opacity.is_some() {
+        dest.opacity = source.opacity;
+    }
+    if source.border_radius.is_some() {
+        dest.border_radius.clone_from(&source.border_radius);
+    }
+    if source.box_shadow.is_some() {
+        dest.box_shadow.clone_from(&source.box_shadow);
     }
 }
 
@@ -504,6 +533,97 @@ mod tests {
 
         let h1_style = r.styles.get("heading1").unwrap();
         assert!(h1_style.breakpoints.contains_key("mobile"));
+    }
+
+    #[test]
+    fn test_merge_styles_all_fields() {
+        use crate::presentation::style::{Color, WritingMode};
+
+        // Create a source style with every field set to a non-default value
+        let source = Style {
+            font_family: Some("serif".to_string()),
+            font_size: Some(CssValue::String("18px".to_string())),
+            font_weight: Some(FontWeight::Number(700)),
+            font_style: Some("italic".to_string()),
+            line_height: Some(CssValue::Number(1.8)),
+            letter_spacing: Some(CssValue::String("0.05em".to_string())),
+            text_align: Some(crate::presentation::style::TextAlign::Center),
+            text_decoration: Some("underline".to_string()),
+            text_transform: Some("uppercase".to_string()),
+            color: Some(Color::hex("#ff0000".to_string())),
+            margin_top: Some(CssValue::String("10px".to_string())),
+            margin_right: Some(CssValue::String("11px".to_string())),
+            margin_bottom: Some(CssValue::String("12px".to_string())),
+            margin_left: Some(CssValue::String("13px".to_string())),
+            padding_top: Some(CssValue::String("14px".to_string())),
+            padding_right: Some(CssValue::String("15px".to_string())),
+            padding_bottom: Some(CssValue::String("16px".to_string())),
+            padding_left: Some(CssValue::String("17px".to_string())),
+            border_width: Some(CssValue::String("2px".to_string())),
+            border_style: Some("solid".to_string()),
+            border_color: Some(Color::hex("#000".to_string())),
+            background_color: Some(Color::hex("#fff".to_string())),
+            width: Some(CssValue::String("100%".to_string())),
+            height: Some(CssValue::String("auto".to_string())),
+            max_width: Some(CssValue::String("800px".to_string())),
+            max_height: Some(CssValue::String("600px".to_string())),
+            page_break_before: Some("always".to_string()),
+            page_break_after: Some("avoid".to_string()),
+            extends: Some("base".to_string()),
+            writing_mode: Some(WritingMode::VerticalRl),
+            z_index: Some(42),
+            background_image: Some("url(bg.png)".to_string()),
+            background_size: Some("cover".to_string()),
+            background_position: Some("center".to_string()),
+            background_repeat: Some("no-repeat".to_string()),
+            opacity: Some(0.9),
+            border_radius: Some(CssValue::String("8px".to_string())),
+            box_shadow: Some("0 2px 4px rgba(0,0,0,0.2)".to_string()),
+        };
+
+        // Merge into a default (empty) style
+        let mut dest = Style::default();
+        merge_styles(&mut dest, &source);
+
+        // Assert every field was transferred
+        assert_eq!(dest.font_family, source.font_family);
+        assert_eq!(dest.font_size, source.font_size);
+        assert_eq!(dest.font_weight, source.font_weight);
+        assert_eq!(dest.font_style, source.font_style);
+        assert_eq!(dest.line_height, source.line_height);
+        assert_eq!(dest.letter_spacing, source.letter_spacing);
+        assert_eq!(dest.text_align, source.text_align);
+        assert_eq!(dest.text_decoration, source.text_decoration);
+        assert_eq!(dest.text_transform, source.text_transform);
+        assert_eq!(dest.color, source.color);
+        assert_eq!(dest.margin_top, source.margin_top);
+        assert_eq!(dest.margin_right, source.margin_right);
+        assert_eq!(dest.margin_bottom, source.margin_bottom);
+        assert_eq!(dest.margin_left, source.margin_left);
+        assert_eq!(dest.padding_top, source.padding_top);
+        assert_eq!(dest.padding_right, source.padding_right);
+        assert_eq!(dest.padding_bottom, source.padding_bottom);
+        assert_eq!(dest.padding_left, source.padding_left);
+        assert_eq!(dest.border_width, source.border_width);
+        assert_eq!(dest.border_style, source.border_style);
+        assert_eq!(dest.border_color, source.border_color);
+        assert_eq!(dest.background_color, source.background_color);
+        assert_eq!(dest.width, source.width);
+        assert_eq!(dest.height, source.height);
+        assert_eq!(dest.max_width, source.max_width);
+        assert_eq!(dest.max_height, source.max_height);
+        assert_eq!(dest.page_break_before, source.page_break_before);
+        assert_eq!(dest.page_break_after, source.page_break_after);
+        assert_eq!(dest.extends, source.extends);
+        assert_eq!(dest.writing_mode, source.writing_mode);
+        assert_eq!(dest.z_index, source.z_index);
+        assert_eq!(dest.background_image, source.background_image);
+        assert_eq!(dest.background_size, source.background_size);
+        assert_eq!(dest.background_position, source.background_position);
+        assert_eq!(dest.background_repeat, source.background_repeat);
+        assert_eq!(dest.opacity, source.opacity);
+        assert_eq!(dest.border_radius, source.border_radius);
+        assert_eq!(dest.box_shadow, source.box_shadow);
     }
 
     #[test]

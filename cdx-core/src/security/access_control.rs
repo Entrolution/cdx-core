@@ -56,13 +56,20 @@ impl AccessControl {
 
     /// Get effective permissions for a principal.
     ///
-    /// Searches for matching grants and returns the most specific permissions,
-    /// or the default permissions if no grants match.
+    /// Checks specific grants (User/Group/Role) first, then falls back to
+    /// `Everyone` grants, then the default permissions.
     #[must_use]
     pub fn permissions_for(&self, principal: &Principal) -> &Permissions {
-        // Find the most specific matching grant
+        // Specific matches first (skip Everyone)
         for grant in &self.grants {
-            if grant.principal.matches(principal) {
+            if !matches!(grant.principal, Principal::Everyone) && grant.principal.matches(principal)
+            {
+                return &grant.permissions;
+            }
+        }
+        // Then wildcard
+        for grant in &self.grants {
+            if matches!(grant.principal, Principal::Everyone) {
                 return &grant.permissions;
             }
         }
@@ -452,5 +459,31 @@ mod tests {
         assert!(perms.view);
         assert!(perms.edit);
         assert!(!perms.sign);
+    }
+
+    #[test]
+    fn test_permissions_for_specificity() {
+        // Everyone → read_only, but admin user → full_access
+        // Admin should get full_access even though Everyone appears first
+        let ac = AccessControl::deny_all()
+            .with_grant(PermissionGrant::new(
+                Principal::Everyone,
+                Permissions::read_only(),
+            ))
+            .with_grant(PermissionGrant::full_access_for_user("admin@example.com"));
+
+        let admin = Principal::user("admin@example.com");
+        let perms = ac.permissions_for(&admin);
+        assert!(
+            perms.edit,
+            "admin should get full_access, not read_only from Everyone"
+        );
+        assert!(perms.sign);
+
+        // Regular user should still get Everyone's read_only
+        let user = Principal::user("user@example.com");
+        let perms = ac.permissions_for(&user);
+        assert!(perms.view);
+        assert!(!perms.edit);
     }
 }

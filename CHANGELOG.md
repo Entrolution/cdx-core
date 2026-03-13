@@ -7,6 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-03-13
+
+### Fixed
+
+#### Correctness
+- Clear stale `manifest.security` ref when writing a document with no signatures or encryption
+- Map ZIP `FileNotFound` errors to `MissingFile` and other ZIP errors to `InvalidArchive` (was mapping all to `MissingFile`)
+- Improve freeze error message to mention `set_lineage` for root documents
+
+#### Document Mutation Consistency
+- Update `modified` timestamp in `define_extension_accessors!` macro (`set_*`, `clear_*`, `*_mut` methods)
+- Update `modified` timestamp in `set_encryption` and `clear_encryption`
+
+#### Security
+- Add `zeroize` crate for key material cleanup on drop (`Aes256GcmEncryptor`, `ChaCha20Poly1305Encryptor`, `Pbes2KeyWrapper`, `Pbes2KeyUnwrapper`, `MlDsaSigner` seed)
+- Enforce PBKDF2 iteration bounds (10,000 - 10,000,000) in `Pbes2KeyWrapper::new` and `Pbes2KeyUnwrapper::unwrap`
+- Fix `permissions_for` to check specific User/Group/Role grants before `Everyone` wildcard
+- Correct error variants: 7 security modules switched from `invalid_manifest()` to `SignatureError`
+- Propagate OCSP/CRL errors in revocation checker instead of silently falling through
+
+#### Validation
+- Validate subfigure blocks and IDs in `validate_figure`
+- Clamp heading level to 1-6 on deserialization (was accepting any u8)
+- Add `PartialDate` validation: month 1-12, day 1-31 (on deserialization and via `try_year_month`/`try_full`)
+
+#### CLI
+- Add warning that content-level encrypt/decrypt is not yet implemented
+- Return non-zero exit code from `add-timestamp` (was `Ok(())` for unimplemented feature)
+- Replace `std::process::exit(1)` with `anyhow::bail!` in `prove` and `timestamp` commands
+- Return non-zero exit code from disabled-feature JSON paths in `decrypt`, `timestamp`
+- Fix `truncate_token` to use char-boundary-safe truncation (was byte-indexing)
+
+#### API
+- Implement recursive `get_mut` for `CommentThread` (now finds nested replies, was top-level only)
+- Fix OTS `verify_timestamp` to return `valid: false` for unverified proofs (was `true`)
+- Fix Ethereum `verify_offline` to set `hash_matches: false` (offline cannot verify on-chain data)
+- Update `matches_document` doc to clarify it only checks token presence
+
+### Added
+- `PartialDate::try_year_month` and `PartialDate::try_full` fallible constructors
+- `Pbes2KeyWrapper::MIN_ITERATIONS` and `MAX_ITERATIONS` constants
+- `merge_styles` regression test covering all 35 `Style` fields
+- Tests for stale security ref, lineage error, mutation timestamps, subfigure validation, heading clamping, PBKDF2 bounds, permissions specificity, recursive thread `get_mut`
+
+### Changed
+- **Breaking:** `Pbes2KeyWrapper::new` now returns `Result` (validates iteration bounds)
+
 ## [0.7.0] - 2026-02-16
 
 ### Changed
@@ -310,7 +357,8 @@ Initial release implementing Codex Document Format Specification v0.1.
 - `sign_document` - Sign a document with ES256
 - `extract_content` - Extract text content from blocks
 
-[Unreleased]: https://github.com/Entrolution/cdx-core/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/Entrolution/cdx-core/compare/v0.7.1...HEAD
+[0.7.1]: https://github.com/Entrolution/cdx-core/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/Entrolution/cdx-core/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/Entrolution/cdx-core/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/Entrolution/cdx-core/compare/v0.4.0...v0.5.0
