@@ -521,6 +521,7 @@ mod tests {
         assert!(doc.manifest().lineage.is_some());
     }
 
+    #[cfg(feature = "signatures")]
     #[test]
     fn test_freeze_lineage_error_message_mentions_set_lineage() {
         let mut doc = Document::builder()

@@ -372,7 +372,8 @@ fn merge_styles(dest: &mut Style, source: &Style) {
         dest.background_size.clone_from(&source.background_size);
     }
     if source.background_position.is_some() {
-        dest.background_position.clone_from(&source.background_position);
+        dest.background_position
+            .clone_from(&source.background_position);
     }
     if source.background_repeat.is_some() {
         dest.background_repeat.clone_from(&source.background_repeat);

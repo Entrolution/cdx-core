@@ -408,8 +408,7 @@ pub fn verify_offline(
             if let (Some(block_num), Some(block_ts)) =
                 (timestamp.block_number, timestamp.block_timestamp)
             {
-                let mut result =
-                    EthereumVerification::success(block_num, confirmations, block_ts);
+                let mut result = EthereumVerification::success(block_num, confirmations, block_ts);
                 // Offline verification cannot verify hash matches — requires on-chain lookup
                 result.hash_matches = false;
                 return result;

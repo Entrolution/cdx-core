@@ -439,11 +439,7 @@ fn validate_barcode(
     }
 }
 
-fn validate_figure(
-    fig: &super::block::FigureBlock,
-    path: &str,
-    ctx: &mut ValidationContext<'_>,
-) {
+fn validate_figure(fig: &super::block::FigureBlock, path: &str, ctx: &mut ValidationContext<'_>) {
     for (i, child) in fig.children.iter().enumerate() {
         let child_path = format!("{path}.children[{i}]");
         validate_block(
