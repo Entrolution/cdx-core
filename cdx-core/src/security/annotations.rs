@@ -228,12 +228,9 @@ impl AnnotationType {
     }
 }
 
-/// Get current timestamp in ISO 8601 format.
+/// Get current timestamp in ISO 8601 / RFC 3339 format.
 fn chrono_now() -> String {
-    // Use a simple RFC 3339 format
-    // In production, this would use chrono or time crate
-    // For now, return a placeholder that tests can override
-    "2025-01-01T00:00:00Z".to_string()
+    chrono::Utc::now().to_rfc3339()
 }
 
 #[cfg(test)]

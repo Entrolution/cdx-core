@@ -66,7 +66,15 @@ impl CdxWriter<BufWriter<File>> {
     ///
     /// Returns an error if the file cannot be created.
     pub fn create<P: AsRef<Path>>(path: P) -> Result<Self> {
-        let file = File::create(path)?;
+        let file = File::create(path.as_ref()).map_err(|e| {
+            if e.kind() == std::io::ErrorKind::NotFound {
+                crate::Error::FileNotFound {
+                    path: path.as_ref().to_path_buf(),
+                }
+            } else {
+                crate::Error::Io(e)
+            }
+        })?;
         let writer = BufWriter::new(file);
         Self::new(writer)
     }

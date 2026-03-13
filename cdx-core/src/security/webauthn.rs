@@ -31,7 +31,7 @@ use sha2::{Digest, Sha256};
 
 use super::signature::{Signature, SignatureVerification, WebAuthnSignature};
 use super::Verifier;
-use crate::error::invalid_manifest;
+use crate::error::signature_error;
 use crate::{DocumentId, Result};
 
 /// WebAuthn client data structure.
@@ -85,7 +85,7 @@ impl WebAuthnVerifier {
     /// Returns an error if the public key cannot be parsed.
     pub fn new(expected_origin: impl Into<String>, public_key: &[u8]) -> Result<Self> {
         let verifying_key = VerifyingKey::from_sec1_bytes(public_key)
-            .map_err(|e| invalid_manifest(format!("Invalid WebAuthn public key: {e}")))?;
+            .map_err(|e| signature_error(format!("Invalid WebAuthn public key: {e}")))?;
 
         Ok(Self {
             expected_origin: expected_origin.into(),
@@ -103,7 +103,7 @@ impl WebAuthnVerifier {
         use p256::pkcs8::DecodePublicKey;
 
         let verifying_key = VerifyingKey::from_public_key_pem(pem)
-            .map_err(|e| invalid_manifest(format!("Invalid WebAuthn public key PEM: {e}")))?;
+            .map_err(|e| signature_error(format!("Invalid WebAuthn public key PEM: {e}")))?;
 
         Ok(Self {
             expected_origin: expected_origin.into(),
@@ -122,6 +122,7 @@ impl WebAuthnVerifier {
     /// Verify a WebAuthn signature.
     fn verify_webauthn(
         &self,
+        signature_id: &str,
         document_id: &DocumentId,
         webauthn: &WebAuthnSignature,
     ) -> Result<SignatureVerification> {
@@ -130,28 +131,31 @@ impl WebAuthnVerifier {
         // Decode credential ID
         let credential_id = engine
             .decode(&webauthn.credential_id)
-            .map_err(|e| invalid_manifest(format!("Invalid credential ID base64: {e}")))?;
+            .map_err(|e| signature_error(format!("Invalid credential ID base64: {e}")))?;
 
         // Verify credential ID if expected
         if let Some(ref expected) = self.expected_credential_id {
             if &credential_id != expected {
-                return Ok(SignatureVerification::invalid("", "Credential ID mismatch"));
+                return Ok(SignatureVerification::invalid(
+                    signature_id,
+                    "Credential ID mismatch",
+                ));
             }
         }
 
         // Decode client data JSON
         let client_data_bytes = engine
             .decode(&webauthn.client_data_json)
-            .map_err(|e| invalid_manifest(format!("Invalid clientDataJSON base64: {e}")))?;
+            .map_err(|e| signature_error(format!("Invalid clientDataJSON base64: {e}")))?;
 
         // Parse client data
         let client_data: ClientData = serde_json::from_slice(&client_data_bytes)
-            .map_err(|e| invalid_manifest(format!("Invalid clientDataJSON: {e}")))?;
+            .map_err(|e| signature_error(format!("Invalid clientDataJSON: {e}")))?;
 
         // Verify type
         if client_data.type_ != "webauthn.get" {
             return Ok(SignatureVerification::invalid(
-                "",
+                signature_id,
                 format!(
                     "Invalid type: expected 'webauthn.get', got '{}'",
                     client_data.type_
@@ -162,7 +166,7 @@ impl WebAuthnVerifier {
         // Verify origin
         if client_data.origin != self.expected_origin {
             return Ok(SignatureVerification::invalid(
-                "",
+                signature_id,
                 format!(
                     "Origin mismatch: expected '{}', got '{}'",
                     self.expected_origin, client_data.origin
@@ -174,11 +178,11 @@ impl WebAuthnVerifier {
         // WebAuthn uses base64url encoding for the challenge
         let challenge_bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD
             .decode(&client_data.challenge)
-            .map_err(|e| invalid_manifest(format!("Invalid challenge base64url: {e}")))?;
+            .map_err(|e| signature_error(format!("Invalid challenge base64url: {e}")))?;
 
         if challenge_bytes != document_id.digest() {
             return Ok(SignatureVerification::invalid(
-                "",
+                signature_id,
                 "Challenge does not match document ID",
             ));
         }
@@ -186,13 +190,28 @@ impl WebAuthnVerifier {
         // Decode authenticator data
         let authenticator_data = engine
             .decode(&webauthn.authenticator_data)
-            .map_err(|e| invalid_manifest(format!("Invalid authenticatorData base64: {e}")))?;
+            .map_err(|e| signature_error(format!("Invalid authenticatorData base64: {e}")))?;
 
         // Verify authenticator data is at least 37 bytes (RP ID hash + flags + counter)
         if authenticator_data.len() < 37 {
             return Ok(SignatureVerification::invalid(
-                "",
+                signature_id,
                 "Authenticator data too short",
+            ));
+        }
+
+        // Verify RP ID hash (first 32 bytes of authenticator data)
+        // Per WebAuthn spec section 7.2 step 13: rpIdHash must equal SHA-256(rp_id)
+        let expected_rp_id = self
+            .expected_origin
+            .strip_prefix("https://")
+            .or_else(|| self.expected_origin.strip_prefix("http://"))
+            .unwrap_or(&self.expected_origin);
+        let expected_rp_id_hash = Sha256::digest(expected_rp_id.as_bytes());
+        if authenticator_data[..32] != expected_rp_id_hash[..] {
+            return Ok(SignatureVerification::invalid(
+                signature_id,
+                "RP ID hash mismatch in authenticator data",
             ));
         }
 
@@ -200,7 +219,7 @@ impl WebAuthnVerifier {
         let flags = authenticator_data[32];
         if flags & 0x01 == 0 {
             return Ok(SignatureVerification::invalid(
-                "",
+                signature_id,
                 "User presence flag not set",
             ));
         }
@@ -208,11 +227,11 @@ impl WebAuthnVerifier {
         // Decode signature
         let signature_bytes = engine
             .decode(&webauthn.signature)
-            .map_err(|e| invalid_manifest(format!("Invalid signature base64: {e}")))?;
+            .map_err(|e| signature_error(format!("Invalid signature base64: {e}")))?;
 
         // Parse the signature (DER-encoded ECDSA signature)
         let signature = p256::ecdsa::DerSignature::from_bytes(&signature_bytes)
-            .map_err(|e| invalid_manifest(format!("Invalid ECDSA signature: {e}")))?;
+            .map_err(|e| signature_error(format!("Invalid ECDSA signature: {e}")))?;
 
         // Compute the signed data: authenticator_data || SHA-256(clientDataJSON)
         let client_data_hash = Sha256::digest(&client_data_bytes);
@@ -221,9 +240,9 @@ impl WebAuthnVerifier {
 
         // Verify the signature
         match self.verifying_key.verify(&signed_data, &signature) {
-            Ok(()) => Ok(SignatureVerification::valid("")),
+            Ok(()) => Ok(SignatureVerification::valid(signature_id)),
             Err(e) => Ok(SignatureVerification::invalid(
-                "",
+                signature_id,
                 format!("Signature verification failed: {e}"),
             )),
         }
@@ -245,12 +264,7 @@ impl Verifier for WebAuthnVerifier {
         };
 
         // Verify the WebAuthn assertion
-        let mut result = self.verify_webauthn(document_id, webauthn)?;
-
-        // Update the signature ID in the result
-        result.signature_id.clone_from(&signature.id);
-
-        Ok(result)
+        self.verify_webauthn(&signature.id, document_id, webauthn)
     }
 }
 

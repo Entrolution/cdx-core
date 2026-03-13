@@ -277,13 +277,15 @@ impl TimestampRecord {
         }
     }
 
-    /// Verify that this timestamp matches a document ID.
+    /// Check whether this timestamp record has a non-empty token.
     ///
-    /// Note: This only checks the token format, not cryptographic validity.
-    /// Full verification requires the timestamp authority's certificate or blockchain access.
+    /// This only validates that a token is present — it does **not** verify
+    /// that the token corresponds to the given `document_id`. Full verification
+    /// requires protocol-specific checks (RFC 3161 / OTS / blockchain).
     #[must_use]
     pub fn matches_document(&self, _document_id: &DocumentId) -> bool {
-        // Basic validation - token should be non-empty
+        // TODO: Implement protocol-specific document ID matching.
+        // For now, only check that a token exists.
         !self.token.is_empty()
     }
 }

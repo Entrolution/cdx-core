@@ -161,9 +161,16 @@ enum SchemaType {
 /// Internal validation function.
 fn validate_json(json: &str, schema_type: SchemaType) -> ValidationResult {
     // Parse the JSON
+    let type_name = match schema_type {
+        SchemaType::Manifest => "manifest",
+        SchemaType::Content => "content",
+        SchemaType::DublinCore => "Dublin Core metadata",
+        SchemaType::BlockIndex => "block index",
+        SchemaType::Signatures => "signatures",
+    };
     let value: serde_json::Value =
-        serde_json::from_str(json).map_err(|e| crate::Error::InvalidManifest {
-            reason: format!("Invalid JSON: {e}"),
+        serde_json::from_str(json).map_err(|e| crate::Error::ValidationFailed {
+            reason: format!("Invalid {type_name} JSON: {e}"),
         })?;
 
     // Get the schema for this type

@@ -2,7 +2,7 @@
 
 //! EdDSA (Ed25519) signature implementation.
 
-use crate::error::invalid_manifest;
+use crate::error::signature_error;
 use crate::{DocumentId, Result};
 
 use super::signature::{Signature, SignatureAlgorithm, SignatureVerification, SignerInfo};
@@ -26,7 +26,7 @@ impl EddsaSigner {
         use ed25519_dalek::pkcs8::DecodePrivateKey;
 
         let signing_key = ed25519_dalek::SigningKey::from_pkcs8_pem(pem)
-            .map_err(|e| invalid_manifest(format!("Failed to parse EdDSA private key PEM: {e}")))?;
+            .map_err(|e| signature_error(format!("Failed to parse EdDSA private key PEM: {e}")))?;
 
         Ok(Self {
             signing_key,
@@ -46,12 +46,12 @@ impl EddsaSigner {
 
         let mut key_bytes = [0u8; 32];
         getrandom::fill(&mut key_bytes)
-            .map_err(|e| invalid_manifest(format!("System RNG failed: {e}")))?;
+            .map_err(|e| signature_error(format!("System RNG failed: {e}")))?;
         let signing_key = ed25519_dalek::SigningKey::from_bytes(&key_bytes);
         let verifying_key = signing_key.verifying_key();
         let public_key_pem = verifying_key
             .to_public_key_pem(LineEnding::LF)
-            .map_err(|e| invalid_manifest(format!("Failed to encode EdDSA public key: {e}")))?;
+            .map_err(|e| signature_error(format!("Failed to encode EdDSA public key: {e}")))?;
 
         Ok((
             Self {
@@ -73,7 +73,7 @@ impl EddsaSigner {
         self.signing_key
             .verifying_key()
             .to_public_key_pem(LineEnding::LF)
-            .map_err(|e| invalid_manifest(format!("Failed to encode EdDSA public key: {e}")))
+            .map_err(|e| signature_error(format!("Failed to encode EdDSA public key: {e}")))
     }
 }
 
@@ -135,7 +135,7 @@ impl EddsaVerifier {
         use ed25519_dalek::pkcs8::DecodePublicKey;
 
         let verifying_key = ed25519_dalek::VerifyingKey::from_public_key_pem(pem)
-            .map_err(|e| invalid_manifest(format!("Failed to parse EdDSA public key PEM: {e}")))?;
+            .map_err(|e| signature_error(format!("Failed to parse EdDSA public key PEM: {e}")))?;
 
         Ok(Self { verifying_key })
     }
@@ -164,7 +164,7 @@ impl Verifier for EddsaVerifier {
         // Decode signature from base64
         let sig_bytes = base64::engine::general_purpose::STANDARD
             .decode(&signature.value)
-            .map_err(|e| invalid_manifest(format!("Failed to decode signature: {e}")))?;
+            .map_err(|e| signature_error(format!("Failed to decode signature: {e}")))?;
 
         // Parse signature
         let sig_array: [u8; 64] =

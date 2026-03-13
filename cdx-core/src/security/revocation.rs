@@ -526,29 +526,76 @@ impl RevocationChecker {
     ) -> Result<RevocationResult, crate::Error> {
         if self.config.prefer_ocsp {
             // Try OCSP first
-            if let Some(issuer) = issuer_der {
+            let ocsp_err = if let Some(issuer) = issuer_der {
                 match self.check_ocsp(cert_der, issuer).await {
                     Ok(result) if !result.status.is_error() => return Ok(result),
-                    _ => {} // Fall through to CRL
+                    Ok(result) => Some(format!("OCSP returned error: {}", result.status)),
+                    Err(e) => Some(format!("OCSP check failed: {e}")),
                 }
-            }
+            } else {
+                None
+            };
 
             // Fall back to CRL
-            self.check_crl(cert_der).await
-        } else {
-            // Try CRL first
             match self.check_crl(cert_der).await {
                 Ok(result) if !result.status.is_error() => Ok(result),
-                _ => {
-                    // Fall back to OCSP
-                    if let Some(issuer) = issuer_der {
-                        self.check_ocsp(cert_der, issuer).await
-                    } else {
-                        Err(crate::Error::InvalidCertificate {
-                            reason: "CRL check failed and no issuer provided for OCSP".to_string(),
-                        })
-                    }
+                Ok(result) => Err(crate::Error::InvalidCertificate {
+                    reason: format!(
+                        "CRL returned error: {}{}",
+                        result.status,
+                        ocsp_err
+                            .as_ref()
+                            .map_or(String::new(), |e| format!("; prior {e}"))
+                    ),
+                }),
+                Err(crl_err) => Err(crate::Error::InvalidCertificate {
+                    reason: format!(
+                        "CRL check failed: {crl_err}{}",
+                        ocsp_err
+                            .as_ref()
+                            .map_or(String::new(), |e| format!("; prior {e}"))
+                    ),
+                }),
+            }
+        } else {
+            // Try CRL first
+            let crl_err = match self.check_crl(cert_der).await {
+                Ok(result) if !result.status.is_error() => return Ok(result),
+                Ok(result) => Some(format!("CRL returned error: {}", result.status)),
+                Err(e) => Some(format!("CRL check failed: {e}")),
+            };
+
+            // Fall back to OCSP
+            if let Some(issuer) = issuer_der {
+                match self.check_ocsp(cert_der, issuer).await {
+                    Ok(result) if !result.status.is_error() => Ok(result),
+                    Ok(result) => Err(crate::Error::InvalidCertificate {
+                        reason: format!(
+                            "OCSP returned error: {}{}",
+                            result.status,
+                            crl_err
+                                .as_ref()
+                                .map_or(String::new(), |e| format!("; prior {e}"))
+                        ),
+                    }),
+                    Err(ocsp_err) => Err(crate::Error::InvalidCertificate {
+                        reason: format!(
+                            "OCSP check failed: {ocsp_err}{}",
+                            crl_err
+                                .as_ref()
+                                .map_or(String::new(), |e| format!("; prior {e}"))
+                        ),
+                    }),
                 }
+            } else {
+                Err(crate::Error::InvalidCertificate {
+                    reason: format!(
+                        "No issuer provided for OCSP fallback{}",
+                        crl_err
+                            .as_ref()
+                            .map_or(String::new(), |e| format!("; prior {e}"))
+                    ),
+                })
             }
         }
     }
@@ -656,33 +703,17 @@ fn build_ocsp_request(
 }
 
 #[cfg(feature = "ocsp")]
-fn parse_ocsp_response(response: &[u8]) -> RevocationStatus {
-    // Parse OCSP response
+fn parse_ocsp_response(_response: &[u8]) -> RevocationStatus {
+    // OCSP response parsing is not yet implemented.
     // A full implementation would:
     // 1. Check the response status (successful, malformed, etc.)
     // 2. Verify the response signature
     // 3. Extract the certificate status
-
-    // Check for basic response structure
-    if response.is_empty() {
-        return RevocationStatus::Error {
-            message: "Empty OCSP response".to_string(),
-        };
-    }
-
-    // OCSP response status is the first byte after the sequence tag
-    // 0 = successful, 1 = malformed, 2 = internal error, etc.
-    if response.len() > 2 {
-        // This is a simplified check - full parsing would use proper ASN.1
-        // Look for common success indicators
-        if response.contains(&0x00) {
-            // Likely successful response - would need full parsing to determine status
-            return RevocationStatus::Unknown;
-        }
-    }
-
+    //
+    // Return Error rather than Unknown so callers know the check was not performed,
+    // rather than incorrectly treating an unparsed response as indeterminate.
     RevocationStatus::Error {
-        message: "Failed to parse OCSP response".to_string(),
+        message: "OCSP response parsing not yet implemented".to_string(),
     }
 }
 

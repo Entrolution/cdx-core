@@ -88,8 +88,8 @@ pub fn is_url_safe_path(path: &str) -> bool {
 ///
 /// Returns `PathTraversal` error if the path contains `..` segments or other unsafe patterns.
 pub(crate) fn validate_path(path: &str) -> crate::Result<()> {
-    // Check for path traversal attempts
-    if path.contains("..") {
+    // Check for path traversal attempts (.. as a path component, not substring)
+    if path.split('/').any(|component| component == "..") {
         return Err(crate::Error::PathTraversal {
             path: path.to_string(),
         });
