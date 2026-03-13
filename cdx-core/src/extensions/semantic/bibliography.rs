@@ -424,7 +424,7 @@ impl PartialDate {
 
     /// Create a year-month date.
     ///
-    /// Note: `month` should be in the range 1-12. Use [`try_year_month`]
+    /// Note: `month` should be in the range 1-12. Use [`Self::try_year_month`]
     /// for validated construction.
     #[must_use]
     pub const fn year_month(year: i32, month: u8) -> Self {
@@ -451,7 +451,7 @@ impl PartialDate {
     /// Create a full date.
     ///
     /// Note: `month` should be 1-12 and `day` should be 1-31.
-    /// Use [`try_full`] for validated construction.
+    /// Use [`Self::try_full`] for validated construction.
     #[must_use]
     pub const fn full(year: i32, month: u8, day: u8) -> Self {
         Self {
