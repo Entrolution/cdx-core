@@ -111,7 +111,7 @@ tempfile = "3.14"
 pretty_assertions = "1.4"
 proptest = "1.5"
 criterion = { version = "0.8", features = ["html_reports"] }
-jsonschema = "0.28"
+jsonschema = "0.45"
 
 [[bench]]
 name = "document"
