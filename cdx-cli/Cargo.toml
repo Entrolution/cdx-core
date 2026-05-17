@@ -39,13 +39,13 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros"], optional = tr
 argon2 = { version = "0.5", optional = true }
 pbkdf2 = { version = "0.12", optional = true }
 hmac = { version = "0.12", optional = true }
-sha2 = { version = "0.10", optional = true }
+sha2 = { version = "0.11", optional = true }
 base64 = { version = "0.22", optional = true }
 rand_core = { version = "0.10", optional = true }
 getrandom = { version = "0.4", optional = true }
 rpassword = { version = "7", optional = true }
 
 [dev-dependencies]
-tempfile = "3.14"
-assert_cmd = "2.1.2"
+tempfile = "3.27"
+assert_cmd = "2.2.2"
 predicates = "3.0"
