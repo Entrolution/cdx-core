@@ -1,4 +1,4 @@
-//! Comments and annotations for Codex documents.
+//! Comments and annotations for CDX documents.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

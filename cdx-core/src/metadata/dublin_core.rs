@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 /// Dublin Core metadata file structure.
 ///
-/// This represents the `metadata/dublin-core.json` file in a Codex document.
+/// This represents the `metadata/dublin-core.json` file in a CDX document.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DublinCore {
     /// Dublin Core version (e.g., "1.1").
@@ -380,7 +380,7 @@ mod tests {
                 "contributor": "Finance Team",
                 "date": "2025-01-15",
                 "type": "Text",
-                "format": "application/vnd.codex+json",
+                "format": "application/vnd.cdx+json",
                 "identifier": "sha256:3a7bd3e2",
                 "language": "en",
                 "coverage": "2024 fiscal year",

@@ -34,7 +34,7 @@ fn test_bytes_roundtrip() {
     let doc2 = open_document_from_bytes(bytes).unwrap();
     let info1 = doc.get_manifest_info();
     let info2 = doc2.get_manifest_info();
-    assert_eq!(info1.codex_version, info2.codex_version);
+    assert_eq!(info1.cdx_version, info2.cdx_version);
     assert_eq!(info1.state, info2.state);
 }
 

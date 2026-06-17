@@ -1,6 +1,6 @@
-//! Archive reading and writing for Codex documents.
+//! Archive reading and writing for CDX documents.
 //!
-//! Codex documents are packaged as ZIP archives with the `.cdx` extension.
+//! CDX documents are packaged as ZIP archives with the `.cdx` extension.
 //! This module provides [`CdxReader`] and [`CdxWriter`] for working with these archives.
 //!
 //! # Reading Documents
@@ -65,12 +65,12 @@ pub const BIBLIOGRAPHY_PATH: &str = "semantic/bibliography.json";
 /// Path to the JSON-LD metadata file within the archive.
 pub const JSONLD_PATH: &str = "metadata/jsonld.json";
 
-/// ZIP comment for Codex documents.
-pub const ZIP_COMMENT: &str = "Codex Document Format v0.1";
+/// ZIP comment for CDX documents.
+pub const ZIP_COMMENT: &str = "CDX Document Format v0.1";
 
 /// Check whether an asset path contains only URL-safe characters.
 ///
-/// Per the Codex spec, asset paths SHOULD use only URL-safe characters:
+/// Per the CDX spec, asset paths SHOULD use only URL-safe characters:
 /// alphanumerics, `.`, `-`, `_`, and `/`. This function returns `true` if
 /// the path is compliant.
 ///

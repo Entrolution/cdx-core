@@ -1,12 +1,12 @@
 //! # cdx-core
 //!
-//! Core library for reading, writing, and validating Codex Document Format (`.cdx`) files.
+//! Core library for reading, writing, and validating CDX Document Format (`.cdx`) files.
 //!
 //! ## Overview
 //!
-//! Codex is an open document format designed for semantic content, verifiable integrity,
+//! CDX is an open document format designed for semantic content, verifiable integrity,
 //! and machine readability. This library provides the foundational capabilities for working
-//! with Codex documents in Rust.
+//! with CDX documents in Rust.
 //!
 //! ## Quick Start
 //!
@@ -60,14 +60,14 @@ pub use manifest::{
 };
 pub use state::DocumentState;
 
-/// Codex specification version implemented by this library.
+/// CDX specification version implemented by this library.
 pub const SPEC_VERSION: &str = "0.1";
 
-/// Default file extension for Codex documents.
+/// Default file extension for CDX documents.
 pub const FILE_EXTENSION: &str = "cdx";
 
-/// MIME type for Codex documents (JSON format).
-pub const MIME_TYPE: &str = "application/vnd.codex+json";
+/// MIME type for CDX documents (JSON format).
+pub const MIME_TYPE: &str = "application/vnd.cdx+json";
 
 #[cfg(test)]
 mod tests {
@@ -77,6 +77,6 @@ mod tests {
     fn test_constants() {
         assert_eq!(SPEC_VERSION, "0.1");
         assert_eq!(FILE_EXTENSION, "cdx");
-        assert_eq!(MIME_TYPE, "application/vnd.codex+json");
+        assert_eq!(MIME_TYPE, "application/vnd.cdx+json");
     }
 }

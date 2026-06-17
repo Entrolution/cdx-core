@@ -1,4 +1,4 @@
-//! Archive writer for Codex documents.
+//! Archive writer for CDX documents.
 
 use std::fs::File;
 use std::io::{BufWriter, Cursor, Seek, Write};
@@ -35,7 +35,7 @@ impl CompressionMethod {
     }
 }
 
-/// Writer for creating Codex document archives.
+/// Writer for creating CDX document archives.
 ///
 /// `CdxWriter` creates properly formatted `.cdx` files, ensuring the manifest
 /// is written first and all required structure is maintained.
@@ -60,7 +60,7 @@ pub struct CdxWriter<W: Write + Seek> {
 }
 
 impl CdxWriter<BufWriter<File>> {
-    /// Create a new Codex document at the given file path.
+    /// Create a new CDX document at the given file path.
     ///
     /// # Errors
     ///
@@ -81,7 +81,7 @@ impl CdxWriter<BufWriter<File>> {
 }
 
 impl CdxWriter<Cursor<Vec<u8>>> {
-    /// Create a new Codex document in memory.
+    /// Create a new CDX document in memory.
     ///
     /// # Panics
     ///
@@ -115,7 +115,7 @@ impl<W: Write + Seek> CdxWriter<W> {
     /// Write the manifest to the archive.
     ///
     /// This must be called before writing any other files, as the manifest
-    /// must be the first file in the archive per the Codex specification.
+    /// must be the first file in the archive per the CDX specification.
     ///
     /// # Errors
     ///

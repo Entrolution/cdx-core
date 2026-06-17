@@ -1,7 +1,7 @@
 //! High-level Document API.
 //!
 //! This module provides the main [`Document`] type and [`DocumentBuilder`]
-//! for working with Codex documents.
+//! for working with CDX documents.
 //!
 //! # Opening Documents
 //!
@@ -134,9 +134,9 @@ impl MutableResource for Document {
     }
 }
 
-/// A Codex document.
+/// A CDX document.
 ///
-/// `Document` provides a high-level interface for working with Codex documents,
+/// `Document` provides a high-level interface for working with CDX documents,
 /// abstracting away the underlying archive structure.
 #[derive(Debug, Clone)]
 pub struct Document {

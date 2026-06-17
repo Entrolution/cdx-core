@@ -1,7 +1,7 @@
 //! cdx-swift-bridge: UniFFI bindings for cdx-core
 //!
 //! This crate provides Swift-friendly wrappers around the cdx-core library,
-//! exposing the Codex document format to macOS and iOS applications.
+//! exposing the CDX document format to macOS and iOS applications.
 
 mod content;
 mod document;

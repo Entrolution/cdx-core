@@ -38,7 +38,7 @@ pub fn run_get_metadata(file: &Path, config: &OutputConfig) -> Result<()> {
             },
             "manifest": {
                 "id": doc.id().to_string(),
-                "spec_version": manifest.codex,
+                "spec_version": manifest.cdx,
                 "state": doc.state().to_string(),
                 "hash_algorithm": format!("{:?}", manifest.hash_algorithm),
                 "created": manifest.created.to_rfc3339(),
@@ -118,7 +118,7 @@ pub fn run_get_metadata(file: &Path, config: &OutputConfig) -> Result<()> {
     // Manifest info
     config.section("Document Info");
     config.field("Document ID", &doc.id().to_string());
-    config.field("Spec Version", &manifest.codex);
+    config.field("Spec Version", &manifest.cdx);
     config.field("State", &doc.state().to_string());
     config.field("Hash Algorithm", &format!("{:?}", manifest.hash_algorithm));
     config.field("Created", &manifest.created.to_rfc3339());

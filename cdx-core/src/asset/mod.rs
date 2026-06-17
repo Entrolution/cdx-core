@@ -1,7 +1,7 @@
 //! Asset management for embedded images, fonts, and files.
 //!
 //! This module provides types and utilities for managing assets embedded
-//! within Codex documents.
+//! within CDX documents.
 //!
 //! # Asset Types
 //!

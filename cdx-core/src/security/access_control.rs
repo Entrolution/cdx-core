@@ -1,4 +1,4 @@
-//! Access control and permissions for Codex documents.
+//! Access control and permissions for CDX documents.
 //!
 //! This module provides a permission system for controlling access to document
 //! operations like viewing, printing, copying, editing, and annotating.
@@ -101,7 +101,7 @@ impl Default for AccessControl {
 /// Permission settings.
 ///
 /// This struct uses boolean flags for each permission type as specified by the
-/// Codex Document Format specification. Each flag represents an independent
+/// CDX Document Format specification. Each flag represents an independent
 /// permission that can be granted or denied.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

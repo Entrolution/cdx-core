@@ -1,6 +1,6 @@
 //! Document state machine.
 //!
-//! Codex documents progress through a defined lifecycle:
+//! CDX documents progress through a defined lifecycle:
 //!
 //! ```text
 //! draft → review → frozen → published

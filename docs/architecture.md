@@ -4,7 +4,7 @@ This document describes the architecture of the cdx-core library.
 
 ## Overview
 
-cdx-core is organized into layered modules that mirror the Codex Document Format specification. Each layer can be used independently or composed together through the high-level `Document` API.
+cdx-core is organized into layered modules that mirror the CDX Document Format specification. Each layer can be used independently or composed together through the high-level `Document` API.
 
 ## Module Diagram
 
@@ -66,9 +66,9 @@ cdx-core is organized into layered modules that mirror the Codex Document Format
 
 ### Document API (`document.rs`)
 
-The high-level entry point for working with Codex documents.
+The high-level entry point for working with CDX documents.
 
-- **Document**: Main type representing a complete Codex document
+- **Document**: Main type representing a complete CDX document
 - **DocumentBuilder**: Fluent builder for creating documents
 - **VerificationReport**: Results of document integrity verification
 
@@ -88,7 +88,7 @@ Semantic content model with 20+ block types and 15+ mark types.
 - **Text**: Text nodes with optional marks (bold, italic, link, code, highlight, etc.)
 - **Content**: Root structure containing version and blocks array
 - **Validation**: Structural validation (lists contain list items, etc.)
-- **Custom serde**: Hand-written `Serialize`/`Deserialize` impls for `Block` and `Mark` that produce flat `{"type": "...", ...}` JSON matching the Codex spec wire format, replacing derived serde which produced nested `{"Paragraph": {...}}` Rust-style enums
+- **Custom serde**: Hand-written `Serialize`/`Deserialize` impls for `Block` and `Mark` that produce flat `{"type": "...", ...}` JSON matching the CDX spec wire format, replacing derived serde which produced nested `{"Paragraph": {...}}` Rust-style enums
 
 ### Metadata (`metadata/`)
 

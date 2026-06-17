@@ -1,6 +1,6 @@
 //! Spec compliance tests.
 //!
-//! These tests validate cdx-core against the external Codex file format
+//! These tests validate cdx-core against the external CDX file format
 //! specification (pinned as a git submodule at `spec/`). Three modules:
 //!
 //! - **`mark_schema_validation`**: Serialized mark output validated against spec JSON schemas

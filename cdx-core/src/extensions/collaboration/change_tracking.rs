@@ -1,4 +1,4 @@
-//! Change tracking for Codex documents.
+//! Change tracking for CDX documents.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

@@ -286,12 +286,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.0] - 2025-01-25
 
-Initial release implementing Codex Document Format Specification v0.1.
+Initial release implementing CDX Document Format Specification v0.1.
 
 ### Added
 
 #### Core Infrastructure
-- `Document` type with high-level API for working with Codex documents
+- `Document` type with high-level API for working with CDX documents
 - `DocumentBuilder` for fluent document creation
 - `DocumentState` enum with state machine (Draft, Review, Frozen, Published)
 - `DocumentId` for content-addressable document identification
@@ -326,7 +326,7 @@ Initial release implementing Codex Document Format Specification v0.1.
 - `Signer` and `Verifier` traits for extensibility
 - `EcdsaSigner` and `EcdsaVerifier` implementations
 - `SignerInfo` with name, email, organization, certificate support
-- Signature file structure per Codex security extension
+- Signature file structure per CDX security extension
 
 #### Asset Management
 - `ImageAsset` with format support (AVIF, WebP, PNG, JPEG, SVG)

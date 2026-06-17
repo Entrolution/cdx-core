@@ -1,6 +1,6 @@
 # cdx-cli
 
-Command-line interface for working with Codex Document Format (.cdx) files.
+Command-line interface for working with CDX Document Format (.cdx) files.
 
 ## Installation
 
@@ -20,7 +20,7 @@ cargo build -p cdx-cli --release
 cdx <command> [options]
 
 Commands:
-  create           Create a new Codex document
+  create           Create a new CDX document
   validate         Validate document structure and hashes
   inspect          Display document information
   status           Show comprehensive document status
@@ -38,7 +38,7 @@ Commands:
   get-metadata     Display document metadata
   set-metadata     Set document metadata fields
   pack             Pack a directory or JSON into a .cdx archive
-  diff             Compare two Codex documents
+  diff             Compare two CDX documents
   show-timestamps  Show timestamps in a document
   verify-timestamps Verify timestamps in a document
   add-timestamp    Add a timestamp record to a document

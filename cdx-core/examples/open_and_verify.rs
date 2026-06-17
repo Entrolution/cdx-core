@@ -1,4 +1,4 @@
-//! Example: Open an existing Codex document and verify its integrity.
+//! Example: Open an existing CDX document and verify its integrity.
 //!
 //! This example demonstrates how to open a .cdx file and perform
 //! integrity verification.

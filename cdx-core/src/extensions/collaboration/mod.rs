@@ -1,6 +1,6 @@
 //! Collaboration extension for comments, annotations, and change tracking.
 //!
-//! This extension provides collaborative editing features for Codex documents.
+//! This extension provides collaborative editing features for CDX documents.
 //!
 //! # Features
 //!

@@ -1689,7 +1689,7 @@ mod ots_tests {
 // Specification Conformance Tests
 // =============================================================================
 //
-// These tests verify conformance with the Codex File Format Specification.
+// These tests verify conformance with the CDX File Format Specification.
 // Each test includes a spec reference comment.
 
 /// Hash boundary tests - Per spec §06-document-hashing.md §4.1
@@ -2412,7 +2412,7 @@ mod manifest_validation_tests {
 
         // Serialize and check required fields
         let json = serde_json::to_string(&manifest).unwrap();
-        assert!(json.contains("\"codex\""), "codex field required");
+        assert!(json.contains("\"cdx\""), "cdx field required");
         assert!(json.contains("\"id\""), "id field required");
         assert!(json.contains("\"state\""), "state field required");
         assert!(json.contains("\"created\""), "created field required");
@@ -2429,11 +2429,11 @@ mod extension_declaration_tests {
     /// Per spec extensions/README.md - Extension ID format: namespace.name
     #[test]
     fn test_extension_id_format_valid() {
-        // Standard codex extensions
-        let ext = Extension::required("codex.semantic", "0.1");
+        // Standard cdx extensions
+        let ext = Extension::required("cdx.semantic", "0.1");
         assert_eq!(ext.namespace(), "semantic");
 
-        let ext = Extension::required("codex.legal", "0.1");
+        let ext = Extension::required("cdx.legal", "0.1");
         assert_eq!(ext.namespace(), "legal");
 
         // Third-party extensions
@@ -2444,23 +2444,23 @@ mod extension_declaration_tests {
     /// Per spec extensions/README.md - Extension version present
     #[test]
     fn test_extension_version_present() {
-        let ext = Extension::required("codex.semantic", "0.1");
+        let ext = Extension::required("cdx.semantic", "0.1");
         assert!(!ext.version.is_empty(), "Version must be present");
 
-        let ext = Extension::optional("codex.forms", "1.2.3");
+        let ext = Extension::optional("cdx.forms", "1.2.3");
         assert!(!ext.version.is_empty(), "Version must be present");
     }
 
     /// Per spec extensions/README.md - Required extension determines rejection
     #[test]
     fn test_required_extension_flag() {
-        let required = Extension::required("codex.security", "0.1");
+        let required = Extension::required("cdx.security", "0.1");
         assert!(
             required.required,
             "required=true should reject if unsupported"
         );
 
-        let optional = Extension::optional("codex.phantoms", "0.1");
+        let optional = Extension::optional("cdx.phantoms", "0.1");
         assert!(
             !optional.required,
             "required=false should allow graceful degradation"

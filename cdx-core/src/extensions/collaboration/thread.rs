@@ -1,4 +1,4 @@
-//! Comment thread management for Codex documents.
+//! Comment thread management for CDX documents.
 
 use serde::{Deserialize, Serialize};
 

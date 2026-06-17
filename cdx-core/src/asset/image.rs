@@ -134,7 +134,7 @@ impl ImageVariant {
     }
 }
 
-/// An image asset embedded in a Codex document.
+/// An image asset embedded in a CDX document.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ImageAsset {

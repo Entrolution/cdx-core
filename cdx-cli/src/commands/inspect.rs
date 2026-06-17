@@ -48,7 +48,7 @@ fn display_json(
     let mut result = serde_json::json!({
         "file": file.display().to_string(),
         "document_id": doc.id().to_string(),
-        "spec_version": manifest.codex,
+        "spec_version": manifest.cdx,
         "state": doc.state().to_string(),
         "metadata": {
             "title": dublin_core.title(),
@@ -96,12 +96,12 @@ fn display_text(
     let content = doc.content();
     let dublin_core = doc.dublin_core();
 
-    println!("\n{}", "Codex Document".blue().bold());
+    println!("\n{}", "CDX Document".blue().bold());
     println!("{}", "═".repeat(60).blue());
 
     config.field("File", &file.display().to_string());
     config.field("Document ID", &doc.id().to_string());
-    config.field("Spec Version", &manifest.codex);
+    config.field("Spec Version", &manifest.cdx);
     config.field("State", &doc.state().to_string());
 
     config.section("Metadata");

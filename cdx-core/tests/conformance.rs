@@ -1,6 +1,6 @@
 //! Spec conformance tests.
 //!
-//! These tests verify that cdx-core's behavior matches the Codex file format
+//! These tests verify that cdx-core's behavior matches the CDX file format
 //! specification. This includes:
 //!
 //! - **Wire format**: JSON serialization matches spec examples
@@ -1019,7 +1019,7 @@ fn test_manifest_id_pending_for_draft() {
 /// Per spec §02 §4.10 — Extension ID follows `namespace.name` format.
 #[test]
 fn test_extension_id_format() {
-    let ext = cdx_core::Extension::required("codex.semantic", "0.1");
+    let ext = cdx_core::Extension::required("cdx.semantic", "0.1");
     assert!(
         ext.id.contains('.'),
         "Extension ID should use dot notation: {}",
@@ -1034,7 +1034,7 @@ fn test_extension_id_format() {
 /// Per spec §02 §4.10 — Extension has version field.
 #[test]
 fn test_extension_version_present() {
-    let ext = cdx_core::Extension::new("codex.semantic", "0.1", true);
+    let ext = cdx_core::Extension::new("cdx.semantic", "0.1", true);
     assert!(!ext.version.is_empty(), "Extension must have a version");
 
     // Verify it serializes with the version field
@@ -1533,7 +1533,7 @@ fn test_undeclared_extension_produces_warning() {
 /// Per spec §extensions — Extension ID format and version presence in serialization.
 #[test]
 fn test_extension_declaration_serialization() {
-    let ext = cdx_core::Extension::required("codex.semantic", "0.1");
+    let ext = cdx_core::Extension::required("cdx.semantic", "0.1");
     let json = serde_json::to_value(&ext).unwrap();
 
     // Must have id, version, required fields

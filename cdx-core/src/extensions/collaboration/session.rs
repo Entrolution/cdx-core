@@ -1,4 +1,4 @@
-//! Collaboration session management for Codex documents.
+//! Collaboration session management for CDX documents.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

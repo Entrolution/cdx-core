@@ -2,7 +2,7 @@
 
 //! Digital signatures, encryption, and security features.
 //!
-//! This module provides cryptographic capabilities for Codex documents:
+//! This module provides cryptographic capabilities for CDX documents:
 //!
 //! - **Signatures**: ECDSA (ES256, ES384), EdDSA (Ed25519), RSA-PSS (PS256), ML-DSA-65 (post-quantum), and WebAuthn/FIDO2 digital signatures
 //! - **Encryption**: AES-256-GCM and ChaCha20-Poly1305 authenticated encryption

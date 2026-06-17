@@ -1,6 +1,6 @@
 //! Decrypt command implementation.
 //!
-//! Decrypts a Codex document that was encrypted with password-based encryption.
+//! Decrypts a CDX document that was encrypted with password-based encryption.
 
 #[cfg(feature = "encryption")]
 use anyhow::Context;

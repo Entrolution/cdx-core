@@ -38,7 +38,7 @@ impl Document {
     /// # Errors
     ///
     /// Returns an error if:
-    /// - The source is not a valid Codex archive
+    /// - The source is not a valid CDX archive
     /// - Required files are missing or malformed
     pub fn open_from_reader<R: Read + Seek>(reader: R) -> Result<Self> {
         let mut cdx_reader = CdxReader::new(reader)?;
@@ -49,7 +49,7 @@ impl Document {
     ///
     /// # Errors
     ///
-    /// Returns an error if the data is not a valid Codex document.
+    /// Returns an error if the data is not a valid CDX document.
     pub fn from_bytes(data: Vec<u8>) -> Result<Self> {
         let mut reader = CdxReader::from_bytes(data)?;
         Self::from_reader(&mut reader)

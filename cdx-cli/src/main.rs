@@ -1,6 +1,6 @@
-//! Codex Document Format CLI
+//! CDX Document Format CLI
 //!
-//! A command-line tool for working with Codex Document Format (.cdx) files.
+//! A command-line tool for working with CDX Document Format (.cdx) files.
 
 #![warn(clippy::pedantic)]
 #![allow(clippy::module_name_repetitions)]

@@ -4,7 +4,7 @@ This guide covers how extensions work in cdx-core: the built-in extension types,
 
 ## Extension Architecture
 
-Extensions add domain-specific functionality to Codex documents without modifying the core content model. Each extension:
+Extensions add domain-specific functionality to CDX documents without modifying the core content model. Each extension:
 
 - Lives in its own namespace (e.g., `forms`, `semantic`, `collaboration`)
 - Stores data in a dedicated archive path (e.g., `forms/data.json`)
@@ -86,13 +86,13 @@ Extensions must be declared in the manifest to be recognized:
 use cdx_core::manifest::Extension;
 
 // Required extension - readers that don't support it must reject the document
-let ext = Extension::required("codex.semantic", "0.1");
+let ext = Extension::required("cdx.semantic", "0.1");
 
 // Optional extension - readers can safely ignore it
-let ext = Extension::optional("codex.forms", "0.1");
+let ext = Extension::optional("cdx.forms", "0.1");
 ```
 
-The ID format is `"codex.{namespace}"` for built-in extensions. Custom extensions use `"org.example.custom"`.
+The ID format is `"cdx.{namespace}"` for built-in extensions. Custom extensions use `"org.example.custom"`.
 
 Query extensions on a manifest:
 

@@ -154,7 +154,7 @@ mod tests {
         // Declare the extension
         doc.manifest_mut()
             .extensions
-            .push(Extension::required("codex.semantic", "0.1"));
+            .push(Extension::required("cdx.semantic", "0.1"));
 
         let report = doc.validate_extensions();
         assert!(report.is_valid());
@@ -220,7 +220,7 @@ mod tests {
         // Only declare semantic, not forms
         doc.manifest_mut()
             .extensions
-            .push(Extension::required("codex.semantic", "0.1"));
+            .push(Extension::required("cdx.semantic", "0.1"));
 
         let report = doc.validate_extensions();
         assert!(!report.is_valid()); // forms not declared

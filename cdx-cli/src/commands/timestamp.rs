@@ -1,6 +1,6 @@
 //! Timestamp command implementations.
 //!
-//! Commands for managing timestamp records in Codex documents.
+//! Commands for managing timestamp records in CDX documents.
 
 use anyhow::{Context, Result};
 use cdx_core::provenance::{TimestampMethod, TimestampRecord};

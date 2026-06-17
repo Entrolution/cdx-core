@@ -135,14 +135,14 @@ src/
 ## Adding New Features
 
 1. **Discuss first**: Open an issue to discuss significant changes
-2. **Spec compliance**: Ensure changes align with the Codex specification
+2. **Spec compliance**: Ensure changes align with the CDX specification
 3. **Backward compatibility**: Avoid breaking changes unless necessary
 4. **Testing**: Add tests for new functionality
 5. **Documentation**: Update rustdoc and README as needed
 
 ## Specification Reference
 
-This library implements the [Codex Document Format Specification](https://github.com/Entrolution/codex-file-format-spec). When implementing new features:
+This library implements the [CDX Document Format Specification](https://github.com/Entrolution/codex-file-format-spec). When implementing new features:
 
 - Reference the relevant spec section
 - Note any deviations or extensions
