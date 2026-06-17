@@ -7,7 +7,7 @@
 
 # cdx-core
 
-Core Rust library for reading, writing, and validating [CDX Document Format](https://github.com/Entrolution/codex-file-format-spec) (`.cdx`) files.
+Core Rust library for reading, writing, and validating [CDX Document Format](https://github.com/Entrolution/cdx-file-format-spec) (`.cdx`) files.
 
 ## Overview
 
@@ -161,7 +161,7 @@ cargo run --example open_and_verify path/to/document.cdx
 
 ## Specification Compliance
 
-This library implements the [CDX Document Format Specification v0.1](https://github.com/Entrolution/codex-file-format-spec).
+This library implements the [CDX Document Format Specification v0.1](https://github.com/Entrolution/cdx-file-format-spec).
 
 ### Module Status
 
