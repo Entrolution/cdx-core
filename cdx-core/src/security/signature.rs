@@ -9,7 +9,7 @@ use crate::DocumentId;
 
 /// Signature file structure.
 ///
-/// This represents the `security/signatures.json` file in a Codex document.
+/// This represents the `security/signatures.json` file in a CDX document.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SignatureFile {
@@ -127,7 +127,7 @@ pub struct Signature {
 /// WebAuthn/FIDO2 signature data.
 ///
 /// Contains the assertion response from a WebAuthn authenticator.
-/// All fields are base64-encoded as per the Codex specification.
+/// All fields are base64-encoded as per the CDX specification.
 ///
 /// # Verification
 ///

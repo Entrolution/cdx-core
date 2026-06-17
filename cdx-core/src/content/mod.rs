@@ -1,7 +1,7 @@
 //! Content blocks and text representation.
 //!
 //! The content layer represents document content as a tree of semantic blocks.
-//! This module provides types for all content blocks defined in the Codex specification.
+//! This module provides types for all content blocks defined in the CDX specification.
 //!
 //! # Content Structure
 //!

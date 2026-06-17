@@ -1,6 +1,6 @@
 //! Encrypt command implementation.
 //!
-//! Encrypts a Codex document using AES-256-GCM with password-based key derivation.
+//! Encrypts a CDX document using AES-256-GCM with password-based key derivation.
 
 #[cfg(feature = "encryption")]
 use anyhow::Context;

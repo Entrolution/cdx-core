@@ -6,7 +6,7 @@ use std::path::PathBuf;
 
 #[derive(Parser)]
 #[command(name = "cdx")]
-#[command(author, version, about = "Codex Document Format CLI", long_about = None)]
+#[command(author, version, about = "CDX Document Format CLI", long_about = None)]
 #[command(propagate_version = true)]
 pub struct Cli {
     #[command(subcommand)]
@@ -38,7 +38,7 @@ pub enum ColorChoice {
 
 #[derive(Subcommand)]
 pub enum Commands {
-    /// Create a new Codex document
+    /// Create a new CDX document
     Create {
         /// Document title (required)
         #[arg(short, long)]
@@ -62,13 +62,13 @@ pub enum Commands {
 
     /// Validate document structure and hashes
     Validate {
-        /// Codex document to validate
+        /// CDX document to validate
         file: PathBuf,
     },
 
     /// Display document information
     Inspect {
-        /// Codex document to inspect
+        /// CDX document to inspect
         file: PathBuf,
 
         /// Show detailed block information
@@ -86,13 +86,13 @@ pub enum Commands {
 
     /// Show comprehensive document status
     Status {
-        /// Codex document to check
+        /// CDX document to check
         file: PathBuf,
     },
 
     /// Add a digital signature
     Sign {
-        /// Codex document to sign
+        /// CDX document to sign
         file: PathBuf,
 
         /// Private key file (PEM format)
@@ -118,7 +118,7 @@ pub enum Commands {
 
     /// Verify signatures and integrity
     Verify {
-        /// Codex document to verify
+        /// CDX document to verify
         file: PathBuf,
 
         /// Public key file(s) for signature verification
@@ -128,7 +128,7 @@ pub enum Commands {
 
     /// Extract content or assets
     Extract {
-        /// Codex document to extract from
+        /// CDX document to extract from
         file: PathBuf,
 
         /// Output directory for extraction
@@ -161,7 +161,7 @@ pub enum Commands {
     /// Submit document for review (draft → review)
     #[command(name = "submit-review")]
     SubmitReview {
-        /// Codex document to submit
+        /// CDX document to submit
         file: PathBuf,
 
         /// Output file (default: overwrite input)
@@ -171,7 +171,7 @@ pub enum Commands {
 
     /// Freeze document (review → frozen)
     Freeze {
-        /// Codex document to freeze
+        /// CDX document to freeze
         file: PathBuf,
 
         /// Output file (default: overwrite input)
@@ -181,7 +181,7 @@ pub enum Commands {
 
     /// Publish document (frozen → published)
     Publish {
-        /// Codex document to publish
+        /// CDX document to publish
         file: PathBuf,
 
         /// Output file (default: overwrite input)
@@ -191,7 +191,7 @@ pub enum Commands {
 
     /// Revert document to draft (review → draft)
     Revert {
-        /// Codex document to revert
+        /// CDX document to revert
         file: PathBuf,
 
         /// Output file (default: overwrite input)
@@ -201,7 +201,7 @@ pub enum Commands {
 
     /// Fork document to create new version with lineage
     Fork {
-        /// Codex document to fork
+        /// CDX document to fork
         file: PathBuf,
 
         /// Output file for the forked document
@@ -215,7 +215,7 @@ pub enum Commands {
 
     /// Generate a Merkle proof for a block
     Prove {
-        /// Codex document
+        /// CDX document
         file: PathBuf,
 
         /// Block ID to prove
@@ -234,7 +234,7 @@ pub enum Commands {
     /// Verify a Merkle proof against a document
     #[command(name = "verify-proof")]
     VerifyProof {
-        /// Codex document
+        /// CDX document
         file: PathBuf,
 
         /// Proof JSON file
@@ -244,21 +244,21 @@ pub enum Commands {
     /// Show document lineage (ancestor chain)
     #[command(name = "show-lineage")]
     ShowLineage {
-        /// Codex document
+        /// CDX document
         file: PathBuf,
     },
 
     /// Display document metadata
     #[command(name = "get-metadata")]
     GetMetadata {
-        /// Codex document
+        /// CDX document
         file: PathBuf,
     },
 
     /// Set document metadata fields
     #[command(name = "set-metadata")]
     SetMetadata {
-        /// Codex document
+        /// CDX document
         file: PathBuf,
 
         /// Set title
@@ -308,7 +308,7 @@ pub enum Commands {
         from_json: bool,
     },
 
-    /// Compare two Codex documents
+    /// Compare two CDX documents
     Diff {
         /// First document
         file1: PathBuf,
@@ -320,21 +320,21 @@ pub enum Commands {
     /// Show timestamps in a document
     #[command(name = "show-timestamps")]
     ShowTimestamps {
-        /// Codex document
+        /// CDX document
         file: PathBuf,
     },
 
     /// Verify timestamps in a document
     #[command(name = "verify-timestamps")]
     VerifyTimestamps {
-        /// Codex document
+        /// CDX document
         file: PathBuf,
     },
 
     /// Add a timestamp record to a document
     #[command(name = "add-timestamp")]
     AddTimestamp {
-        /// Codex document
+        /// CDX document
         file: PathBuf,
 
         /// Timestamp method (rfc3161, bitcoin, ethereum, opentimestamps)
@@ -365,7 +365,7 @@ pub enum Commands {
     /// Acquire a timestamp from a timestamp authority
     #[command(name = "timestamp-acquire")]
     TimestampAcquire {
-        /// Codex document to timestamp
+        /// CDX document to timestamp
         file: PathBuf,
 
         /// Timestamp method (rfc3161, ots, auto)
@@ -383,7 +383,7 @@ pub enum Commands {
 
     /// Encrypt a document with password-based encryption
     Encrypt {
-        /// Codex document to encrypt
+        /// CDX document to encrypt
         file: PathBuf,
 
         /// Password (will prompt if not provided)
@@ -397,7 +397,7 @@ pub enum Commands {
 
     /// Decrypt a password-encrypted document
     Decrypt {
-        /// Codex document to decrypt
+        /// CDX document to decrypt
         file: PathBuf,
 
         /// Password (will prompt if not provided)

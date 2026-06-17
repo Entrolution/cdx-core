@@ -1,4 +1,4 @@
-//! Example: Sign a Codex document with ECDSA (ES256).
+//! Example: Sign a CDX document with ECDSA (ES256).
 //!
 //! This example demonstrates how to sign a document using
 //! the security module's ECDSA signer.

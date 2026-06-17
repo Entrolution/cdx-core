@@ -108,7 +108,7 @@ pub enum FontStyle {
     Oblique,
 }
 
-/// A font asset embedded in a Codex document.
+/// A font asset embedded in a CDX document.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FontAsset {

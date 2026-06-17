@@ -309,7 +309,7 @@ pub struct CdxManifestInfo {
     pub state: CdxDocumentState,
     pub created: String,
     pub modified: String,
-    pub codex_version: String,
+    pub cdx_version: String,
     pub hash_algorithm: String,
 }
 

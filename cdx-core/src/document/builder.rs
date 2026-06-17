@@ -5,7 +5,7 @@ use crate::{DocumentId, DocumentState, HashAlgorithm, Manifest, Result};
 
 use super::Document;
 
-/// Builder for creating Codex documents.
+/// Builder for creating CDX documents.
 #[derive(Debug, Clone)]
 pub struct DocumentBuilder {
     title: String,

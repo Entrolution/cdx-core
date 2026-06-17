@@ -42,7 +42,7 @@ fn display_json_status(doc: &Document, file: &Path) -> Result<()> {
             "id": doc.id().to_string(),
             "state": doc.state().to_string(),
             "title": dc.title(),
-            "spec_version": manifest.codex,
+            "spec_version": manifest.cdx,
         },
         "integrity": {
             "valid": integrity_ok,

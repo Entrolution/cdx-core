@@ -7,18 +7,18 @@
 
 # cdx-core
 
-Core Rust library for reading, writing, and validating [Codex Document Format](https://github.com/Entrolution/codex-file-format-spec) (`.cdx`) files.
+Core Rust library for reading, writing, and validating [CDX Document Format](https://github.com/Entrolution/codex-file-format-spec) (`.cdx`) files.
 
 ## Overview
 
-Codex is an open document format designed for:
+CDX is an open document format designed for:
 
 - **Semantic content** - Structured content blocks, not just rendered output
 - **Verifiable integrity** - Content-addressable hashing and digital signatures
 - **Machine readability** - JSON-based format with well-defined schemas
 - **Modern security** - Built-in support for signatures and encryption
 
-This library provides the foundational capabilities for working with Codex documents in Rust, with support for WASM compilation.
+This library provides the foundational capabilities for working with CDX documents in Rust, with support for WASM compilation.
 
 ## Features
 
@@ -79,9 +79,9 @@ fn main() -> Result<()> {
         .title("My Document")
         .creator("Jane Doe")
         .add_heading(1, "Introduction")
-        .add_paragraph("This is my first Codex document.")
+        .add_paragraph("This is my first CDX document.")
         .add_heading(2, "Features")
-        .add_paragraph("Codex provides semantic structure and verifiable integrity.")
+        .add_paragraph("CDX provides semantic structure and verifiable integrity.")
         .build()?;
 
     // Compute the document ID
@@ -161,7 +161,7 @@ cargo run --example open_and_verify path/to/document.cdx
 
 ## Specification Compliance
 
-This library implements the [Codex Document Format Specification v0.1](https://github.com/Entrolution/codex-file-format-spec).
+This library implements the [CDX Document Format Specification v0.1](https://github.com/Entrolution/codex-file-format-spec).
 
 ### Module Status
 

@@ -105,7 +105,7 @@ pub fn run(
     Ok(())
 }
 
-/// Extract assets from a Codex document.
+/// Extract assets from a CDX document.
 fn extract_assets(
     file: &Path,
     output_dir: &Path,

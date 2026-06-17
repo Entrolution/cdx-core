@@ -1,7 +1,7 @@
 //! Presentation layer types.
 //!
 //! Presentation layers define how semantic content is rendered visually.
-//! Codex supports three presentation types:
+//! CDX supports three presentation types:
 //!
 //! - [`Paginated`] - Fixed pages for print/PDF
 //! - [`Continuous`] - Vertical scroll for screens

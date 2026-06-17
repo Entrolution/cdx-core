@@ -7,7 +7,7 @@ use std::path::Path;
 
 use crate::output::OutputConfig;
 
-/// Compare two Codex documents.
+/// Compare two CDX documents.
 pub fn run(file1: &Path, file2: &Path, config: &OutputConfig) -> Result<()> {
     config.verbose(&format!(
         "Comparing: {} vs {}",

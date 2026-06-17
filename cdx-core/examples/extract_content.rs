@@ -1,4 +1,4 @@
-//! Example: Extract text content from a Codex document.
+//! Example: Extract text content from a CDX document.
 //!
 //! This example demonstrates how to iterate over the content blocks
 //! in a document and extract text.

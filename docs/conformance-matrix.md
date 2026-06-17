@@ -1,6 +1,6 @@
-# Codex Specification Conformance Matrix
+# CDX Specification Conformance Matrix
 
-This document maps requirements from the [Codex File Format Specification](../codex-file-format-spec/) to test coverage in cdx-core.
+This document maps requirements from the [CDX File Format Specification](../codex-file-format-spec/) to test coverage in cdx-core.
 
 ## Legend
 
@@ -23,7 +23,7 @@ This document maps requirements from the [Codex File Format Specification](../co
 
 | Spec Section | Requirement | Test File | Test Name | Status |
 |--------------|-------------|-----------|-----------|--------|
-| §3.2 | `codex` version required | manifest.rs | test_manifest_creation | PASS |
+| §3.2 | `cdx` version required | manifest.rs | test_manifest_creation | PASS |
 | §3.2 | `id` required (format: `algorithm:hexdigest` or `pending`) | tests/conformance.rs | test_manifest_id_valid_hash_pattern | PASS |
 | §3.2 | `state` required (draft/review/frozen/published) | manifest.rs | test_manifest_validation | PASS |
 | §3.2 | `created` timestamp required (ISO 8601) | tests/conformance.rs | test_manifest_timestamps_iso8601 | PASS |

@@ -1,6 +1,6 @@
 //! Encryption support using AES-256-GCM and ChaCha20-Poly1305.
 //!
-//! This module provides encryption and decryption capabilities for Codex documents
+//! This module provides encryption and decryption capabilities for CDX documents
 //! using authenticated encryption algorithms (AEAD).
 
 use serde::{Deserialize, Serialize};
@@ -1131,7 +1131,7 @@ mod key_wrapping_tests {
         // 1. Generate content encryption key and encrypt content
         let content_key = Aes256GcmEncryptor::generate_key();
         let encryptor = Aes256GcmEncryptor::new(&content_key).unwrap();
-        let plaintext = b"Codex document content for encryption";
+        let plaintext = b"CDX document content for encryption";
         let encrypted = encryptor.encrypt(plaintext).unwrap();
 
         // 2. Wrap the content key for the recipient
@@ -1282,7 +1282,7 @@ mod rsa_oaep_tests {
         // Encrypt content
         let content_key = Aes256GcmEncryptor::generate_key();
         let encryptor = Aes256GcmEncryptor::new(&content_key).unwrap();
-        let plaintext = b"Codex document encrypted with RSA-OAEP key wrapping";
+        let plaintext = b"CDX document encrypted with RSA-OAEP key wrapping";
         let encrypted = encryptor.encrypt(plaintext).unwrap();
 
         // Wrap the content key
@@ -1435,7 +1435,7 @@ mod pbes2_tests {
         // Encrypt content
         let content_key = Aes256GcmEncryptor::generate_key();
         let encryptor = Aes256GcmEncryptor::new(&content_key).unwrap();
-        let plaintext = b"Codex document with password-based key wrapping";
+        let plaintext = b"CDX document with password-based key wrapping";
         let encrypted = encryptor.encrypt(plaintext).unwrap();
 
         // Wrap the content key with password

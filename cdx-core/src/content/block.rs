@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use super::Text;
 use crate::extensions::ExtensionBlock;
 
-/// Root content structure for a Codex document.
+/// Root content structure for a CDX document.
 ///
 /// The content file contains a version identifier and an array of blocks
 /// that make up the document content.

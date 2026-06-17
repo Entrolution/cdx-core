@@ -121,7 +121,7 @@ impl CdxDocument {
             state: CdxDocumentState::from(manifest.state),
             created: manifest.created.to_rfc3339(),
             modified: manifest.modified.to_rfc3339(),
-            codex_version: manifest.codex.clone(),
+            cdx_version: manifest.cdx.clone(),
             hash_algorithm: format!("{:?}", manifest.hash_algorithm),
         }
     }

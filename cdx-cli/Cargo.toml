@@ -5,9 +5,9 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Command-line interface for working with Codex Document Format (.cdx) files"
+description = "Command-line interface for working with CDX Document Format (.cdx) files"
 readme = "README.md"
-keywords = ["codex", "document", "cli", "format"]
+keywords = ["cdx", "document", "cli", "format"]
 categories = ["command-line-utilities"]
 documentation = "https://docs.rs/cdx-cli"
 

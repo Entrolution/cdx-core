@@ -1,4 +1,4 @@
-//! Legal extension for Codex documents.
+//! Legal extension for CDX documents.
 //!
 //! This extension provides specialized content types for legal documents
 //! including citations, tables of authorities, and court captions.

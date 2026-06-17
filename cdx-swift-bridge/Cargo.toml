@@ -3,7 +3,7 @@ name = "cdx-swift-bridge"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.88"
-description = "UniFFI bindings for cdx-core, exposing the Codex document format to Swift"
+description = "UniFFI bindings for cdx-core, exposing the CDX document format to Swift"
 license = "MIT OR Apache-2.0"
 
 [lib]

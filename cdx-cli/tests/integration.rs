@@ -647,7 +647,7 @@ fn test_help() {
         .arg("--help")
         .assert()
         .success()
-        .stdout(predicate::str::contains("Codex Document Format CLI"));
+        .stdout(predicate::str::contains("CDX Document Format CLI"));
 }
 
 #[test]
@@ -662,7 +662,7 @@ fn test_create_help() {
         .arg("--help")
         .assert()
         .success()
-        .stdout(predicate::str::contains("Create a new Codex document"));
+        .stdout(predicate::str::contains("Create a new CDX document"));
 }
 
 // =============================================================================

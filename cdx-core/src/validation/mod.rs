@@ -1,4 +1,4 @@
-//! JSON Schema validation for Codex Document Format files.
+//! JSON Schema validation for CDX Document Format files.
 //!
 //! This module provides validation functions for the core CDX file types:
 //! - Manifest (`manifest.json`)

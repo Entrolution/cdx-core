@@ -5,10 +5,10 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Core library for reading, writing, and validating Codex Document Format (.cdx) files"
+description = "Core library for reading, writing, and validating CDX Document Format (.cdx) files"
 documentation = "https://docs.rs/cdx-core"
 readme = "../README.md"
-keywords = ["codex", "document", "format", "semantic", "signatures"]
+keywords = ["cdx", "document", "format", "semantic", "signatures"]
 categories = ["encoding", "parser-implementations", "data-structures"]
 
 [lib]

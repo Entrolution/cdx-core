@@ -36,7 +36,7 @@ use serde_json::Value;
 
 use super::ExtensionBlock;
 
-/// A form field that can appear in a Codex document.
+/// A form field that can appear in a CDX document.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "fieldType", rename_all = "camelCase")]
 pub enum FormField {

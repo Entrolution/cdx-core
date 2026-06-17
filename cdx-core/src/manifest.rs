@@ -1,6 +1,6 @@
 //! Manifest structure and types.
 //!
-//! The manifest (`manifest.json`) is the root metadata structure of a Codex document.
+//! The manifest (`manifest.json`) is the root metadata structure of a CDX document.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -11,7 +11,7 @@ use crate::{DocumentId, DocumentState, HashAlgorithm};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Manifest {
     /// Specification version (e.g., "0.1").
-    pub codex: String,
+    pub cdx: String,
 
     /// Content-addressable document identifier.
     pub id: DocumentId,
@@ -75,7 +75,7 @@ impl Manifest {
     pub fn new(content: ContentRef, metadata: Metadata) -> Self {
         let now = Utc::now();
         Self {
-            codex: crate::SPEC_VERSION.to_string(),
+            cdx: crate::SPEC_VERSION.to_string(),
             id: DocumentId::pending(),
             state: DocumentState::Draft,
             created: now,
@@ -94,15 +94,15 @@ impl Manifest {
 
     /// Check if an extension is declared in the manifest.
     ///
-    /// Extension IDs use dot notation like "codex.semantic" or "codex.legal".
+    /// Extension IDs use dot notation like "cdx.semantic" or "cdx.legal".
     /// This method checks if the given namespace (e.g., "semantic", "legal")
     /// matches any declared extension.
     #[must_use]
     pub fn has_extension(&self, namespace: &str) -> bool {
-        // Check for exact match or codex.{namespace} format
+        // Check for exact match or cdx.{namespace} format
         self.extensions.iter().any(|ext| {
             ext.id == namespace
-                || ext.id == format!("codex.{namespace}")
+                || ext.id == format!("cdx.{namespace}")
                 || ext.id.ends_with(&format!(".{namespace}"))
         })
     }
@@ -114,7 +114,7 @@ impl Manifest {
     pub fn get_extension(&self, namespace: &str) -> Option<&Extension> {
         self.extensions.iter().find(|ext| {
             ext.id == namespace
-                || ext.id == format!("codex.{namespace}")
+                || ext.id == format!("cdx.{namespace}")
                 || ext.id.ends_with(&format!(".{namespace}"))
         })
     }
@@ -130,13 +130,13 @@ impl Manifest {
     /// # Errors
     ///
     /// Returns an error if:
-    /// - The Codex version is unsupported
+    /// - The CDX version is unsupported
     /// - State requirements are not met (e.g., frozen documents without signatures)
     pub fn validate(&self) -> crate::Result<()> {
         // Check version
-        if !self.codex.starts_with("0.") {
+        if !self.cdx.starts_with("0.") {
             return Err(crate::Error::UnsupportedVersion {
-                version: self.codex.clone(),
+                version: self.cdx.clone(),
             });
         }
 
@@ -319,7 +319,7 @@ pub struct SecurityRef {
 /// Extension declaration.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Extension {
-    /// Extension identifier (e.g., "codex.semantic", "codex.legal").
+    /// Extension identifier (e.g., "cdx.semantic", "cdx.legal").
     pub id: String,
 
     /// Extension version.
@@ -357,7 +357,7 @@ impl Extension {
 
     /// Extract the namespace from the extension ID.
     ///
-    /// For "codex.semantic", returns "semantic".
+    /// For "cdx.semantic", returns "semantic".
     /// For "semantic", returns "semantic".
     #[must_use]
     pub fn namespace(&self) -> &str {
@@ -494,7 +494,7 @@ mod tests {
         };
 
         let manifest = Manifest::new(content, metadata);
-        assert_eq!(manifest.codex, "0.1");
+        assert_eq!(manifest.cdx, "0.1");
         assert_eq!(manifest.state, DocumentState::Draft);
         assert!(manifest.id.is_pending());
     }
@@ -533,7 +533,7 @@ mod tests {
 
         let manifest = Manifest::new(content, metadata);
         let json = serde_json::to_string_pretty(&manifest).unwrap();
-        assert!(json.contains("\"codex\": \"0.1\""));
+        assert!(json.contains("\"cdx\": \"0.1\""));
         assert!(json.contains("\"state\": \"draft\""));
     }
 
@@ -694,28 +694,28 @@ mod tests {
 
     #[test]
     fn test_extension_new() {
-        let ext = Extension::new("codex.semantic", "0.1", true);
-        assert_eq!(ext.id, "codex.semantic");
+        let ext = Extension::new("cdx.semantic", "0.1", true);
+        assert_eq!(ext.id, "cdx.semantic");
         assert_eq!(ext.version, "0.1");
         assert!(ext.required);
     }
 
     #[test]
     fn test_extension_required() {
-        let ext = Extension::required("codex.legal", "0.1");
+        let ext = Extension::required("cdx.legal", "0.1");
         assert!(ext.required);
     }
 
     #[test]
     fn test_extension_optional() {
-        let ext = Extension::optional("codex.forms", "0.1");
+        let ext = Extension::optional("cdx.forms", "0.1");
         assert!(!ext.required);
     }
 
     #[test]
     fn test_extension_namespace() {
         assert_eq!(
-            Extension::new("codex.semantic", "0.1", true).namespace(),
+            Extension::new("cdx.semantic", "0.1", true).namespace(),
             "semantic"
         );
         assert_eq!(
@@ -745,10 +745,10 @@ mod tests {
         let mut manifest = Manifest::new(content, metadata);
         manifest
             .extensions
-            .push(Extension::required("codex.semantic", "0.1"));
+            .push(Extension::required("cdx.semantic", "0.1"));
         manifest
             .extensions
-            .push(Extension::optional("codex.legal", "0.1"));
+            .push(Extension::optional("cdx.legal", "0.1"));
 
         // Check by namespace
         assert!(manifest.has_extension("semantic"));
@@ -756,8 +756,8 @@ mod tests {
         assert!(!manifest.has_extension("forms"));
 
         // Check by full ID
-        assert!(manifest.has_extension("codex.semantic"));
-        assert!(manifest.has_extension("codex.legal"));
+        assert!(manifest.has_extension("cdx.semantic"));
+        assert!(manifest.has_extension("cdx.legal"));
     }
 
     #[test]
@@ -777,11 +777,11 @@ mod tests {
         let mut manifest = Manifest::new(content, metadata);
         manifest
             .extensions
-            .push(Extension::required("codex.semantic", "0.1"));
+            .push(Extension::required("cdx.semantic", "0.1"));
 
         let ext = manifest.get_extension("semantic");
         assert!(ext.is_some());
-        assert_eq!(ext.unwrap().id, "codex.semantic");
+        assert_eq!(ext.unwrap().id, "cdx.semantic");
         assert!(ext.unwrap().required);
 
         assert!(manifest.get_extension("forms").is_none());
@@ -804,31 +804,31 @@ mod tests {
         let mut manifest = Manifest::new(content, metadata);
         manifest
             .extensions
-            .push(Extension::required("codex.semantic", "0.1"));
+            .push(Extension::required("cdx.semantic", "0.1"));
         manifest
             .extensions
-            .push(Extension::optional("codex.forms", "0.1"));
+            .push(Extension::optional("cdx.forms", "0.1"));
 
         let ids = manifest.declared_extension_ids();
         assert_eq!(ids.len(), 2);
-        assert!(ids.contains(&"codex.semantic"));
-        assert!(ids.contains(&"codex.forms"));
+        assert!(ids.contains(&"cdx.semantic"));
+        assert!(ids.contains(&"cdx.forms"));
     }
 
     #[test]
     fn test_extension_serialization() {
-        let ext = Extension::required("codex.semantic", "0.1");
+        let ext = Extension::required("cdx.semantic", "0.1");
         let json = serde_json::to_string(&ext).unwrap();
-        assert!(json.contains("\"id\":\"codex.semantic\""));
+        assert!(json.contains("\"id\":\"cdx.semantic\""));
         assert!(json.contains("\"version\":\"0.1\""));
         assert!(json.contains("\"required\":true"));
     }
 
     #[test]
     fn test_extension_deserialization() {
-        let json = r#"{"id":"codex.legal","version":"0.1","required":false}"#;
+        let json = r#"{"id":"cdx.legal","version":"0.1","required":false}"#;
         let ext: Extension = serde_json::from_str(json).unwrap();
-        assert_eq!(ext.id, "codex.legal");
+        assert_eq!(ext.id, "cdx.legal");
         assert_eq!(ext.version, "0.1");
         assert!(!ext.required);
     }
@@ -978,7 +978,7 @@ mod tests {
     fn test_manifest_backward_compat_no_phantoms() {
         // Deserializing a manifest without the phantoms field should default to None
         let json = r#"{
-            "codex": "0.1",
+            "cdx": "0.1",
             "id": "pending",
             "state": "draft",
             "created": "2024-01-01T00:00:00Z",

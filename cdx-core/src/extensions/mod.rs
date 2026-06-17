@@ -1,6 +1,6 @@
-//! Extension framework for Codex documents.
+//! Extension framework for CDX documents.
 //!
-//! Extensions allow Codex documents to include specialized content types
+//! Extensions allow CDX documents to include specialized content types
 //! beyond the core block types. Each extension is namespaced (e.g., "forms",
 //! "semantic", "collaboration") and provides custom block types.
 //!

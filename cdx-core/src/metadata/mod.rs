@@ -1,11 +1,11 @@
-//! Metadata types for Codex documents.
+//! Metadata types for CDX documents.
 //!
 //! This module provides types for Dublin Core metadata and extended metadata
-//! as defined in the Codex specification.
+//! as defined in the CDX specification.
 //!
 //! # Dublin Core
 //!
-//! Dublin Core is the required metadata standard for Codex documents:
+//! Dublin Core is the required metadata standard for CDX documents:
 //!
 //! ```rust
 //! use cdx_core::metadata::DublinCore;

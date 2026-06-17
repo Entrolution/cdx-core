@@ -1,4 +1,4 @@
-//! Academic extension for Codex documents.
+//! Academic extension for CDX documents.
 //!
 //! This extension provides specialized content types for academic and
 //! scientific documents including theorems, proofs, exercises, and algorithms.

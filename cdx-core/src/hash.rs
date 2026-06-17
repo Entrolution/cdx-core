@@ -1,6 +1,6 @@
 //! Document hashing and content-addressable identity.
 //!
-//! Codex documents use content-addressable hashing as a core identity mechanism.
+//! CDX documents use content-addressable hashing as a core identity mechanism.
 //! The document's hash serves as its canonical identifier.
 
 use serde::{Deserialize, Serialize};

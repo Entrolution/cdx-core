@@ -1,4 +1,4 @@
-//! Archive reader for Codex documents.
+//! Archive reader for CDX documents.
 
 use std::fs::File;
 use std::io::{BufReader, Cursor, Read, Seek};
@@ -10,7 +10,7 @@ use crate::{Error, HashAlgorithm, Hasher, Manifest, Result};
 
 use super::{validate_path, CONTENT_PATH, DUBLIN_CORE_PATH, MANIFEST_PATH, PHANTOMS_PATH};
 
-/// Reader for Codex document archives.
+/// Reader for CDX document archives.
 ///
 /// `CdxReader` opens and validates `.cdx` files, providing access to their contents.
 /// The reader validates the archive structure on creation and provides lazy access
@@ -36,7 +36,7 @@ pub struct CdxReader<R: Read + Seek> {
 }
 
 impl CdxReader<BufReader<File>> {
-    /// Open a Codex document from a file path.
+    /// Open a CDX document from a file path.
     ///
     /// # Errors
     ///
@@ -61,7 +61,7 @@ impl CdxReader<BufReader<File>> {
 }
 
 impl CdxReader<Cursor<Vec<u8>>> {
-    /// Open a Codex document from bytes in memory.
+    /// Open a CDX document from bytes in memory.
     ///
     /// # Errors
     ///
@@ -396,7 +396,7 @@ mod tests {
     fn test_reader_from_bytes() {
         let data = create_test_archive();
         let reader = CdxReader::from_bytes(data).unwrap();
-        assert_eq!(reader.manifest().codex, "0.1");
+        assert_eq!(reader.manifest().cdx, "0.1");
     }
 
     #[test]
@@ -498,7 +498,7 @@ mod tests {
         writer
             .start_file::<&str, ()>(MANIFEST_PATH, Default::default())
             .unwrap();
-        writer.write_all(br#"{"codex":"0.1"}"#).unwrap();
+        writer.write_all(br#"{"cdx":"0.1"}"#).unwrap();
 
         // Add Dublin Core but no content
         writer
@@ -748,7 +748,7 @@ mod tests {
 
         // Now write manifest (not first)
         let manifest_json = r#"{
-            "codex": "0.1",
+            "cdx": "0.1",
             "id": "pending",
             "state": "draft",
             "created": "2024-01-01T00:00:00Z",
@@ -789,7 +789,7 @@ mod tests {
 
         // Manifest with UTF-8 BOM prefix
         let manifest_json = r#"{
-            "codex": "0.1",
+            "cdx": "0.1",
             "id": "pending",
             "state": "draft",
             "created": "2024-01-01T00:00:00Z",
@@ -824,7 +824,7 @@ mod tests {
             reader.is_ok(),
             "BOM-prefixed manifest should parse correctly"
         );
-        assert_eq!(reader.unwrap().manifest().codex, "0.1");
+        assert_eq!(reader.unwrap().manifest().cdx, "0.1");
     }
 
     #[test]

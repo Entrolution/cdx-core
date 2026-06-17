@@ -6,7 +6,7 @@ use thiserror::Error;
 /// Result type alias using [`enum@Error`].
 pub type Result<T> = std::result::Result<T, Error>;
 
-/// Errors that can occur when working with Codex documents.
+/// Errors that can occur when working with CDX documents.
 #[derive(Debug, Error)]
 pub enum Error {
     /// The file is not a valid ZIP archive.
@@ -35,8 +35,8 @@ pub enum Error {
         reason: String,
     },
 
-    /// The document's Codex version is not supported.
-    #[error("unsupported Codex version: {version}")]
+    /// The document's CDX version is not supported.
+    #[error("unsupported CDX version: {version}")]
     UnsupportedVersion {
         /// The unsupported version string.
         version: String,
@@ -266,7 +266,7 @@ mod tests {
         let err = Error::UnsupportedVersion {
             version: "99.0".to_string(),
         };
-        assert_eq!(err.to_string(), "unsupported Codex version: 99.0");
+        assert_eq!(err.to_string(), "unsupported CDX version: 99.0");
     }
 
     #[test]
