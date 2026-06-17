@@ -1006,6 +1006,8 @@ mod chacha_tests {
 }
 
 #[cfg(all(test, feature = "key-wrapping"))]
+// `wrapper`/`wrapped` is the natural wrap-an-object/get-a-wrapped-result idiom in these tests.
+#[allow(clippy::similar_names)]
 mod key_wrapping_tests {
     use super::*;
 
@@ -1206,6 +1208,8 @@ mod key_wrapping_tests {
 }
 
 #[cfg(all(test, feature = "key-wrapping-rsa"))]
+// `wrapper`/`wrapped` is the natural wrap-an-object/get-a-wrapped-result idiom in these tests.
+#[allow(clippy::similar_names)]
 mod rsa_oaep_tests {
     use super::*;
 
@@ -1330,6 +1334,8 @@ mod rsa_oaep_tests {
 }
 
 #[cfg(all(test, feature = "key-wrapping-pbes2"))]
+// `wrapper`/`wrapped` is the natural wrap-an-object/get-a-wrapped-result idiom in these tests.
+#[allow(clippy::similar_names)]
 mod pbes2_tests {
     use super::*;
 

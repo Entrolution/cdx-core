@@ -475,11 +475,11 @@ mod tests {
         let buffer = Cursor::new(Vec::new());
         let mut writer = zip::ZipWriter::new(buffer);
         writer
-            .start_file::<&str, ()>(CONTENT_PATH, Default::default())
+            .start_file::<&str, ()>(CONTENT_PATH, zip::write::FileOptions::default())
             .unwrap();
         writer.write_all(b"{}").unwrap();
         writer
-            .start_file::<&str, ()>(DUBLIN_CORE_PATH, Default::default())
+            .start_file::<&str, ()>(DUBLIN_CORE_PATH, zip::write::FileOptions::default())
             .unwrap();
         writer.write_all(b"{}").unwrap();
         let data = writer.finish().unwrap().into_inner();
@@ -496,13 +496,13 @@ mod tests {
 
         // Add manifest
         writer
-            .start_file::<&str, ()>(MANIFEST_PATH, Default::default())
+            .start_file::<&str, ()>(MANIFEST_PATH, zip::write::FileOptions::default())
             .unwrap();
         writer.write_all(br#"{"cdx":"0.1"}"#).unwrap();
 
         // Add Dublin Core but no content
         writer
-            .start_file::<&str, ()>(DUBLIN_CORE_PATH, Default::default())
+            .start_file::<&str, ()>(DUBLIN_CORE_PATH, zip::write::FileOptions::default())
             .unwrap();
         writer.write_all(b"{}").unwrap();
 
@@ -519,17 +519,17 @@ mod tests {
         let mut writer = zip::ZipWriter::new(buffer);
 
         writer
-            .start_file::<&str, ()>(MANIFEST_PATH, Default::default())
+            .start_file::<&str, ()>(MANIFEST_PATH, zip::write::FileOptions::default())
             .unwrap();
         writer.write_all(b"{ invalid json }").unwrap();
 
         writer
-            .start_file::<&str, ()>(CONTENT_PATH, Default::default())
+            .start_file::<&str, ()>(CONTENT_PATH, zip::write::FileOptions::default())
             .unwrap();
         writer.write_all(b"{}").unwrap();
 
         writer
-            .start_file::<&str, ()>(DUBLIN_CORE_PATH, Default::default())
+            .start_file::<&str, ()>(DUBLIN_CORE_PATH, zip::write::FileOptions::default())
             .unwrap();
         writer.write_all(b"{}").unwrap();
 
@@ -740,7 +740,7 @@ mod tests {
 
         // Write content BEFORE manifest
         writer
-            .start_file::<&str, ()>(CONTENT_PATH, Default::default())
+            .start_file::<&str, ()>(CONTENT_PATH, zip::write::FileOptions::default())
             .unwrap();
         writer
             .write_all(br#"{"version":"0.1","blocks":[]}"#)
@@ -757,12 +757,12 @@ mod tests {
             "metadata": { "dublinCore": "metadata/dublin-core.json" }
         }"#;
         writer
-            .start_file::<&str, ()>(MANIFEST_PATH, Default::default())
+            .start_file::<&str, ()>(MANIFEST_PATH, zip::write::FileOptions::default())
             .unwrap();
         writer.write_all(manifest_json.as_bytes()).unwrap();
 
         writer
-            .start_file::<&str, ()>(DUBLIN_CORE_PATH, Default::default())
+            .start_file::<&str, ()>(DUBLIN_CORE_PATH, zip::write::FileOptions::default())
             .unwrap();
         writer.write_all(br#"{"title":"Test"}"#).unwrap();
 
@@ -802,19 +802,19 @@ mod tests {
         bom_manifest.extend_from_slice(manifest_json.as_bytes());
 
         writer
-            .start_file::<&str, ()>(MANIFEST_PATH, Default::default())
+            .start_file::<&str, ()>(MANIFEST_PATH, zip::write::FileOptions::default())
             .unwrap();
         writer.write_all(&bom_manifest).unwrap();
 
         writer
-            .start_file::<&str, ()>(CONTENT_PATH, Default::default())
+            .start_file::<&str, ()>(CONTENT_PATH, zip::write::FileOptions::default())
             .unwrap();
         writer
             .write_all(br#"{"version":"0.1","blocks":[]}"#)
             .unwrap();
 
         writer
-            .start_file::<&str, ()>(DUBLIN_CORE_PATH, Default::default())
+            .start_file::<&str, ()>(DUBLIN_CORE_PATH, zip::write::FileOptions::default())
             .unwrap();
         writer.write_all(br#"{"title":"Test"}"#).unwrap();
 
