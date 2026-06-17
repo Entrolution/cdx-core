@@ -1471,7 +1471,7 @@ fn test_required_extension_unsupported_detection() {
         .map(String::as_str)
         .collect();
     assert!(
-        declared.iter().any(|n| *n == "unknown"),
+        declared.contains(&"unknown"),
         "Required extension should appear in declared list"
     );
 }
