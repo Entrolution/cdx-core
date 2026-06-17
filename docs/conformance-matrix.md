@@ -1,6 +1,6 @@
 # CDX Specification Conformance Matrix
 
-This document maps requirements from the [CDX File Format Specification](../codex-file-format-spec/) to test coverage in cdx-core.
+This document maps requirements from the [CDX File Format Specification](../cdx-file-format-spec/) to test coverage in cdx-core.
 
 ## Legend
 
