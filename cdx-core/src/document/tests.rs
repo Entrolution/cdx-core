@@ -224,7 +224,7 @@ fn test_extension_validation_mixed() {
     assert!(report.used_namespaces.contains(&"semantic".to_string()));
     assert!(report.used_namespaces.contains(&"forms".to_string()));
     assert_eq!(report.undeclared, vec!["forms"]);
-    assert!(report.warnings.len() == 1);
+    assert_eq!(report.warnings.len(), 1);
 }
 
 #[test]
