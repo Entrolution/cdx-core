@@ -6,6 +6,14 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  # A new push to the same PR or branch supersedes the run in flight. Without
+  # this every push queued a *fresh* full set of jobs alongside the old ones,
+  # so a branch pushed five times held five complete matrices at once — on
+  # paid Blacksmith runners, and with nothing reclaiming the superseded work.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
@@ -14,6 +22,12 @@ jobs:
   test:
     name: Test
     runs-on: blacksmith-2vcpu-ubuntu-2404
+    # Capped because the GitHub default is **six hours** per job, and this
+    # workflow is reachable from a fork pull request. Measured over the last
+    # six runs the slowest job here is 4m25s, so 20 minutes is roughly 5x
+    # headroom while removing the runaway: a stuck or hostile job now costs
+    # 20 minutes of a paid runner rather than a working day of one.
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v6
@@ -35,6 +49,7 @@ jobs:
   lint:
     name: Lint
     runs-on: blacksmith-2vcpu-ubuntu-2404
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
 
@@ -55,6 +70,7 @@ jobs:
   docs:
     name: Documentation
     runs-on: blacksmith-2vcpu-ubuntu-2404
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
 
@@ -72,6 +88,7 @@ jobs:
   msrv:
     name: MSRV (1.88)
     runs-on: blacksmith-2vcpu-ubuntu-2404
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
         with:
@@ -89,6 +106,7 @@ jobs:
   wasm:
     name: WASM Build
     runs-on: blacksmith-2vcpu-ubuntu-2404
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
 
@@ -106,6 +124,7 @@ jobs:
   cli-tests:
     name: CLI Integration Tests
     runs-on: blacksmith-2vcpu-ubuntu-2404
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
         with:
@@ -126,6 +145,7 @@ jobs:
   coverage:
     name: Coverage
     runs-on: blacksmith-2vcpu-ubuntu-2404
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
         with:
@@ -154,6 +174,7 @@ jobs:
   swift-bridge:
     name: Swift Bridge
     runs-on: blacksmith-2vcpu-ubuntu-2404
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
 
@@ -177,6 +198,7 @@ jobs:
   security:
     name: Security Audit
     runs-on: blacksmith-2vcpu-ubuntu-2404
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
 
@@ -201,6 +223,7 @@ jobs:
   benchmark:
     name: Benchmark
     runs-on: blacksmith-2vcpu-ubuntu-2404
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
 
@@ -240,6 +263,7 @@ jobs:
   feature-matrix:
     name: Feature Matrix (${{ matrix.features || 'no features' }})
     runs-on: blacksmith-2vcpu-ubuntu-2404
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
