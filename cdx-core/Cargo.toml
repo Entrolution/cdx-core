@@ -98,7 +98,7 @@ der = { version = "0.8", features = ["std"], optional = true }
 chrono = { version = "0.4", features = ["serde", "now"], default-features = false }
 
 # Derive macros for Display/AsRefStr
-strum = { version = "0.27", features = ["derive"] }
+strum = { version = "0.28", features = ["derive"] }
 
 # Error handling
 thiserror = "2.0"
